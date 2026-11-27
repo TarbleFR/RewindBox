@@ -1,0 +1,512 @@
+{
+  "description": "Synthetic Metal 3 replay. Times are milliseconds from submit to queue finish with one frame in flight. Paired rounds alternate process order. Pixel and draw-state digests are checked in the separate diagnostic and every timed process. Attachment byte counts are logical.",
+  "framework_commit": "cb5522e43c57bd23fe96197ded948937aae0a215",
+  "framework_sha256": "c9faf831015d8fb3e44b8d35965283e9507175e8374b8269dfb35705ca19187f",
+  "runs": [
+    {
+      "run": 46012315842,
+      "sha256": "6d6bf9e1cae747896924246d7413925e2a3de3ef750064bf880371bf06965c53",
+      "depth_stencil": {
+        "backend": "Metal3",
+        "pixel_digest": "f2c8d5939b7f046b",
+        "draw_state_digest": "f27ef3000ad1a93d",
+        "arms": {
+          "baseline": {
+            "per_frame": {
+              "draws": [
+                373.0
+              ],
+              "dispatches": [
+                1.0
+              ],
+              "engine_passes": [
+                11.0
+              ],
+              "render_encoders": [
+                11.0
+              ],
+              "compute_encoders": [
+                1.0
+              ],
+              "commits": [
+                1.0
+              ],
+              "barriers_fences": [
+                24.0
+              ],
+              "empty_ds_splits_saved": [
+                0.0
+              ],
+              "load_bytes": [
+                3997696
+              ],
+              "store_bytes": [
+                5128192
+              ]
+            },
+            "times_ms": [
+              [
+                6.475,
+                6.303,
+                5.712
+              ],
+              [
+                7.299,
+                5.863,
+                5.562
+              ],
+              [
+                5.816,
+                6.994,
+                6.038
+              ],
+              [
+                4.224,
+                4.542,
+                3.568
+              ],
+              [
+                5.662,
+                5.803,
+                5.689
+              ],
+              [
+                5.844,
+                7.38,
+                6.154
+              ],
+              [
+                5.34,
+                5.11,
+                5.787
+              ],
+              [
+                5.766,
+                5.661,
+                7.014
+              ],
+              [
+                5.689,
+                5.22,
+                5.012
+              ],
+              [
+                4.892,
+                3.598,
+                3.393
+              ],
+              [
+                6.05,
+                5.728,
+                5.295
+              ],
+              [
+                6.042,
+                5.295,
+                5.157
+              ]
+            ],
+            "latency_ms": {
+              "p50": 5.7005,
+              "p95": 7.0853,
+              "p99": 7.3517
+            }
+          },
+          "candidate": {
+            "per_frame": {
+              "draws": [
+                373.0
+              ],
+              "dispatches": [
+                1.0
+              ],
+              "engine_passes": [
+                9.0
+              ],
+              "render_encoders": [
+                9.0
+              ],
+              "compute_encoders": [
+                1.0
+              ],
+              "commits": [
+                1.0
+              ],
+              "barriers_fences": [
+                20.0
+              ],
+              "empty_ds_splits_saved": [
+                3.0
+              ],
+              "load_bytes": [
+                2293760
+              ],
+              "store_bytes": [
+                3555328
+              ]
+            },
+            "times_ms": [
+              [
+                5.634,
+                5.993,
+                5.822
+              ],
+              [
+                5.999,
+                5.06,
+                6.695
+              ],
+              [
+                5.734,
+                5.684,
+                5.549
+              ],
+              [
+                4.13,
+                3.951,
+                4.545
+              ],
+              [
+                5.577,
+                6.355,
+                5.446
+              ],
+              [
+                6.088,
+                5.534,
+                5.099
+              ],
+              [
+                6.151,
+                7.258,
+                12.027
+              ],
+              [
+                5.079,
+                4.13,
+                4.01
+              ],
+              [
+                3.726,
+                4.244,
+                3.539
+              ],
+              [
+                4.429,
+                4.13,
+                3.847
+              ],
+              [
+                5.153,
+                5.459,
+                6.044
+              ],
+              [
+                5.159,
+                4.944,
+                4.822
+              ]
+            ],
+            "latency_ms": {
+              "p50": 5.3025,
+              "p95": 6.8357,
+              "p99": 10.3578
+            }
+          }
+        },
+        "paired_median_percent": -5.28,
+        "paired_iqr_percent": [
+          -8.242,
+          -0.897
+        ],
+        "favorable_pairs": 9
+      },
+      "gob": {
+        "repetitions_per_arm": 5,
+        "output": {
+          "0": [
+            "GOB_METAL format=0x25 switch=0 compact_blits=0 pitch=1024 image=262144 payload=16384 preserved=245760 errors=0",
+            "GOB_METAL format=0x42 switch=0 compact_blits=0 pitch=1024 image=262144 payload=16384 preserved=245760 errors=0",
+            "GOB_METAL format=0x8b switch=0 compact_blits=0 pitch=1024 image=262144 payload=16384 preserved=245760 errors=0"
+          ],
+          "1": [
+            "GOB_METAL format=0x25 switch=1 compact_blits=1 pitch=256 image=16384 payload=16384 preserved=245760 errors=0",
+            "GOB_METAL format=0x42 switch=1 compact_blits=1 pitch=256 image=16384 payload=16384 preserved=245760 errors=0",
+            "GOB_METAL format=0x8b switch=1 compact_blits=1 pitch=256 image=16384 payload=16384 preserved=245760 errors=0"
+          ]
+        }
+      },
+      "air_barriers": {
+        "0": [
+          3,
+          8,
+          6
+        ],
+        "1": [
+          2,
+          6,
+          4
+        ]
+      },
+      "mesh_raster": "no completed raster output"
+    },
+    {
+      "run": 46015178063,
+      "sha256": "5574e95444b37d288977e07a0b0159ac0124a2235460f27db016f2b813177e55",
+      "depth_stencil": {
+        "backend": "Metal3",
+        "pixel_digest": "f2c8d5939b7f046b",
+        "draw_state_digest": "f27ef3000ad1a93d",
+        "arms": {
+          "baseline": {
+            "per_frame": {
+              "draws": [
+                373.0
+              ],
+              "dispatches": [
+                1.0
+              ],
+              "engine_passes": [
+                11.0
+              ],
+              "render_encoders": [
+                11.0
+              ],
+              "compute_encoders": [
+                1.0
+              ],
+              "commits": [
+                1.0
+              ],
+              "barriers_fences": [
+                24.0
+              ],
+              "empty_ds_splits_saved": [
+                0.0
+              ],
+              "load_bytes": [
+                3997696
+              ],
+              "store_bytes": [
+                5128192
+              ]
+            },
+            "times_ms": [
+              [
+                4.873,
+                4.435,
+                4.749
+              ],
+              [
+                4.626,
+                4.279,
+                4.503
+              ],
+              [
+                4.168,
+                3.788,
+                3.894
+              ],
+              [
+                5.788,
+                5.473,
+                6.656
+              ],
+              [
+                5.151,
+                4.621,
+                4.257
+              ],
+              [
+                3.843,
+                3.432,
+                3.315
+              ],
+              [
+                3.833,
+                3.484,
+                3.358
+              ],
+              [
+                3.983,
+                7.705,
+                3.315
+              ],
+              [
+                3.837,
+                3.904,
+                3.314
+              ],
+              [
+                4.891,
+                4.504,
+                4.05
+              ],
+              [
+                5.356,
+                4.841,
+                5.121
+              ],
+              [
+                3.873,
+                3.471,
+                3.551
+              ]
+            ],
+            "latency_ms": {
+              "p50": 4.2125,
+              "p95": 6.005,
+              "p99": 7.3378
+            }
+          },
+          "candidate": {
+            "per_frame": {
+              "draws": [
+                373.0
+              ],
+              "dispatches": [
+                1.0
+              ],
+              "engine_passes": [
+                9.0
+              ],
+              "render_encoders": [
+                9.0
+              ],
+              "compute_encoders": [
+                1.0
+              ],
+              "commits": [
+                1.0
+              ],
+              "barriers_fences": [
+                20.0
+              ],
+              "empty_ds_splits_saved": [
+                3.0
+              ],
+              "load_bytes": [
+                2293760
+              ],
+              "store_bytes": [
+                3555328
+              ]
+            },
+            "times_ms": [
+              [
+                4.076,
+                4.354,
+                3.671
+              ],
+              [
+                3.89,
+                3.332,
+                3.184
+              ],
+              [
+                3.81,
+                3.398,
+                3.312
+              ],
+              [
+                3.834,
+                3.326,
+                3.088
+              ],
+              [
+                3.991,
+                3.595,
+                3.41
+              ],
+              [
+                3.64,
+                3.221,
+                7.75
+              ],
+              [
+                3.775,
+                3.167,
+                3.188
+              ],
+              [
+                3.648,
+                3.153,
+                3.22
+              ],
+              [
+                3.666,
+                3.417,
+                3.207
+              ],
+              [
+                4.736,
+                4.394,
+                4.651
+              ],
+              [
+                4.065,
+                3.56,
+                3.06
+              ],
+              [
+                3.942,
+                3.343,
+                3.15
+              ]
+            ],
+            "latency_ms": {
+              "p50": 3.5775,
+              "p95": 4.6723,
+              "p99": 6.6951
+            }
+          }
+        },
+        "paired_median_percent": -13.454,
+        "paired_iqr_percent": [
+          -23.153,
+          -7.836
+        ],
+        "favorable_pairs": 10
+      },
+      "gob": {
+        "repetitions_per_arm": 5,
+        "output": {
+          "0": [
+            "GOB_METAL format=0x25 switch=0 compact_blits=0 pitch=1024 image=262144 payload=16384 preserved=245760 errors=0",
+            "GOB_METAL format=0x42 switch=0 compact_blits=0 pitch=1024 image=262144 payload=16384 preserved=245760 errors=0",
+            "GOB_METAL format=0x8b switch=0 compact_blits=0 pitch=1024 image=262144 payload=16384 preserved=245760 errors=0"
+          ],
+          "1": [
+            "GOB_METAL format=0x25 switch=1 compact_blits=1 pitch=256 image=16384 payload=16384 preserved=245760 errors=0",
+            "GOB_METAL format=0x42 switch=1 compact_blits=1 pitch=256 image=16384 payload=16384 preserved=245760 errors=0",
+            "GOB_METAL format=0x8b switch=1 compact_blits=1 pitch=256 image=16384 payload=16384 preserved=245760 errors=0"
+          ]
+        }
+      },
+      "array": {
+        "repetitions_per_arm": 5,
+        "output": {
+          "0": [
+            "GOB_ARRAY switch=0 layer=2 mip=1 subresources=24 payload=16384 staging=1048576 checked_bytes=22364160 errors=0"
+          ],
+          "1": [
+            "GOB_ARRAY switch=1 layer=2 mip=1 subresources=24 payload=16384 staging=16384 checked_bytes=22364160 errors=0"
+          ]
+        }
+      },
+      "air_barriers": {
+        "0": [
+          3,
+          8,
+          6
+        ],
+        "1": [
+          2,
+          6,
+          4
+        ]
+      },
+      "mesh_raster": "Mesh drawing unsupported on this GPU"
+    }
+  ]
+}

@@ -7038,6 +7038,49 @@
       "reading": "The CPU samples time deswizzle only. The encoded upload payload stays unchanged. The mesh counts describe generated program work. Source graphics paths at 0479 and 0480 are identical.",
       "evidence": "docs/evidence/s2arm-gpu-0481/README.md",
       "physical_device_status": "not measured"
+    },
+    {
+      "label": "gpu_0481_0483_0485_apple",
+      "timestamp": "2026-11-27",
+      "commit": "cb5522e43c57bd23fe96197ded948937aae0a215",
+      "run": 46015178063,
+      "host": "Apple paravirtual GPU, macOS 26, Metal3 replay; iOS frameworks built on macOS 15 and 26",
+      "replay_paired_rounds": 12,
+      "replay_frames_per_arm": 36,
+      "latency_ms": {
+        "baseline": {
+          "p50": 4.2125,
+          "p95": 6.005,
+          "p99": 7.3378
+        },
+        "candidate": {
+          "p50": 3.5775,
+          "p95": 4.6723,
+          "p99": 6.6951
+        }
+      },
+      "paired_latency_change_percent": -13.45,
+      "render_encoders_per_frame": [
+        11,
+        9
+      ],
+      "logical_load_bytes": [
+        3997696,
+        2293760
+      ],
+      "logical_store_bytes": [
+        5128192,
+        3555328
+      ],
+      "air_mesh_barriers": [
+        17,
+        12
+      ],
+      "mesh_raster": "unsupported on runner, exit 77",
+      "array_full_readback_bytes_per_trial": 22364160,
+      "array_trials_per_arm": 5,
+      "physical_device_status": "not measured",
+      "evidence": "docs/evidence/s2arm-gpu-0481/apple-results.json"
     }
   ],
   "accepted_optimizations": [
