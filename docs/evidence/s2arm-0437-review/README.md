@@ -161,3 +161,15 @@ Le remplacement du hachage 4 Kio de `pc_get()` par un test MRU 2 entrées + hach
 - **Suite `thermal_gpu_checks` macOS-26** : 16 tests C `-Werror`, `rb_dirty_range`, `t_rb_ubo_versions`, `t_nvn_ubd_index` (`--rb-uniform-ranges` et `--inflight` 0/1), `t_nvn_pso_batch` (`15/15`), `t_rb_clear_batch_metal`, `t_nvn_xqueue` (`14/14` × 4 modes), `t_thread`, `t_crash` (`15/15`), `t_svc_mem` (`213/213`), `t_far` (`111/111`), `t_nvn2` (`199/199`), `t_tdump_stress` (`300/300`) — **tous verts**.
 
 Les FPS, le temps GPU en jeu, la chauffe et la consommation sur iPhone 16 Pro Max (A18 Pro) restent **non mesurés** ; aucune extrapolation physique n’est produite. Prochain axe enregistré : audit du fil d’encodage Metal (`nvn_rec.h` mise en cache IMP / lots `rec_flush`) et des coûts CPU de pré-analyse des soumissions (`sdx_walk`, `udc`/`fb`/`defer`) + temps d’image GPU.
+
+## 0468 : répartition des appels du fil d’encodage
+
+Axe : coût Objective-C du fil d’encodage Metal (`nvn_rec.h`).
+
+- **Brouillon retiré.** Le gain combiné de `−23,58 %` du brouillon `bench_0468_rec.c` ne compte pas : il opposait un `objc_msgSend` simulé sous Linux et un `malloc` par proxy à des appels directs et à un pool.
+- **Rejeté : une seule section critique dans `rec_put`.** Verrous `4 800 → 2 700`, mais aucun gain reproductible : banc isolé [`bench_0468_lock.c`](dispatch/bench_0468_lock.c), 12 paires alternées, deux séries, médianes appariées `+2,98 %` / `+6,89 %` puis `−0,93 %` / `−4,05 %`, écarts interquartiles traversant zéro. ASan+UBSan et TSan : parité vérifiée.
+- **Retenu : `0468`, IMP mise en cache par type d’enregistrement et classe.** Mesure sur le runtime Apple (runner macOS 26 arm64, run [`45952496588`](https://github.com/TarbleFR/RewindBox/actions/runs/45952496588), [`rec_bench.m`](../../../build-utils/s2arm/engine/benchmarks/rec_bench.m), [CSV](dispatch/rec-dispatch-45952496588.csv)) : `7,735 → 4,653 ns` par enregistrement, médiane appariée `−34,73 %` (p25 `−48,42 %`, p75 `−29,02 %`), hachages identiques à chaque paire. Les corps de méthodes sont triviaux : la mesure borne la part de répartition, pas le travail Metal.
+- **Laissé de côté : réutiliser les remplaçants `DmRecEnc`.** `34,97` contre `0,38 ns`, soit environ 35 ns par encodeur ; le changement de propriété ne vaut pas le risque.
+- **Compilation.** Moteur compilé sur macOS 15 et 26 (run [`45953045391`](https://github.com/TarbleFR/RewindBox/actions/runs/45953045391)). Interrupteur `S2A_RB_REC_IMP=0`.
+
+Temps d’image, FPS et chauffe sur iPhone : non mesurés. Échecs consécutifs : 0 après `0468` (1 rejet dans le cycle). Prochain axe : coût CPU des pré-analyses de soumission (`sdx_walk`, `udc`/`fb`/`defer`) et temps d’image GPU.

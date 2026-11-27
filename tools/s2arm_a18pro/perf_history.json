@@ -6710,6 +6710,49 @@
         }
       },
       "scope_note": "Balanced 12-run paired host comparison (2x6 permutations) of 0436 baseline vs 0463 best intermediate vs 0466 candidate (0464+0465+0466). M03 exercises rb_vbuf_dirty_mask_take from rb_draw_fast_rule.h together with bench_core.c's modeled MRU pc_get; production nvn_mtl.m intentionally keeps the original 4 KiB pc_get() after isolated 5-regime rejection. M04 exercises real 0464 rb_args_ubo.h slot generation clocks, 8-byte rb_args_diff, CBUF skip and unclamped UBOLEN O(1) cache."
+    },
+    {
+      "schema_version": "2.0",
+      "timestamp": "2026-11-27T07:00:00+00:00",
+      "label": "0468_encode_thread_dispatch",
+      "host": {
+        "os": "macOS-26.7.2 arm64 (GitHub runner, virtual GPU)",
+        "run": 45952496588,
+        "commit": "868f349b3"
+      },
+      "runs_per_variant": 12,
+      "timing": "CLOCK_MONOTONIC, alternated order per pair, 40 repetitions of 156 672 records per sample",
+      "parity": "encoder and table hashes identical every pair",
+      "results": {
+        "dispatch_ns_per_record": {
+          "base_0467": 7.735,
+          "cached_imp": 4.6534,
+          "paired_median_pct": -34.73,
+          "p25_pct": -48.42,
+          "p75_pct": -29.02
+        },
+        "standin_ns": {
+          "fresh": 34.97,
+          "reused": 0.38
+        }
+      },
+      "linux_lock_merge": {
+        "bench": "bench_0468_lock.c",
+        "pairs": 12,
+        "asan_ubsan_tsan": "verify pass",
+        "paired_median_pct": {
+          "2000_recs": [
+            2.98,
+            -0.93
+          ],
+          "20000_recs": [
+            6.89,
+            -4.05
+          ]
+        },
+        "verdict": "rejected"
+      },
+      "physical_device_status": "not measured"
     }
   ],
   "accepted_optimizations": [
@@ -6760,6 +6803,11 @@
     {
       "patches": "0467",
       "basis": "Unit-test probe accounting correctness fix for patch 0462 in runtime/src/svc_mem.c: adds AMASK_PROBE_N(7) under S2A_UNIT_TEST after each 8-byte g_amask word load in query() so g_amask_probes accurately accounts for all 8 inspected host-page entries (zero cost in production builds). Restored native-test-svc_mem to 213/213 PASS on macOS-26 CI run 45945441918 while keeping 0462's 9.65x QueryMemory speedup."
+    },
+    {
+      "patches": "0468",
+      "basis": "Encode-thread rec_exec calls the frequent encoder and argument-table records through an IMP cached per record kind and receiver class (as RO_T_ADDR since 0073); nil receiver stays a no-op; S2A_RB_REC_IMP=0 restores objc_msgSend. Real Apple runtime probe (macOS 26 arm64 runner, run 45952496588, rec_bench.m, trivial bodies, 12 alternated pairs, hash parity): 7.735 -> 4.653 ns per record median (paired -34.73%, p25 -48.42%, p75 -29.02%). Metal work inside each call not measured; frame time and iPhone not measured. Stand-in reuse ([DmRecEnc new] per pass, 34.97 vs 0.38 ns) left out: ~35 ns per encoder, not worth changing ownership.",
+      "status": "compiled: engine CI run 45953045391 (commit 6f5bb0772), macos-15 and macos-26 green, patch 0468 applied (sha256 221a745e...); iOS frame time not measured"
     }
   ],
   "rejected_optimizations": [
@@ -6776,15 +6824,16 @@
     "Four GPU texture GOBs per group: 36 triplets with same-width A/A, 64 dispatches per sample; all five paired intervals include zero vs both controls. Keep production width one.",
     "Direct lane-wise comparison of effective UBO caps on stable cache hits: +13.53% and +10.82% CPU time across binary orders on Linux. Preserve all invalidation semantics.",
     "Bulk copy across virtually disjoint intervals changed results for two views of the same backing storage in three public texture functions. Keep the row-order semantics.",
-    "pc_get() MRU-first (2-slot linear probe) + 64 KiB page hash (addr >> 16): tested on 5 regimes x 6 runs (-O2, CPU 0, bench_pc_get.c); regressed 4 of 5 regimes (2pool_ring +18.6%, 4pool_ring +45.7% to +91.5% from 48 B slot copy churn, 16x4KB_adj 13.3x slower with misses 16 -> 194,148 from 64 KiB collisions, 64pool_rand +3.8% to +7.9%; only 32pool_rand improved -15.6%). Rejected; original 4 KiB pc_get() preserved untouched in nvn_mtl.m."
+    "pc_get() MRU-first (2-slot linear probe) + 64 KiB page hash (addr >> 16): tested on 5 regimes x 6 runs (-O2, CPU 0, bench_pc_get.c); regressed 4 of 5 regimes (2pool_ring +18.6%, 4pool_ring +45.7% to +91.5% from 48 B slot copy churn, 16x4KB_adj 13.3x slower with misses 16 -> 194,148 from 64 KiB collisions, 64pool_rand +3.8% to +7.9%; only 32pool_rand improved -15.6%). Rejected; original 4 KiB pc_get() preserved untouched in nvn_mtl.m.",
+    "0468 draft, rec_put single-lock block hand-over (rec_publish + free-block take in one critical section): locks 4800 -> 2700 and 47400 -> 24000, but the isolated Linux bench (bench_0468_lock.c, same records, same encode worker, 12 alternated pairs, twice) gave paired medians +2.98%/+6.89% then -0.93%/-4.05% with IQRs spanning zero. No reproducible gain; rejected. The draft's combined -23.58% (bench_0468_rec.c) is withdrawn: it compared a mocked objc_msgSend and a malloc per proxy against direct calls and a pool, not the engine."
   ],
   "remaining_bottlenecks": [
-    "Metal encode-thread Objective-C dispatch and command-buffer recording overhead (nvn_rec.h / dm-encode)",
+    "Metal encode-thread command recording: dispatch share reduced by 0468 (per-class IMP); the Metal work inside each call and DmRecEnc stand-in allocation (~35 ns per encoder) remain, unmeasured on device",
     "Submission lookahead and render-pass/copy analysis CPU cost (sdx_walk, udc/fb/defer lookaheads) and GPU frametime pacing",
     "First-use pipeline compilation and residency measured separately from CPU key construction",
     "Presentation queue scheduling, native frame pacing and physical iPhone 16 Pro Max 1x 60 FPS / thermal validation (unmeasured)"
   ],
-  "next_axis": "Audit and benchmark Metal encode-thread Objective-C dispatch overhead (nvn_rec.h IMP caching / rec_flush batching) and submission lookahead CPU cost (sdx_walk, udc/fb/defer pass analysis) + GPU frametime costs, with >= 5 balanced paired measurements vs 0436 baseline and 0467 best intermediate, strict ASan+UBSan/TSan parity checks, zero degradation, and macOS-26 Metal verification. Keep physical iPhone 16 Pro Max 1x 60 FPS and thermal validation explicitly unmeasured until tested on device.",
+  "next_axis": "Submission lookahead CPU cost (sdx_walk, udc/fb/defer pass analysis) and GPU frametime: isolate each lookahead on synthetic submissions with >= 5 alternated pairs vs 0436 baseline and 0468 best intermediate, parity of decisions, ASan+UBSan/TSan, zero degradation, macOS-26 Metal verification. iPhone 16 Pro Max 1x 60 FPS and thermal remain unmeasured.",
   "legacy_note": "First 21 entries are original host summaries. Their draft patch numbers describe historical experiments; numbers may differ from integrated engine patches. Cachegrind counters are on x86. The uncalibrated projections were withdrawn. No legacy entry establishes fidelity, A18 Pro frametime, GPU time, energy, RAM or FPS.",
   "initial_reference": "0426",
   "intermediate_reference": "0436 (8be902ac0)",
@@ -6801,8 +6850,10 @@
     "consecutive_rejections_after_0463_before_0464": 0,
     "rejected_during_0464_0466_cycle": 1,
     "consecutive_rejections_at_0466": 0,
-    "last_updated": "2026-11-27T05:47:00Z",
-    "consecutive_rejections_at_0467": 0
+    "last_updated": "2026-11-27T07:00:00Z",
+    "consecutive_rejections_at_0467": 0,
+    "consecutive_rejections_after_0468_lock_merge": 1,
+    "consecutive_rejections_at_0468": 0
   },
   "device_metrics": {
     "native_fps": null,
