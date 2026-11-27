@@ -1,0 +1,214 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 69cd45f8d..4d49f6fbf 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -276,7 +276,12 @@ static id<MTL4CommandBuffer> g_present_cb[3];
+ static id g_vt, g_ft, g_ct, g_up_ct, g_ot;   // a Metal 4 argument table on Metal 4, DmTable3 on Metal 3 (tab_new); g_ot: a task shader's (object stage, nvn_geometry.inc mtk_encode; the mesh stage shares g_vt)
+ static int g_mesh_ok;   // the device runs object / mesh pipelines (MTLGPUFamilyMetal3: Apple7+ / Mac2); a task / mesh draw without it is reported red and skipped
+ static int g_vbuf_cache = 1;   // DM_NVN_VBUF_CACHE=0 restores the uncached path for A/B measurements
++#include "rb_draw_fast_rule.h"   // RewindBox (patch 0465): dirty/bound bitmask for bind_vbufs()
+ static uint64_t g_vt_addr[31]; static uint32_t g_vt_valid;
++static uint16_t g_rb_vbuf_dirty = 0xffffu, g_rb_vbuf_bound = 0;
++static uint8_t g_rb_vbuf_aux_dirty = 1, g_rb_vbuf_push_was_nz = 0;
++static uint64_t g_rb_vbuf_gen = 0;
++static inline void rb_vbuf_mark_all(void) { g_rb_vbuf_dirty = 0xffffu; g_rb_vbuf_bound = 0xffffu; g_rb_vbuf_aux_dirty = 1; }
+ static uint64_t g_vbuf_resolve, g_vbuf_reuse, g_vbuf_set, g_vbuf_skip;
+ // RewindBox (patch 0073): the fragment and compute tables' slots as the vertex table's (g_vt_addr): what the main stream last wrote there (enc_r_args, enc_c_args; rb_tab_skip)
+ static uint64_t g_rb_ft_addr[31], g_rb_ct_addr[31]; static uint32_t g_rb_ft_valid, g_rb_ct_valid; static uint64_t g_rb_tab_set, g_rb_tab_skip;
+@@ -1068,7 +1073,7 @@ void mtl_init(void) {
+         atd.maxBufferBindCount = 31; atd.maxTextureBindCount = 1;
+         NSError *ate = nil;
+         g_vt = rec_table([g_dev newArgumentTableWithDescriptor:atd error:&ate]); if (!g_vt) MDIE("failed to create the vertex argument table: %s", ate.localizedDescription.UTF8String);
+-        g_vt_valid = 0;
++        g_vt_valid = 0; rb_vbuf_mark_all();
+         g_ft = rec_table([g_dev newArgumentTableWithDescriptor:atd error:&ate]); if (!g_ft) MDIE("failed to create the fragment argument table: %s", ate.localizedDescription.UTF8String);
+         g_ct = rec_table([g_dev newArgumentTableWithDescriptor:atd error:&ate]); if (!g_ct) MDIE("failed to create the compute argument table: %s", ate.localizedDescription.UTF8String);
+         g_ot = rec_table(tab_new(31, 1, 0, &ate));   // through tab_new: the object table is new code (avail / MTL4 ratchets)
+@@ -2583,12 +2588,16 @@ static inline void enc_r_blend_color(id<MTL4RenderCommandEncoder> e, float r, fl
+ static inline void enc_r_visibility(id<MTL4RenderCommandEncoder> e, MTLVisibilityResultMode m, NSUInteger o) { [e setVisibilityResultMode:m offset:o]; }
+ // The table persists across encoders and submissions. Track every write to it, including converted streams,
+ // transform feedback and shader arguments; helper passes with their own tables do not change this state.
+-static inline void enc_r_vbuf(id<MTL4RenderCommandEncoder> e, NSUInteger i, uint64_t gpu) {
++static inline void enc_r_vbuf_raw(id<MTL4RenderCommandEncoder> e, NSUInteger i, uint64_t gpu) {
+     (void)e; uint32_t bit = 1u << i;
+     if (g_vbuf_cache && (g_vt_valid & bit) && g_vt_addr[i] == gpu) { g_vbuf_skip++; return; }
+     if (rec_on() && !g_m3) rec_table_op(RO_T_ADDR, g_vt, gpu, i); else tab_addr(g_vt, gpu, i);
+     g_vt_addr[i] = gpu; g_vt_valid |= bit; g_vbuf_set++;
+ }
++static inline void enc_r_vbuf(id<MTL4RenderCommandEncoder> e, NSUInteger i, uint64_t gpu) {
++    if (__builtin_expect(i >= 13u, 0)) rb_vbuf_note_external_write((unsigned)i, &g_rb_vbuf_dirty, &g_rb_vbuf_aux_dirty);
++    enc_r_vbuf_raw(e, i, gpu);
++}
+ // RewindBox (patch 0073): unchanged fragment / compute slots are not written again (SC7: the submit thread spent about 10 ms of CPU a frame in the 765 test, f3696, encode_args 3.13 ms of it;
+ //   every draw and dispatch wrote each of its fragment / compute slots, recorded for the encode thread, which made the same setAddress again). As for the vertex table (enc_r_vbuf): the
+ //   table persists across encoders and submissions, and Metal takes its content at each draw / dispatch, so a slot already holding the address needs no write. Only on the main stream
+@@ -14861,11 +14870,43 @@ static void ubd_dirty(uint64_t lo, uint64_t hi) {
+ static id<MTLBuffer> g_vbuf_zero; static uint64_t g_vbuf_zero_gpu;
+ static void vbuf_zero(id en, int s) {   // en: the render encoder (plain id: MTL4 types stay inside the wrappers, mtl4 / avail ratchets)
+     if (!g_vbuf_zero) { g_vbuf_zero = [g_dev newBufferWithLength:64 options:MTLResourceStorageModeShared]; res_add(g_vbuf_zero); g_vbuf_zero_gpu = g_vbuf_zero.gpuAddress; }
+-    if (s >= 0) enc_r_vbuf(en, VB_SLOT(s), g_vbuf_zero_gpu);
++    if (s >= 0) enc_r_vbuf_raw(en, VB_SLOT(s), g_vbuf_zero_gpu);
+ }
++_Static_assert(VB_SLOT(13) == 29 && VB_SLOT(14) == 14 && VB_SLOT(15) == 15 && PUSH_SLOT == 13, "rb_draw_fast_rule.h vertex slot mapping");
+ static void bind_vbufs(id<MTL4RenderCommandEncoder> en) {
+     static struct { uint64_t addr, gpu, gen; } cache[16];
+     uint64_t gen = atomic_load_explicit(&g_pool_gen, memory_order_acquire);
++    if (__builtin_expect(g_vbuf_cache && !g_rlane && !g_m3, 1)) {
++        uint16_t dm = rb_vbuf_dirty_mask_take(&g_rb_vbuf_dirty, g_rb_vbuf_bound, gen, &g_rb_vbuf_gen);
++        while (dm) {
++            int s = __builtin_ctz(dm);
++            dm &= (uint16_t)(dm - 1);
++            uint64_t addr = S.vbuf[s].address, gpu;
++            if (!addr) { g_rb_vbuf_bound &= (uint16_t)~(1u << s); continue; }
++            if (cache[s].addr == addr && cache[s].gen == gen) { gpu = cache[s].gpu; g_vbuf_reuse++; }
++            else {
++                void *mb; uint64_t mo; g_vbuf_resolve++;
++                uint64_t pav; if (!gpu_addr_want(addr, 1, S.vbuf[s].size, &mb, &mo, &gpu, &pav)) { RED_ONCE(162, "vertex buffer slot %d address %#llx is in no memory pool: the slot reads zeros (first case)", s, (unsigned long long)addr); vbuf_zero(en, s); continue; }
++                cache[s].addr = addr; cache[s].gpu = gpu; cache[s].gen = gen;
++            }
++            enc_r_vbuf_raw(en, VB_SLOT(s), gpu);
++        }
++        const int wd_push_nz = (g_wd_push[0] != 0 || g_wd_push[1] != 0 || g_wd_push[2] != 0 || g_wd_push[3] != 0);
++        if (__builtin_expect(wd_push_nz || g_rb_vbuf_aux_dirty || g_rb_vbuf_push_was_nz, 0)) {
++            vbuf_zero(en, -1); uint64_t zero_gpu = g_vbuf_zero_gpu;
++            enc_r_vbuf_raw(en, 30, zero_gpu);
++            if (wd_push_nz) {
++                id<MTLBuffer> pb; size_t po = arena_alloc(sizeof g_wd_push, &pb); memcpy(g_cur_arena->cpu + po, g_wd_push, sizeof g_wd_push); enc_r_vbuf_raw(en, PUSH_SLOT, g_cur_arena->gpu + po);
++                g_rb_vbuf_push_was_nz = 1;
++            } else {
++                enc_r_vbuf_raw(en, PUSH_SLOT, zero_gpu);
++                g_rb_vbuf_push_was_nz = 0;
++            }
++            g_rb_vbuf_aux_dirty = 0;
++        }
++        return;
++    }
++    rb_vbuf_mark_all();
+     for (int s = 0; s < 16; s++) {
+         uint64_t addr = S.vbuf[s].address, gpu;
+         if (!addr) continue;
+@@ -14877,13 +14918,13 @@ static void bind_vbufs(id<MTL4RenderCommandEncoder> en) {
+             uint64_t pav; if (!gpu_addr_want(addr, 1, S.vbuf[s].size, &mb, &mo, &gpu, &pav)) { RED_ONCE(162, "vertex buffer slot %d address %#llx is in no memory pool: the slot reads zeros (first case)", s, (unsigned long long)addr); vbuf_zero(en, s); continue; }
+             cache[s].addr = addr; cache[s].gpu = gpu; cache[s].gen = gen;
+         }
+-        enc_r_vbuf(en, VB_SLOT(s), gpu);
++        enc_r_vbuf_raw(en, VB_SLOT(s), gpu);
+     }
+     vbuf_zero(en, -1); uint64_t zero_gpu = g_vbuf_zero_gpu;
+-    enc_r_vbuf(en, 30, zero_gpu);
++    enc_r_vbuf_raw(en, 30, zero_gpu);
+     if (g_wd_push[0] != 0 || g_wd_push[1] != 0 || g_wd_push[2] != 0 || g_wd_push[3] != 0) {   // S2Arm widen edge push (see g_wd_push): zero reads the zero buffer
+-        id<MTLBuffer> pb; size_t po = arena_alloc(sizeof g_wd_push, &pb); memcpy((uint8_t *)pb.contents + po, g_wd_push, sizeof g_wd_push); enc_r_vbuf(en, PUSH_SLOT, pb.gpuAddress + po);
+-    } else enc_r_vbuf(en, PUSH_SLOT, zero_gpu);
++        id<MTLBuffer> pb; size_t po = arena_alloc(sizeof g_wd_push, &pb); memcpy(g_cur_arena->cpu + po, g_wd_push, sizeof g_wd_push); enc_r_vbuf_raw(en, PUSH_SLOT, g_cur_arena->gpu + po);
++    } else enc_r_vbuf_raw(en, PUSH_SLOT, zero_gpu);
+ }
+ // Size of an attachment-less pass (rp_begin_ex_): the far corner of viewport 0, else of the scissor, clamped to Metal's 1..16384
+ static void bare_dims(NSUInteger *w, NSUInteger *h) {
+@@ -15190,6 +15231,7 @@ static void state_reset(void) {
+     g_pso_dirty = g_dss_dirty = 1;
+     g_rb_ed_dirty = ED_ALL;
+     rb_args_stage_bump_all_other(g_rb_stage_gens);
++    rb_vbuf_mark_all(); g_rb_vbuf_bound = 0;
+     for (int i = 0; i < 8; i++) S.blend[i] = (blend_st){i, NVN_BLEND_FUNC_ONE, NVN_BLEND_FUNC_ZERO, NVN_BLEND_FUNC_ONE, NVN_BLEND_FUNC_ZERO, NVN_BLEND_EQUATION_ADD, NVN_BLEND_EQUATION_ADD};
+     S.color = (color_st){0, NVN_LOGIC_OP_COPY, NVN_ALPHA_FUNC_ALWAYS}; S.chmask.mask = 0xffffffffu;
+     S.ms.enable = 1;   // NVN default (MultisampleStateSetDefaults): a game that never binds a multisample state keeps multisampling on (pso_key.msoff)
+@@ -19192,7 +19234,7 @@ static __unsafe_unretained id<MTLTexture> g_fb_src[4]; static __strong id<MTLTex
+ static uint8_t g_args_dirty[6] = {1, 1, 1, 1, 1, 1};
+ static uint64_t g_args_reg_seen, g_args_dirty_seen;
+ static inline void args_dirty_pass_begin(void) { memset(g_args_dirty, 1, sizeof g_args_dirty); rb_args_mod_all_other(g_rb_mod); g_rb_ed_dirty = ED_ALL; }
+-static inline void args_dirty_all(void) { args_dirty_pass_begin(); rb_args_stage_bump_all_other(g_rb_stage_gens); }
++static inline void args_dirty_all(void) { args_dirty_pass_begin(); rb_args_stage_bump_all_other(g_rb_stage_gens); rb_vbuf_mark_all(); }
+ static void rb_args_program_changed(int first, int end) {
+     if (rb_args_ubo_mode() != RB_ARGS_MODE_ON) {
+         args_dirty_all();
+@@ -20987,7 +21029,11 @@ static int state_op(uint32_t op, const void *a, uint32_t size) {
+             const p_bind_vattr *b = a; va_st at[16]; memcpy(at, b->st, 4 * b->n); for (int i = 0; i < b->n; i++) at[i].fmt = nvn_vattr_fmt_canon(at[i].fmt);
+             if (S.nattr != b->n || memcmp(S.attr, at, 4 * b->n)) { memcpy(S.attr, at, 4 * b->n); S.nattr = b->n; g_pso_dirty = 1; } break; }
+         case OP_BIND_VSTREAM: { const p_bind_vstream *b = a; if (S.nstream != b->n || memcmp(S.stream, b->st, 8 * b->n)) { memcpy(S.stream, b->st, 8 * b->n); S.nstream = b->n; g_pso_dirty = 1; } break; }
+-        case OP_BIND_VBUF: { p_bind_vbuf t; const p_bind_vbuf *b = bind_vbuf_rec(a, size, &t); memcpy(&S.vbuf[b->first], b->r, sizeof *b->r * b->n); break; }
++        case OP_BIND_VBUF: { p_bind_vbuf t; const p_bind_vbuf *b = bind_vbuf_rec(a, size, &t);
++            for (int k = 0; k < b->n; k++) { int s = b->first + k; if ((unsigned)s < 16u) {
++                if (S.vbuf[s].address != b->r[k].address || S.vbuf[s].size != b->r[k].size) { S.vbuf[s] = b->r[k]; g_rb_vbuf_dirty |= (uint16_t)(1u << s); }
++                if (b->r[k].address) g_rb_vbuf_bound |= (uint16_t)(1u << s); else g_rb_vbuf_bound &= (uint16_t)~(1u << s);
++            } } break; }
+         // RewindBox (patch 0325): a uniform binding marks a clean stage RB_ARGS_UNIFORM and leaves a marked one as it is (rb_args_ubo.h); S2A_RB_ARGS_UBO_ONLY=0: 1, as before
+         case OP_BIND_UBO: { p_bind_buf bt; const p_bind_buf *b = bb_fresh(a, &bt); if (b->stage < 6 && b->index < 16 && memcmp(&S.ubo[b->stage][b->index], b, sizeof *b)) { int sz_chg = S.ubo[b->stage][b->index].size != b->size || (S.ubo[b->stage][b->index].addr != 0) != (b->addr != 0); S.ubo[b->stage][b->index] = *b; g_args_dirty[b->stage] = rb_args_mark_uniform(g_args_dirty[b->stage], rb_args_ubo_mode()); rb_args_cause(b->stage, RB_ARGS_C_UNIFORM); rb_args_mod_ubo(&g_rb_mod[b->stage], (unsigned)b->index); rb_args_stage_bump_ubo(&g_rb_stage_gens[b->stage], (unsigned)b->index); if (sz_chg) g_rb_stage_gens[b->stage].ubo_size_gen++; g_rb_cont_ubo_gen[b->stage][b->index]++; } break; }
+         case OP_BIND_SSBO: { p_bind_buf bt; const p_bind_buf *b = bb_fresh(a, &bt); if (b->stage < 6 && b->index < 16 && memcmp(&S.ssbo[b->stage][b->index], b, sizeof *b)) { S.ssbo[b->stage][b->index] = *b; g_args_dirty[b->stage] = rb_args_mark_uniform(g_args_dirty[b->stage], rb_args_ubo_mode()); rb_args_cause(b->stage, RB_ARGS_C_STORAGE); rb_args_mod_ssbo(&g_rb_mod[b->stage], (unsigned)b->index); rb_args_stage_bump_ssbo(&g_rb_stage_gens[b->stage], (unsigned)b->index); } break; }   // RewindBox (patch 0423/0424/0464)
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index d3bb222e7..52e6ed021 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -283,6 +283,7 @@ int nvn_be_shutdown_session(void) {
+     memset(&g_rb_fb_prev, 0, sizeof g_rb_fb_prev);   // RewindBox (patch 0324): no substitution carried into the next session (every stage is marked below)
+     g_vt_valid = 0; memset(g_vt_addr, 0, sizeof g_vt_addr); memset(g_args_dirty, 1, sizeof g_args_dirty);
+     rb_args_stage_bump_all_other(g_rb_stage_gens); memset(g_rb_ubolen_fast, 0, sizeof g_rb_ubolen_fast);
++    rb_vbuf_mark_all(); g_rb_vbuf_gen = 0; g_rb_vbuf_push_was_nz = 0;
+     g_rb_ft_valid = g_rb_ct_valid = 0;   // RewindBox (patch 0073): new tables below (rb_tab_skip)
+     g_args_reg_seen = g_args_dirty_seen = 0; g_c0_dim_buf = nil;
+     for (int i = 0; i < 3; i++) { g_m3_sent_enc[i] = nil; g_m3_sent_tab[i] = nil; }
+diff --git a/graphics/nvn/gfx/nvn/rb_draw_fast_rule.h b/graphics/nvn/gfx/nvn/rb_draw_fast_rule.h
+new file mode 100644
+index 000000000..8a0e820bb
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_draw_fast_rule.h
+@@ -0,0 +1,39 @@
++// SPDX-License-Identifier: Apache-2.0
++// RewindBox (patch 0465): dirty/bound bitmask rule for bind_vbufs() (nvn_mtl.m).
++// Eliminates the per-draw 16-stream scan and redundant zero/push slot binds when
++// vertex streams are unchanged, while automatically invalidating streams whose
++// Metal vertex-table slots are overwritten by non-vbuf encoders (mesh slot 29 =
++// VB_SLOT(13), tessellation slots 20..25 = VB_SLOT(4..9), geometry capture slot
++// 13 = PUSH_SLOT, or slot 30 = zero buffer).
++#pragma once
++#include <stdint.h>
++
++// Inverse of VB_SLOT(st) = ((st) < 14 ? 16 + (st) : (st)).
++// Returns NVN vertex stream index 0..15 for Metal vertex-table slots 14..29, else -1.
++static inline int rb_vbuf_slot_to_stream(unsigned slot) {
++    if (slot >= 16u && slot <= 29u) return (int)(slot - 16u);
++    if (slot == 14u || slot == 15u) return (int)slot;
++    return -1;
++}
++
++// Called when code outside bind_vbufs() writes Metal vertex-table slot `slot`.
++// Re-dirties the aliased NVN stream (14..29) or aux slots (PUSH_SLOT=13, zero=30).
++static inline void rb_vbuf_note_external_write(unsigned slot, uint16_t *dirty_mask, uint8_t *aux_dirty) {
++    int st = rb_vbuf_slot_to_stream(slot);
++    if (st >= 0) *dirty_mask |= (uint16_t)(1u << st);
++    else if (slot == 13u || slot == 30u) *aux_dirty = 1;
++}
++
++// Consumes and returns the bitmask of bound vertex streams that must be resolved
++// and written to the vertex argument table on this draw. Forces all bound streams
++// dirty whenever g_pool_gen advances.
++static inline uint16_t rb_vbuf_dirty_mask_take(uint16_t *dirty_mask, uint16_t bound_mask,
++                                               uint64_t cur_pool_gen, uint64_t *last_pool_gen) {
++    uint16_t dm = *dirty_mask;
++    if (__builtin_expect(*last_pool_gen != cur_pool_gen, 0)) {
++        *last_pool_gen = cur_pool_gen;
++        dm |= bound_mask;
++    }
++    *dirty_mask = 0;
++    return (uint16_t)(dm & bound_mask);
++}
+diff --git a/graphics/nvn/gfx/nvn/rt_range_check.inc b/graphics/nvn/gfx/nvn/rt_range_check.inc
+index 7fba48afc..a8b79c49b 100644
+--- a/graphics/nvn/gfx/nvn/rt_range_check.inc
++++ b/graphics/nvn/gfx/nvn/rt_range_check.inc
+@@ -42,13 +42,13 @@ static void rr_finish(int ranged) {
+     if(g_rr_reg!=g_reg_gen||g_rr_ser!=g_ser_gen)MDIE("RT range oracle: resource generation changed, stopped before submit without comparing");
+     NSArray *candidate=rr_read(c,d);rr_copy(g_rr_initial[0],c);rr_copy(g_rr_initial[1],d);g_vis=[g_dev newBufferWithLength:VIS_SLOTS*8 options:MTLResourceStorageModeShared];g_vis_n=0;g_vis_cur=-1;g_vis_on=g_vis_counting=1;g_vs=NULL;g_nvs=g_vscap=0;g_exec_next=g_exec_cur=NULL;
+     id<MTLBuffer> refvis[2];int refslot[2];
+-    for(int i=0;i<2;i++){if(i)rb_rp_end_at(__func__, __LINE__);g_vis_cur=-1;memcpy(&S,&g_rr_s[i].s,sizeof S);R=g_rr_s[i].r;g_pso_dirty=g_dss_dirty=1;g_rb_ed_dirty=ED_ALL;rb_args_stage_bump_all_other(g_rb_stage_gens);rp_begin_ex(4); // In the original trace both passes are mode4; do not attach an extra stencil with mode0, which has no scan start point
++    for(int i=0;i<2;i++){if(i)rb_rp_end_at(__func__, __LINE__);g_vis_cur=-1;memcpy(&S,&g_rr_s[i].s,sizeof S);R=g_rr_s[i].r;g_pso_dirty=g_dss_dirty=1;g_rb_ed_dirty=ED_ALL;rb_args_stage_bump_all_other(g_rb_stage_gens);rb_vbuf_mark_all();rp_begin_ex(4); // In the original trace both passes are mode4; do not attach an extra stencil with mode0, which has no scan start point
+         draw(g_rr_s[i].indexed?NULL:&g_rr_s[i].dw,g_rr_s[i].indexed?&g_rr_s[i].di:NULL);refvis[i]=g_vis;refslot[i]=g_vis_cur;}rb_rp_end_at(__func__, __LINE__);
+     uint64_t original_passes=g_stat_pass-pass,original_bytes=g_bw_load-load+g_bw_store-store;NSArray *reference=rr_read(c,d);
+     if(g_rr_reg!=g_reg_gen||g_rr_ser!=g_ser_gen||g_rr_dirty!=nvn_dirty_now())MDIE("RT range oracle: resource/data generation changed while bound, stopped before submit without comparing");
+     rr_copy(saved[0],c);rr_copy(saved[1],d); // Subsequent commands read the candidate; the oracle must not overwrite it to force the screenshot green
+     NSArray *referencevis=@[refvis[0],refvis[1]];int refslot0=refslot[0],refslot1=refslot[1];vis_clear();free(g_vs);g_vs=oldvs;g_nvs=vsn;g_vscap=vscap;g_vis=oldvis;g_vis_n=visn;
+-    memcpy(&S,&ss,sizeof S);R=rs;g_exec_next=next;g_exec_cur=cur_op;g_vis_on=vis;g_vis_counting=counting;g_vis_cur=cur;g_vis_cur_pass=curpass;g_pso_dirty=g_dss_dirty=1;g_rb_ed_dirty=ED_ALL;rb_args_stage_bump_all_other(g_rb_stage_gens);g_stat_pass=pass;g_stat_draw=draws;g_bw_load=load;g_bw_store=store;g_pass_full_rw=full;g_sd_dead_bytes=dead;g_sd_n_dead=ndead;g_sd_n_all=nall;
++    memcpy(&S,&ss,sizeof S);R=rs;g_exec_next=next;g_exec_cur=cur_op;g_vis_on=vis;g_vis_counting=counting;g_vis_cur=cur;g_vis_cur_pass=curpass;g_pso_dirty=g_dss_dirty=1;g_rb_ed_dirty=ED_ALL;rb_args_stage_bump_all_other(g_rb_stage_gens);rb_vbuf_mark_all();g_stat_pass=pass;g_stat_draw=draws;g_bw_load=load;g_bw_store=store;g_pass_full_rw=full;g_sd_dead_bytes=dead;g_sd_n_dead=ndead;g_sd_n_all=nall;
+     uint64_t frame=g_rr_frame;unsigned vc=g_rr_s[1].indexed?g_rr_s[1].di.count:g_rr_s[1].dw.count;NSUInteger n=c.width*c.height;NSString *out=@(getenv("DM_NVN_RT_RANGE_CHECK"));
+     [g_cb addCompletedHandler:^(id<MTLCommandBuffer> cb){unsigned long long diff[3]={0};
+         unsigned long long av[2],rv[2];int as[2]={slot0,slot1},rs[2]={refslot0,refslot1};for(int k=0;k<2;k++){id<MTLBuffer> a=actualvis[k],r=referencevis[k];av[k]=((uint64_t *)a.contents)[as[k]];rv[k]=((uint64_t *)r.contents)[rs[k]];}if(use_before)av[0]-=*(uint64_t *)before.contents;const char *names[3]={"color","depth","stencil"};
