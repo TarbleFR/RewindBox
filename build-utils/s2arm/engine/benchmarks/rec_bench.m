@@ -152,7 +152,13 @@ static inline void sw_draw(uint64_t p, uint64_t n, uint64_t g) { srec *r = sput(
 - (void)setScissor:(uint64_t)a w:(uint64_t)b { sw_sc(a, b); } - (void)setCullMode:(uint64_t)m { sw_cull(m); } - (void)setStencilFront:(uint64_t)f back:(uint64_t)b { sw_sref(f, b); }
 - (void)drawIndexed:(uint64_t)p count:(uint64_t)n buffer:(uint64_t)g { sw_draw(p, n, g); }
 @end
-static inline int sdirect(id e) { static Class k; if (__builtin_expect(!k, 0)) k = [BStand class]; return e && object_getClass(e) == k; }
+// The receiver of the last test is held (strong), so its address cannot be reused by another object while it is the cached answer; the class is read once per new receiver
+static __strong id g_sd_last; static int g_sd_last_direct;
+static inline int sdirect(id e) {
+    if (__builtin_expect(e == g_sd_last, 1)) return g_sd_last_direct;
+    static Class k; if (!k) k = [BStand class];
+    g_sd_last = e; g_sd_last_direct = e && object_getClass(e) == k; return g_sd_last_direct;
+}
 static __attribute__((noinline)) void submit_side(int direct, id e, int passes, int draws) {
     for (int p = 0; p < passes; p++) for (int d = 0; d < draws; d++) {
         uint64_t g = 0x100000ull + (uint64_t)(p * 256 + d * 16);
