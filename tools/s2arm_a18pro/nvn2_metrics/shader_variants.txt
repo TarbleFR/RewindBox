@@ -1,0 +1,4 @@
+# name  ENV=VALUE ...  (first line = reference)
+baseline
+shader_opt_off   S2A_RB_SHADER_OPT=0
+wide_mem_off     S2A_RB_WIDE_MEM=0
