@@ -1,0 +1,45 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 384814a..f62804b 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -21937,6 +21937,10 @@ static int sdx_bucket(uint64_t ser, int add) {   // Returns the bucket number; r
+ }
+ static const uint8_t **g_sdx_op; static uint32_t g_sdx_nop, g_sdx_opcap;
+ static uint32_t g_exec_seq;   // Sequence number of the current operation during replay
++// RewindBox (patch 0470): each stage's live slots of g_pp_slot (ascending), rebuilt only after a bind touched that stage (g_pp_ldirty bit), for the draw whose program is not
++//   loaded yet (sdx_walk): it read all 6 x 288 slots. Same events in the same order. S2A_RB_SDX_LIVE=0 restores the full scan
++static uint16_t g_pp_live[6][NTEX + 32], g_pp_nlive[6]; static uint8_t g_pp_ldirty = 0x3f;
++static int rb_sdx_live_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_SDX_LIVE"); v = !(e && !strcmp(e, "0")); } return v; }
+ static uint64_t g_pp_slot[6][NTEX + 32]; static const prog_t *g_pp_prog, *g_pp_cprog; static const p_set_rt *g_pp_rt; static p_set_rt g_pp_rt_buf; static uint32_t g_pp_rtseq;   // g_pp_slot: textures, then images; g_pp_rt: NULL or &g_pp_rt_buf (the last SET_RT decoded, valid until the next one)
+ static uint32_t *g_rtx_seq, *g_drx_seq; static uint32_t g_rtx_n, g_rtx_cap, g_drx_n, g_drx_cap;   // This submit's SET_RT / draw sequence number tables (used by the pre-screen of the readable tile merge)
+ static void seq_push(uint32_t **v, uint32_t *n, uint32_t *cap, uint32_t x) { if (*n == *cap) { uint32_t c = *cap ? *cap * 2 : 1024; if (!grow_((void **)v, (size_t)c * sizeof **v, "sdx sequence")) return; *cap = c; } (*v)[(*n)++] = x; }
+@@ -22013,7 +22017,7 @@ static void sdx_walk(const uint8_t *p, int depth) {
+                 if ((c->stencil_mask & 0xff) == 0xff) sdx_ev_add((sdx_ev){seq, g_pp_rtseq, r->depth->serial, p, lv, sl, SDX_CLEAR, 2, !r->has_dview, 0});
+                 break; }
+             case OP_BIND_TEX: case OP_BIND_TEX1: case OP_BIND_IMG: { p_bind_handles t1; const p_bind_handles *b = bind_rec(h.op, a, &t1); bh_fresh(b); int base = h.op == OP_BIND_IMG ? NTEX : 0, lim = h.op == OP_BIND_IMG ? 32 : NTEX;
+-                if (b->stage < 6 && b->first >= 0 && b->first + b->n <= lim) for (int k = 0; k < b->n; k++) g_pp_slot[b->stage][base + b->first + k] = h_ser(b->h[k]);
++                if (b->stage < 6 && b->first >= 0 && b->first + b->n <= lim) { for (int k = 0; k < b->n; k++) g_pp_slot[b->stage][base + b->first + k] = h_ser(b->h[k]); g_pp_ldirty |= (uint8_t)(1u << b->stage); }   // RewindBox (patch 0470)
+                 break; }
+             case OP_BIND_PROGRAM: { p_bind_program bpt_; const p_bind_program *bp_ = bind_program_rec(a, h.size, &bpt_); if (bp_->stages & 0x20) g_pp_cprog = prog_live(bp_); if (bp_->stages & 0x1f) g_pp_prog = prog_live(bp_); break; }
+             case OP_DRAW: case OP_DRAW_IDX: case OP_MULTI_DRAW: case OP_DISPATCH: {
+@@ -22022,7 +22026,11 @@ static void sdx_walk(const uint8_t *p, int depth) {
+                 //   把冷键同步现编完。没装好的走下面已有的保守分支（绑定的槽都记成被读，存储不省），冷键留到它真正绘制时再编：正确性不变，只可能多写回附件
+                 const prog_t *pp = h.op == OP_DISPATCH ? g_pp_cprog : g_pp_prog; __unsafe_unretained NvProg *pr = pp ? prog_peek(pp) : nil;
+                 if (rb_tbdr_bl() && rb_pr_bl(pr, h.op == OP_DISPATCH)) rb_anyr_push(seq);   // RewindBox (patch 0073): a bindless reader (or one not loaded yet)
+-                if (!pr) { for (int st = 0; st < 6; st++) for (int k = 0; k < NTEX + 32; k++) if (g_pp_slot[st][k]) sdx_ev_add((sdx_ev){seq, 0, g_pp_slot[st][k], p, 0, 0, SDX_READ, 0, 0, 1}); }
++                if (!pr && rb_sdx_live_on()) for (int st = 0; st < 6; st++) {   // RewindBox (patch 0470): the live slots only, listed again after a bind of this stage
++                    if (g_pp_ldirty & (1u << st)) { uint16_t nl = 0; for (int k = 0; k < NTEX + 32; k++) if (g_pp_slot[st][k]) g_pp_live[st][nl++] = (uint16_t)k; g_pp_nlive[st] = nl; g_pp_ldirty &= (uint8_t)~(1u << st); }
++                    for (int j = 0; j < g_pp_nlive[st]; j++) sdx_ev_add((sdx_ev){seq, 0, g_pp_slot[st][g_pp_live[st][j]], p, 0, 0, SDX_READ, 0, 0, 1});
++                }
++                else if (!pr) { for (int st = 0; st < 6; st++) for (int k = 0; k < NTEX + 32; k++) if (g_pp_slot[st][k]) sdx_ev_add((sdx_ev){seq, 0, g_pp_slot[st][k], p, 0, 0, SDX_READ, 0, 0, 1}); }
+                 else for (int st = 0; st < 6; st++) { __unsafe_unretained NvShader *sh = pr->sh[st]; if (!sh || (h.op == OP_DISPATCH) != (st == 5)) continue;
+                     for (int i = 0; i < sh->rf.nb; i++) { const nvn_rbind *b = &sh->rf.b[i]; int k = b->kind == NVN_RB_IMG || (b->kind == NVN_RB_IMGA && rb_tbdr_bl()) ? NTEX + b->reg : (b->kind == NVN_RB_TEX || b->kind == NVN_RB_TBUF) ? b->reg : -1;   // RewindBox (patch 0073): image atomics read the image slot's texture too
+                         if (k < 0 || k >= NTEX + 32 || sh->stage < 0 || sh->stage >= 6) continue; uint64_t ser = g_pp_slot[sh->stage][k];
+@@ -22061,6 +22069,7 @@ void nvn_be_sub_index(const uint64_t *h, int n) {   // Start of submit (hle_nvn.
+     g_pp_prog = S.prog; g_pp_cprog = S.cprog; g_pp_rt = NULL; g_pp_rtseq = SDX_NONE;
+     for (int st = 0; st < 6; st++) { for (int k = 0; k < NTEX; k++) g_pp_slot[st][k] = S.tex[st][k] ? h_ser(S.tex[st][k]) : 0;
+                                      for (int k = 0; k < 32; k++) g_pp_slot[st][NTEX + k] = S.img[st][k] ? h_ser(S.img[st][k]) : 0; }
++    g_pp_ldirty = 0x3f;   // RewindBox (patch 0470): every stage's live list from the slots above
+     for (int i = 0; i < n && g_sdx_ok; i++) sdx_walk((const uint8_t *)h[i], 0);
+     if (!g_sdx_ok) { if (rb_t0) g_rb_sdx_ns += clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - rb_t0; return; }
+     // Counting sort into buckets: events are appended in sequence-number order, and within the same sequence number READ precedes ATT (the same draw is judged for reads first, then attachments), so after a stable scatter each bucket is ordered
