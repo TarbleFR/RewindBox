@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "build": 847,
-  "status": "draft",
+  "status": "frozen",
   "note": "Private iPhone build from verified 845 with S2Arm 0427-0463 (A18 Pro autonomous optimization series and counter-expertise fixes); all other cores unchanged from 845.",
   "base": {
     "build": 845,
@@ -399,10 +399,950 @@
     "sourceOnly": [
       {
         "commit": "025a688f0621831edf1f11883816bc3b258b1aa7",
-        "note": "[skip ci] Afficher la version des moteurs embarqués dans les playlists",
+        "note": "[skip ci] Afficher la version des moteurs embarqu\u00e9s dans les playlists",
         "targetBuild": 848
       }
-    ]
+    ],
+    "freezeCommit": "58b3e047c66c80d6470ffc5451ccc3a706193bf6",
+    "freezeTree": "bea8f266a0a8991fd101e36e7fabbb2e1ea07cbb",
+    "baseEffectiveDigest": "dad22c60df4b19de9fbd36916c4069c7209a2f929dea14b48710fef7a811119e",
+    "inheritedDeferredPaths": [
+      "build-utils/maintenance/actions-cleanup-2026-11-10-followup.json",
+      "build-utils/maintenance/actions-cleanup-2026-11-10.json",
+      "build-utils/maintenance/actions-cleanup-2026-11-13-bulk.json",
+      "build-utils/maintenance/actions-cleanup-2026-11-23-pass2.json",
+      "build-utils/maintenance/actions-cleanup-2026-11-23.json",
+      "build-utils/maintenance/cleanup_actions.py",
+      "build-utils/melonx/metal-archive/README.md",
+      "build-utils/melonx/metal-archive/moltenvk-v1.4.2-binary-archives.patch",
+      "build-utils/s2arm/engine/benchmarks/README.md",
+      "build-utils/s2arm/engine/benchmarks/coreml/IOSApp.swift",
+      "build-utils/s2arm/engine/benchmarks/coreml/Main.swift",
+      "build-utils/s2arm/engine/benchmarks/coreml/ReconstructionBench.swift",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/README.md",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.manifest.json",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Data/com.apple.CoreML/model.mlmodel",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Data/com.apple.CoreML/weights/weight.bin",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Manifest.json",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.manifest.json",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Data/com.apple.CoreML/model.mlmodel",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Data/com.apple.CoreML/weights/weight.bin",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Manifest.json",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/generate_probe.py",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/requirements.txt",
+      "build-utils/s2arm/engine/benchmarks/coreml/run_macos.sh",
+      "build-utils/s2arm/engine/benchmarks/ga.c",
+      "build-utils/s2arm/engine/benchmarks/ga_guard.c",
+      "build-utils/s2arm/engine/benchmarks/push_bench.c",
+      "build-utils/s2arm/engine/benchmarks/push_selective.c",
+      "build-utils/s2arm/engine/benchmarks/rid_bench.m",
+      "build-utils/s2arm/engine/benchmarks/run_coreml.py",
+      "build-utils/s2arm/engine/benchmarks/run_cpu.py",
+      "build-utils/s2arm/engine/benchmarks/ubo_bench.c",
+      "build-utils/s2arm/engine/benchmarks/ubo_guard.c",
+      "native/enhancements/catalogue/r/2026-11-16T2112Z.a85f516925ab/index.json.gz",
+      "native/enhancements/catalogue/r/2026-11-16T2139Z.d8b055350a6c/index.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/index.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-00.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-01.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-02.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-03.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-04.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-05.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-06.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-07.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-08.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-09.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-10.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-11.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-12.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-13.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-14.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-15.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-16.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-17.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-18.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-19.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-20.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-21.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-22.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-23.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-24.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-25.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-26.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-27.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-28.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-29.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-30.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-31.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-00.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-01.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-02.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-03.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-04.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-05.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-06.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-07.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-08.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-09.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-10.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-11.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-12.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-13.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-14.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-15.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-16.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-17.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-18.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-19.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-20.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-21.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-22.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-23.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-24.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-25.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-26.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-27.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-28.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-29.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-30.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-31.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-00.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-01.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-02.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-03.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-04.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-05.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-06.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-07.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-08.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-09.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-10.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-11.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-12.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-13.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-14.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-15.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-16.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-17.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-18.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-19.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-20.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-21.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-22.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-23.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-24.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-25.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-26.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-27.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-28.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-29.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-30.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-31.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-00.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-01.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-02.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-03.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-04.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-05.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-06.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-07.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-08.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-09.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-10.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-11.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-12.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-13.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-14.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-15.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-16.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-17.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-18.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-19.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-20.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-21.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-22.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-23.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-24.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-25.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-26.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-27.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-28.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-29.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-30.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-31.json.gz",
+      "source.json",
+      "test/actions_cleanup_test.py",
+      "test/melonx_metal_binary_archive/generate_shaders.py",
+      "test/melonx_metal_binary_archive/metal_probe.mm",
+      "test/melonx_metal_binary_archive/mvk_archive_test.cpp",
+      "test/melonx_metal_binary_archive/run_mvk.py",
+      "test/melonx_metal_binary_archive/run_probe.py",
+      "test/melonx_metal_binary_archive/shaders.spvz"
+    ],
+    "recipeDefinitionSHA256": "bb612f4a43186a801232ffa15ad61fcd22e4df60e31a7392b69cd7ab094f2b2a",
+    "recipeDefinition": {
+      "prefixes": [
+        ".github/",
+        "docs/",
+        ".claude/",
+        "build-utils/delivery/"
+      ],
+      "files": [
+        "build-utils/rpcs3/core-pin.json",
+        "build-utils/melonx/reads-core-pin.json",
+        "build-utils/melonx/arrays-core-pin.json",
+        "build-utils/melonx/dma-core-pin.json",
+        "test/standard_delivery_contract_test.py",
+        "build-utils/verify_downloaded_delivery.py"
+      ],
+      "globs": [
+        "build-utils/delivery-*-recipient.pem"
+      ],
+      "rootMarkdown": true
+    },
+    "commits": [
+      {
+        "commit": "6b858d3c68ab17dccec210843ba4a699fc714805",
+        "subject": "[skip ci] Record verified private ARMSX2 2.6.1 IPA 846",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "d7c76c10ef9ba36d41d0082c447325619e397aeb",
+        "subject": "[skip ci] Record verified private 845 with S2Arm 0426 and ARMSX2 2.6.1",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "e5c529689b8c8a2e147109346ff43364e1ecbdf2",
+        "subject": "[s2arm-engine] Batch GPU ledger clears and scan occupied pending pipeline slots",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "db2dc765bf17e5bef9f9ef5a477dbbd5b8f8c2ec",
+        "subject": "[s2arm-engine] Skip uniform words already supplied by newer submissions",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "17d04c5d7af9b4e469abb7119cbe42f0c344dcca",
+        "subject": "[s2arm-engine] Check full keys on dense pipeline lookup hash matches",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "96b3a0d6dfc554cea2331a05199f272a4198306c",
+        "subject": "[skip ci] Relier la course MKW film\u00e9e aux mesures du moteur et aux \u00e0-coups",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "025a688f0621831edf1f11883816bc3b258b1aa7",
+        "subject": "[skip ci] Afficher la version des moteurs embarqu\u00e9s dans les playlists",
+        "role": "sourceOnly",
+        "productPaths": 11
+      },
+      {
+        "commit": "f6e201709485f851ec696cf82bd7475dcff4e734",
+        "subject": "[s2arm-engine] S2Arm 0431-0436: fluid PSO, FI, streaming, fidelity/args, cold/warm cache, dsnap LRU",
+        "role": "reviewed",
+        "productPaths": 7
+      },
+      {
+        "commit": "8be902ac0ee465987f1ae7abc8b5e3876dfc0de2",
+        "subject": "[s2arm-engine] Fix NVN_TEXTURE_FLAGS_SPARSE bit (0x20) in patch 0433 rb_treg_cand.h",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "e245745405b10cd09c02e5e7e4b1375758591234",
+        "subject": "[s2arm-engine] [s2arm-compare-upload] Batch texture copies, reuse mip geometry and preserve motion precision",
+        "role": "reviewed",
+        "productPaths": 5
+      },
+      {
+        "commit": "6a8171323e9d923509c6811444e71d9d9bc20f81",
+        "subject": "[s2arm-engine] [s2arm-compare-bindings] Reduce per-draw bounds, feedback and pipeline key work",
+        "role": "reviewed",
+        "productPaths": 7
+      },
+      {
+        "commit": "8ed13dfc6fae868c2b9b03f49f17dcba25ad45c3",
+        "subject": "[s2arm-engine] [s2arm-pipeline-driver] Keep present sources live through both reads and detach from the owning queue",
+        "role": "reviewed",
+        "productPaths": 6
+      },
+      {
+        "commit": "c9139af57a23fed7d407d7534503a8d0abf77f09",
+        "subject": "[s2arm-shader-checks] [s2arm-homebrew-check] Replay public Maxwell homebrew and compare complete Metal outputs",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "09b8e9a5deb7916d7a83362fce2555b9453c95dc",
+        "subject": "[s2arm-gpu-textures] Compare native Metal texture launch widths against the CPU address oracle",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "5a76261a89030a58f08340fca057cd99e50f93ab",
+        "subject": "[s2arm-engine] [s2arm-shader-checks] [s2arm-bounds-repeat] [s2arm-gpu-textures] [s2arm-texture-confirm] Repair Mac stencil budget and archive control, confirm native GPU costs",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "c7d3c23495659f59738fa6475b8c6c76120aded3",
+        "subject": "[s2arm-pipeline-driver] Measure classic pipeline compilation on the available Metal device",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "fc2b2222ede4481606c765eb1610bd897b2beb71",
+        "subject": "[s2arm-pipeline-driver] Measure first-use vertex work and preserve results for alternative constant scans",
+        "role": "reviewed",
+        "productPaths": 3
+      },
+      {
+        "commit": "31f76a59ecef27b46bb8dffe9b60ee45a707e24f",
+        "subject": "[s2arm-pipeline-driver] [s2arm-widen-matrices] Confirm matrix scan costs with NativeAOT and measure both first-use stages",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "ef974e402f8cab3b1d15df3114663853bce484a8",
+        "subject": "[s2arm-engine] [s2arm-fi-observer] Classify presented interpolation content in opt-in diagnostic builds",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "578de3a86d575d09842cb368cb39adbcf8849b78",
+        "subject": "[s2arm-pipeline-driver] [s2arm-widen-matrices] Preserve short input behavior in the matrix trial and isolate thread CPU cost",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "555cbcccf4413e5f9d4ca226e80acc4c263a55ed",
+        "subject": "[skip ci] Record native shader costs and reject the warm-order tie breaker",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "43b3f7bf1afcac56741eddc2221af958b188862a",
+        "subject": "[skip ci] Save measured native CPU, memory and independent matrix equivalence checks",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "d10e99dfe215c7cfca0e89a47093053555fb7194",
+        "subject": "[s2arm-engine] [s2arm-widen-matrices] [s2arm-widen-edge] Avoid transposing projection matrices unnecessarily",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "2e5a6a99b82d65f07f44a52041db6b51db562d41",
+        "subject": "[skip ci] Record repeated GPU width and cache bounds comparisons and layer ownership review",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "5252c4f719c24dc3ed3bec0c15fd67198bc27ae3",
+        "subject": "[s2arm-bounds-clamp] Separate effective-size arithmetic from the arena fast path in paired native measurements",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "8617703faf6e0c99825b4c115f57d5c3e9aebf7a",
+        "subject": "[s2arm-homebrew-pacing] Measure CPU, GPU and callback intervals on a reproducible offscreen Metal render",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "ffa60e9d15a3fc2196617b338bf04aff8eeed474",
+        "subject": "[s2arm-bounds-clamp] Retry interrupted transport when fetching the same verified engine pin",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "056fec939b2532ddf0d5f2e13a02af7cd69f15ea",
+        "subject": "[s2arm-homebrew-pacing] Separate thread CPU and wall intervals and validate finite timing samples",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "c94d959ef441b32285a1f9ca2328523386f3a19c",
+        "subject": "[skip ci] Preserve repeated scheduling model, interpolation SDK build and offscreen measurement scope",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "81f1192435f4b556b99780b9bd70f9b60005ae2c",
+        "subject": "[s2arm-lab] [s2arm-linear-copy] [s2arm-homebrew-pacing] Compare contiguous linear transfers and diagnose offscreen captures",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "360b0cc1d07c0eed75bd9709068267ca60964abc",
+        "subject": "[s2arm-engine] Use linear row addressing for CPU writes to linear render targets",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "6b7da85f06f15d6973d7e1de3f21f280e4fa7076",
+        "subject": "[s2arm-homebrew-pacing] [s2arm-pacing-host] Qualify host cadence when the GPU cannot resolve individual durations",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "9c9acab01861d5e2c552eb1299966ea3f3d02ef3",
+        "subject": "[s2arm-lab] [s2arm-linear-pages] Check partial GPU ownership of pitched textures and preserve host cadence evidence",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "d1c6a7c2de19da1f2e6278f4cbb167b8522ad6d3",
+        "subject": "[s2arm-lab] [s2arm-linear-pages] [s2arm-linear-region] Compare bounded partial CPU uploads and exact Metal formats",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "3d78a7149d752913983d29727825dbe811d417e4",
+        "subject": "[s2arm-engine] S2Arm 0451-0463: A18 Pro autonomous optimization series and counter-expertise fixes",
+        "role": "reviewed",
+        "productPaths": 14
+      },
+      {
+        "commit": "b49a1063fdbd31098f82fb016814e04506f05665",
+        "subject": "[s2arm-pin engine=45933674709 prepare=44555747908 sysdata=43038032448] Pin verified S2Arm 0451-0463 for private 847",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "58b3e047c66c80d6470ffc5451ccc3a706193bf6",
+        "subject": "[skip ci] Draft standard delivery manifest 847 (S2Arm 0427-0463)",
+        "role": "recipe",
+        "productPaths": 0
+      }
+    ],
+    "deferred": {
+      "025a688f0621831edf1f11883816bc3b258b1aa7": [
+        "lib/l10n/embedded_emulator_locale.dart",
+        "lib/services/embedded_engine_build_info.dart",
+        "lib/services/libretro_core_build_info.dart",
+        "lib/services/libretro_internal_service.dart",
+        "lib/widgets/libretro_engine_panel.dart",
+        "lib/widgets/system_emulator_settings_dialog.dart",
+        "lib/widgets/system_emulator_settings_dialog/tabs.dart",
+        "packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m",
+        "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec",
+        "packages/libretro_internal_bridge/lib/libretro_internal_bridge.dart",
+        "test/playlist_emulator_build_metadata_test.dart"
+      ]
+    },
+    "effective": {
+      "build-utils/s2arm/engine-pin.json": {
+        "mode": "100644",
+        "gitBlob": "54a59ed7a85c51f5986419636d1a4240f574e171",
+        "sha256": "f90255c9447cbeefdd1df54b4772ac9c1f439bbfe6394f811c91532bee69b172"
+      },
+      "build-utils/s2arm/engine/README.md": {
+        "mode": "100644",
+        "gitBlob": "87c48b493c52ab1575a2f5dc7439d22e021a9463",
+        "sha256": "afbf30e0f2244b185c204bc02647a79687bd9a667cf57b60cbe45bedca1ba80e"
+      },
+      "build-utils/s2arm/engine/patches/0427-batch-gpu-write-ledger-clears.patch": {
+        "mode": "100644",
+        "gitBlob": "2918f714b9666cfa77146ecbb8af6741d3339e71",
+        "sha256": "7ae7854187caa6c1d389f30f63fcdb0bb153df41eb6893cd8e93ad609fb8ac2d"
+      },
+      "build-utils/s2arm/engine/patches/0428-compact-pending-pipeline-occupancy.patch": {
+        "mode": "100644",
+        "gitBlob": "6be9f94d9eb94b4069301edc1fbf7e41befd12cd",
+        "sha256": "a190e249433d92a8ccdf2150b646527c2b4e154dc03e89678bc37a117098d33d"
+      },
+      "build-utils/s2arm/engine/patches/0429-skip-covered-uniform-words.patch": {
+        "mode": "100644",
+        "gitBlob": "8c074c0a463912a0ebb0d4e0979134c01b6a15bf",
+        "sha256": "835df73806288163cb2bf1f6d776ed393ad2fa5878ef22b4ef9fa263b68d6d6b"
+      },
+      "build-utils/s2arm/engine/patches/0430-index-dense-pending-pipeline-keys.patch": {
+        "mode": "100644",
+        "gitBlob": "76a2617de44207ac9e16a6c215385bd4ea64ec64",
+        "sha256": "1208294efebe6a33d8830332329fa63a1516a9e37b67d2a69d84078b5dd9d2ab"
+      },
+      "build-utils/s2arm/engine/patches/0431-fluid-pso-unified-cap-and-skippable-inversion-fix.patch": {
+        "mode": "100644",
+        "gitBlob": "4f610d778a3f9db11e043250f59e8d3f2e125861",
+        "sha256": "af876f78f6b7b451c0f0134044096dd01b099ea6a0ce1c3c1437b4a8373a4e2a"
+      },
+      "build-utils/s2arm/engine/patches/0432-fi-bound-overload-priming-link-hysteresis-and-fp16-mv.patch": {
+        "mode": "100644",
+        "gitBlob": "656e5bd0d49bb48fc7f4d9f5ebd4cd7482ad8029",
+        "sha256": "6be5cdf9ef5fc2e86b2876dc2f9082fdebfb35ab1c940098a192ef4b4919e3c9"
+      },
+      "build-utils/s2arm/engine/patches/0433-treg-cand-bitset-sub-ahead-and-pool-gpu-fast-path.patch": {
+        "mode": "100644",
+        "gitBlob": "ad5a20df34e7c9076f4adaccf72af440314e37be",
+        "sha256": "69220ab2118726d15d7bcc4aff5186ccadb0f8648d2fc3226f1afdb5a5e848ad"
+      },
+      "build-utils/s2arm/engine/patches/0434-fidelity-args-coherence-lockfree-rmu-and-view-buckets.patch": {
+        "mode": "100644",
+        "gitBlob": "f6f3c8be9529e89095b904402e6653ee71d087b8",
+        "sha256": "9664252633dbe6825f51814ceb1f6c9b130d5b1c6c24c66540107694a3db4d2f"
+      },
+      "build-utils/s2arm/engine/patches/0435-cold-warm-shader-disk-fair-burst-xlate-and-pso-persist.patch": {
+        "mode": "100644",
+        "gitBlob": "4a94e49cc90edc9dc0f22f9a5650e552b5818102",
+        "sha256": "45321c95c7d106fd4f3eaebf78dbc993c488513ab075556e569e80780c9439f6"
+      },
+      "build-utils/s2arm/engine/patches/0436-dsnap-two-slot-lru-cache-and-non-destructive-set-rt.patch": {
+        "mode": "100644",
+        "gitBlob": "803d4d9d30bd645b0f031e2f5adda181401f85f4",
+        "sha256": "fdb4073b254b65cc329c2791598f331f5878d4762e1019907fcfab107b025536"
+      },
+      "build-utils/s2arm/engine/patches/0437-copy-complete-texture-gobs.patch": {
+        "mode": "100644",
+        "gitBlob": "649685eed5193ad26d9fdb512065e734171800f5",
+        "sha256": "ad3feafd0ee4951e609e645b0788f6ff4596e004944fae31e88e6b3094ab145a"
+      },
+      "build-utils/s2arm/engine/patches/0438-ubo-frame-metadata.patch": {
+        "mode": "100644",
+        "gitBlob": "dd1095e927753817f23bdf3d5b0aaa0432901135",
+        "sha256": "c4246b31e31e041264a1b40438ff80cf897aa206830975e6f666808e196093b8"
+      },
+      "build-utils/s2arm/engine/patches/0439-dirty-handle-single-stripe.patch": {
+        "mode": "100644",
+        "gitBlob": "5f1f92f0ad4ffc3fea2fc097237a64ae34a98644",
+        "sha256": "f267cbb0f1921253c8552f5178a112adea3d346f21ecb8d64cf5d6ce6f3e14a6"
+      },
+      "build-utils/s2arm/engine/patches/0440-share-mip-geometry-across-upload.patch": {
+        "mode": "100644",
+        "gitBlob": "f5f4c2fc83abfcc851cc9897db6e12d289e40c7b",
+        "sha256": "6d222727565cc845540156e173159ba04708c76847575fda67bce83fe2e5507f"
+      },
+      "build-utils/s2arm/engine/patches/0441-preserve-frame-interpolation-motion-precision.patch": {
+        "mode": "100644",
+        "gitBlob": "bd9451de14059a7ad6992532d49deab79111499b",
+        "sha256": "38c71aa2f7fa1a3339f8a21b1b87e5c124b5c05d502d1c183ddec0c969bd2aca"
+      },
+      "build-utils/s2arm/engine/patches/0442-reuse-arena-addresses-for-bounds.patch": {
+        "mode": "100644",
+        "gitBlob": "b557b0291c5b5400270c9af5302049188586ba51",
+        "sha256": "28b911f7618e367e78b526b69765d738a8877550fb613699069ccb8cef95a35b"
+      },
+      "build-utils/s2arm/engine/patches/0443-update-feedback-substitutions-in-place.patch": {
+        "mode": "100644",
+        "gitBlob": "03af835c5573435ac7c6a5213e4e2b383908aba1",
+        "sha256": "ffa76c595ea47c0f6d6dabebab4e257ece5ff36ae305445d041b69e4bf4b4f37"
+      },
+      "build-utils/s2arm/engine/patches/0444-skip-duplicate-vertex-key-normalization.patch": {
+        "mode": "100644",
+        "gitBlob": "4ec67841a69066e50d8db5534f7bd042bca758ed",
+        "sha256": "f6688b4c43a6c183e709607738dd8b5f50289a5efcbfb4f492ce464e05b74b6a"
+      },
+      "build-utils/s2arm/engine/patches/0445-complete-presentation-after-both-readers.patch": {
+        "mode": "100644",
+        "gitBlob": "50d70c8bdee4561d24b06b0b9cbec4009d847de6",
+        "sha256": "6a847e05edce9ff3933e448a6172512cba0a356dcbaaf474ca985e0476615a9c"
+      },
+      "build-utils/s2arm/engine/patches/0446-detach-layer-from-its-present-queue.patch": {
+        "mode": "100644",
+        "gitBlob": "b999d364ab23af6bcb2523e40c36c34bdb672828",
+        "sha256": "3accfe3ab54b4905dea9a1c1d0e496ed7c22c3e263dae8f1ac07d8e68720613a"
+      },
+      "build-utils/s2arm/engine/patches/0447-use-mac-metal-headroom-for-stencil-planes.patch": {
+        "mode": "100644",
+        "gitBlob": "2f35eeda636c5c92ed24878ee654e473b07e0d35",
+        "sha256": "c8c5b3a4ce4e26175171ed9ccba383f200ca33dd66bce08b0dc5f34ac3a1213a"
+      },
+      "build-utils/s2arm/engine/patches/0448-classify-confirmed-frame-interpolation-drawables.patch": {
+        "mode": "100644",
+        "gitBlob": "d9f442104972e92b80ab435c421594b2c88ebc96",
+        "sha256": "2c5a1a2c2771d26dd0ac6fa53a4f801e3fbd6127747aca87da07680cd4cfbee5"
+      },
+      "build-utils/s2arm/engine/patches/0449-recognize-projection-matrices-without-redundant-transposes.patch": {
+        "mode": "100644",
+        "gitBlob": "bd5f2648531c5dc93cd875994354c467dfc4c6f9",
+        "sha256": "be6feec501865e1cd8658a01f2a5aeb8ae1f21635f0f209afe01d69b346e3145"
+      },
+      "build-utils/s2arm/engine/patches/0450-honor-linear-layout-for-render-target-writes.patch": {
+        "mode": "100644",
+        "gitBlob": "9b6da756d9b7374c1cd856b27f5d04bda3859056",
+        "sha256": "8167e872c9b4d59ef04c782977d57ede233e43cc757727e0f89af8c685f8b39c"
+      },
+      "build-utils/s2arm/engine/patches/0451-bound-partial-linear-cpu-writes.patch": {
+        "mode": "100644",
+        "gitBlob": "3b066bf82612c922a6b9787ccb09374641ce9b22",
+        "sha256": "51df72d0984b0cf8bf50a3d355e68f1c9fa97634008f87c2b102b4fd1b410020"
+      },
+      "build-utils/s2arm/engine/patches/0452-linear-dirty-page-rects-and-tight-partial-staging.patch": {
+        "mode": "100644",
+        "gitBlob": "5a4f6501c4b894dff302a15b3771ea5c39875305",
+        "sha256": "a7df5819d207d6afabf23ef01f84dece28f100c02052b8381409c9909443017a"
+      },
+      "build-utils/s2arm/engine/patches/0453-nvn-hmap-hash8-and-wide-key-ilp4.patch": {
+        "mode": "100644",
+        "gitBlob": "268c433689f4d53c00d087ed361116bcf6fa2fe8",
+        "sha256": "3c159258581acf0d8db89b3fc378b080911e4568c2021b9c72916029edfe501f"
+      },
+      "build-utils/s2arm/engine/patches/0454-span-hash-intra-page-ilp4.patch": {
+        "mode": "100644",
+        "gitBlob": "aca89eb4e6cfe4e15b85819ef2ac49f0dff2cb7d",
+        "sha256": "402e3e2853414a02038d00d52e66b61de43ca98ce0e181936404d94b2dc79d1e"
+      },
+      "build-utils/s2arm/engine/patches/0455-draw-pass-state-dynamic-dirty-mask.patch": {
+        "mode": "100644",
+        "gitBlob": "f781f9cd30fa6b138c01977439762b4618edfae9",
+        "sha256": "8dd34e86df168735c55ef83ddfe30d4cdef01c6b3a2214c6e6125c18649fe60e"
+      },
+      "build-utils/s2arm/engine/patches/0456-dsh-regex-cache-linear-rewrites-and-single-pass-spv.patch": {
+        "mode": "100644",
+        "gitBlob": "1300e32b1c68d8ea3ac5f5f0e61f50a220270b5e",
+        "sha256": "b83d7f930c1c0585b539da8e29afa7700c78da252883ab98b7f885ec6f97eb15"
+      },
+      "build-utils/s2arm/engine/patches/0457-hle-nvn-lockfree-dpool-sh-overwrite-gap-and-gfx-leave.patch": {
+        "mode": "100644",
+        "gitBlob": "6e88c85c3c8175bdf287a7ace9489f658828d5be",
+        "sha256": "1fddfa56b6c60d562028dc9ecc8f75de9162ec1c7d1886d557a858eca91f90cb"
+      },
+      "build-utils/s2arm/engine/patches/0458-nvn-rec-burst-drain-and-waiter-gated-idle-broadcast.patch": {
+        "mode": "100644",
+        "gitBlob": "ea742fbe195786ab99d599305ad4c2cfd2a0aaa8",
+        "sha256": "9bb4fb4487d8e214f1ad5d5f04571487215b5a430203db88d08452c8336c5d0f"
+      },
+      "build-utils/s2arm/engine/patches/0459-nvn-mtl-optin-diag-barriers-draw-emit-hmap-and-dispatch-dirty.patch": {
+        "mode": "100644",
+        "gitBlob": "ff85c601e99626c10ad3a639680402ea5c903039",
+        "sha256": "1c4179da385f37df10695050f3c7cb5e912d3c7dd76730d33cf7e5f2a686aa23"
+      },
+      "build-utils/s2arm/engine/patches/0460-nvn-geometry-task-mesh-pso-cache-and-state-preservation.patch": {
+        "mode": "100644",
+        "gitBlob": "e500c7ff987cbca0a7d9d0a732e9f67876e2ed1e",
+        "sha256": "d55d33c11e3db217048054b4f4c9943ba1a7c2cb1d68b794e9a1f497e6ef306f"
+      },
+      "build-utils/s2arm/engine/patches/0461-runtime-thread-wait-unlink-yield-event-out-of-G-and-mkw-cache.patch": {
+        "mode": "100644",
+        "gitBlob": "e5c70fe4f0ba41b91dbbf3bf8704ab10fbb9d1ec",
+        "sha256": "b88f6b249d51dbda1b3d3087849439ac93e0cfb9920b573d660888a56d1921c2"
+      },
+      "build-utils/s2arm/engine/patches/0462-runtime-svc-mem-coalesced-unmap-and-word-query-scan.patch": {
+        "mode": "100644",
+        "gitBlob": "214d660d9d1bbd578339999eb9a65289f0d4a963",
+        "sha256": "9818748984da7a6f227e0da10dc2249de73c73eb94296ffd9967c140f6a7ce3d"
+      },
+      "build-utils/s2arm/engine/patches/0463-services-romfs-cursor-and-zero-alloc-lazy-handle-lru.patch": {
+        "mode": "100644",
+        "gitBlob": "94b0c37dd5ba94382adc14492d949d9b7c112f37",
+        "sha256": "8f204b160340c4ad6e0a848694bdb3a6a0830d8d6a5878b8826b5efbe9dacaa6"
+      },
+      "build-utils/s2arm/engine/tests/test_metal_archive.m": {
+        "mode": "100644",
+        "gitBlob": "d9d3c76df5f4c75a3fe6b9221402cc377ae73586",
+        "sha256": "e762a081ef6db5f8fbcce24eca140c20b4a4e7e7b0495bc6638c6d41cfe3b7b2"
+      },
+      "tools/s2arm_a18pro/bench_suite.py": {
+        "mode": "100644",
+        "gitBlob": "767eba9e04fd619a8be25bb63d5f9413e9fc9ff8",
+        "sha256": "aa6d867d871d003a4739581ae79bff14f82f59f8642f7deb7316c5b8ce1c102e"
+      },
+      "tools/s2arm_a18pro/c_benches/bench_core.c": {
+        "mode": "100644",
+        "gitBlob": "46c09480efc29c34fde7b44e8720a0bc2c1ac4cd",
+        "sha256": "9d1a1489f26e889af7aa263d0dc3ef3e92fcbd844ec3f75b40e31e901c921c21"
+      },
+      "tools/s2arm_a18pro/perf_history.json": {
+        "mode": "100644",
+        "gitBlob": "352d7c992fc7122f47acd89a2ab22bf334594d0b",
+        "sha256": "4f1ceacdf6e30446f105911d2d66c1502cdfb3791414f5c570198837e6a12c27"
+      },
+      "tools/s2arm_a18pro/pipeline_driver.m": {
+        "mode": "100644",
+        "gitBlob": "9d6fd4c0ca1ad56d37e3a26ba61f17784d7e5bfa",
+        "sha256": "2c4b15255d41e724a8a9d979e2c6a310bcab6ee2cfc692e1df51c94f60ea07c5"
+      },
+      "tools/s2arm_a18pro/pipeline_driver.py": {
+        "mode": "100644",
+        "gitBlob": "f8398765e70f7d12c063317e90ab5f286f0f3c6d",
+        "sha256": "df9dc1ee9df1c1dd7c70faafd6aafb80a9d4788e35510d7385aa00ee498216e8"
+      },
+      "tools/s2arm_a18pro/referentiel_a18pro_autonome.json": {
+        "mode": "100644",
+        "gitBlob": "0189096df477058e84f98eb301375cc4e36c95d0",
+        "sha256": "a1b195cd38b3df2b7b833af064ca1aff2425e80b9f8c07ccded2dcad5dd9a801"
+      }
+    },
+    "restore": {
+      "build-utils/maintenance/actions-cleanup-2026-11-10-followup.json": null,
+      "build-utils/maintenance/actions-cleanup-2026-11-10.json": null,
+      "build-utils/maintenance/actions-cleanup-2026-11-13-bulk.json": null,
+      "build-utils/maintenance/actions-cleanup-2026-11-23-pass2.json": null,
+      "build-utils/maintenance/actions-cleanup-2026-11-23.json": null,
+      "build-utils/maintenance/cleanup_actions.py": {
+        "mode": "100644",
+        "gitBlob": "d9d9eebd0b5f280598442a336aaf958cc9d033b6",
+        "sha256": "9e491611b6146032815aac0b8934e6edbdbc14e2f817350c006e7e8541773b97"
+      },
+      "build-utils/melonx/metal-archive/README.md": null,
+      "build-utils/melonx/metal-archive/moltenvk-v1.4.2-binary-archives.patch": null,
+      "build-utils/s2arm/engine/benchmarks/README.md": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/IOSApp.swift": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/Main.swift": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/ReconstructionBench.swift": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/README.md": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.manifest.json": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Data/com.apple.CoreML/model.mlmodel": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Data/com.apple.CoreML/weights/weight.bin": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Manifest.json": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.manifest.json": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Data/com.apple.CoreML/model.mlmodel": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Data/com.apple.CoreML/weights/weight.bin": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Manifest.json": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/generate_probe.py": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/requirements.txt": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/run_macos.sh": null,
+      "build-utils/s2arm/engine/benchmarks/ga.c": null,
+      "build-utils/s2arm/engine/benchmarks/ga_guard.c": null,
+      "build-utils/s2arm/engine/benchmarks/push_bench.c": null,
+      "build-utils/s2arm/engine/benchmarks/push_selective.c": null,
+      "build-utils/s2arm/engine/benchmarks/rid_bench.m": null,
+      "build-utils/s2arm/engine/benchmarks/run_coreml.py": null,
+      "build-utils/s2arm/engine/benchmarks/run_cpu.py": null,
+      "build-utils/s2arm/engine/benchmarks/ubo_bench.c": null,
+      "build-utils/s2arm/engine/benchmarks/ubo_guard.c": null,
+      "lib/l10n/embedded_emulator_locale.dart": {
+        "mode": "100644",
+        "gitBlob": "6e5b6bc3d17ff17f4bb304e6980809eb77f3dfa3",
+        "sha256": "ff72625848131cc575c26cd787b285ce343e37993b9a277ebacf578328c2a39a"
+      },
+      "lib/services/embedded_engine_build_info.dart": null,
+      "lib/services/libretro_core_build_info.dart": null,
+      "lib/services/libretro_internal_service.dart": {
+        "mode": "100644",
+        "gitBlob": "0cd7c09ba3d869bf5f309a1d338df4a72dbb4dff",
+        "sha256": "a2c9a31a6bf080c98e727dee40cdb46819e6997977f3d87a53e39e537dcb35b9"
+      },
+      "lib/widgets/libretro_engine_panel.dart": {
+        "mode": "100644",
+        "gitBlob": "61ab03b76049eb00458995e2a08503bce70d9e97",
+        "sha256": "ec2a0f68a92f1b47e97a5856e529bd9f86774fb4122e994bc96038e16498001f"
+      },
+      "lib/widgets/system_emulator_settings_dialog.dart": {
+        "mode": "100644",
+        "gitBlob": "acb1fcc7d016fb119d8e77fc144b38cd6354ed2d",
+        "sha256": "eb70d3f93255c5283e26e24487b137b4dbe892868a140c3f19c37de1ed01d6aa"
+      },
+      "lib/widgets/system_emulator_settings_dialog/tabs.dart": {
+        "mode": "100644",
+        "gitBlob": "65ba8285b675231134c90898006754c67ab4cc97",
+        "sha256": "fbd9a054c6f18d9bba07496f2965f2729bf5e3c70b3ed621b1b58d6433b6ad07"
+      },
+      "native/enhancements/catalogue/r/2026-11-16T2112Z.a85f516925ab/index.json.gz": {
+        "mode": "100644",
+        "gitBlob": "93c81ad2f4f9e33d61a61f57259ec8595c62ae12",
+        "sha256": "ef2f17505620e6e5c38154f2289196b3fdf69bc524991c83112ecfb7b956a7e8"
+      },
+      "native/enhancements/catalogue/r/2026-11-16T2139Z.d8b055350a6c/index.json.gz": {
+        "mode": "100644",
+        "gitBlob": "93c81ad2f4f9e33d61a61f57259ec8595c62ae12",
+        "sha256": "ef2f17505620e6e5c38154f2289196b3fdf69bc524991c83112ecfb7b956a7e8"
+      },
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/index.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-00.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-01.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-02.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-03.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-04.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-05.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-06.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-07.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-08.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-09.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-10.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-11.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-12.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-13.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-14.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-15.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-16.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-17.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-18.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-19.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-20.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-21.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-22.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-23.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-24.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-25.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-26.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-27.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-28.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-29.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-30.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-31.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-00.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-01.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-02.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-03.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-04.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-05.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-06.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-07.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-08.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-09.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-10.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-11.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-12.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-13.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-14.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-15.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-16.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-17.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-18.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-19.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-20.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-21.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-22.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-23.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-24.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-25.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-26.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-27.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-28.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-29.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-30.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-31.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-00.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-01.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-02.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-03.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-04.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-05.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-06.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-07.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-08.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-09.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-10.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-11.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-12.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-13.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-14.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-15.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-16.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-17.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-18.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-19.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-20.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-21.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-22.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-23.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-24.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-25.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-26.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-27.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-28.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-29.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-30.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-31.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-00.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-01.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-02.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-03.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-04.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-05.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-06.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-07.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-08.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-09.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-10.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-11.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-12.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-13.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-14.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-15.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-16.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-17.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-18.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-19.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-20.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-21.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-22.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-23.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-24.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-25.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-26.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-27.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-28.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-29.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-30.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-31.json.gz": null,
+      "packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m": {
+        "mode": "100644",
+        "gitBlob": "7be160c3e994eeef6e0e76b7b749b6246a632a3b",
+        "sha256": "0781c942fc62941e064f83c50eb9462b9356b0af23fe553846c119a4b7b28f90"
+      },
+      "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec": {
+        "mode": "100644",
+        "gitBlob": "ae523dec31bb3f92d036ecc25ba68733f2ce731c",
+        "sha256": "11ae877f20731ea9b2dda5a23b036a5ed1cd8320cad1869e2e4cbebb46d5c33d"
+      },
+      "packages/libretro_internal_bridge/lib/libretro_internal_bridge.dart": {
+        "mode": "100644",
+        "gitBlob": "60461156282b131ac5553e86da1248d7cbd5db00",
+        "sha256": "623221ec76c5b9ef2185958d6e68065ad5b48e035d95510d3551b8d4d98303b3"
+      },
+      "source.json": null,
+      "test/actions_cleanup_test.py": {
+        "mode": "100644",
+        "gitBlob": "b45856faaeaea9078ae6f1fab4f4dc420b3c2704",
+        "sha256": "3436f073837177c60de87fa823bcd4c46a3f06e78e06636713ac7daa2d4b78b0"
+      },
+      "test/melonx_metal_binary_archive/generate_shaders.py": null,
+      "test/melonx_metal_binary_archive/metal_probe.mm": null,
+      "test/melonx_metal_binary_archive/mvk_archive_test.cpp": null,
+      "test/melonx_metal_binary_archive/run_mvk.py": null,
+      "test/melonx_metal_binary_archive/run_probe.py": null,
+      "test/melonx_metal_binary_archive/shaders.spvz": null,
+      "test/playlist_emulator_build_metadata_test.dart": null
+    },
+    "effectiveDigest": "a7f03d8fa490b8c8a0aa56610d05ec3691342806e36791b45b7ea954f522354c",
+    "productFiles": 9974,
+    "embeddedRecipeInputs": {
+      "LICENSE.md": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "NOTICE.md": "3943d6fb637c747d3ab7c8b0ec54108a6c44afa8666dd99a06d7e871bfbbcf58",
+      "docs/CHEAT_CATALOG_SOURCES.md": "b99792de4c9e917758628869bfc948ca8f653f47cb926378f3d8ad61d9c755f1",
+      "docs/ENGINE_CORRESPONDING_SOURCES.md": "d79c0a19a08dccedf3c7e1c65fdea6ae307e7dbd0b1c310430e9de7a7a5c4dd5",
+      "docs/HD_TEXTURE_CATALOG_SOURCES.md": "ca835a124356907c6ba68067a2399d55ba9326988e0fb732978cd4fe910d4392",
+      "docs/HD_TEXTURE_SOURCES_AND_CREDITS.md": "058e36570f6b4b3e374ea790dad6d684192e65b526fe64dd7f40f09dda0c4041",
+      "docs/LEGAL_AND_CREDITS.md": "93546aa59f01bc3191984d3f02375693505dff003c229eacb47242c0de1c2603",
+      "docs/OVERLAY_SOURCES_AND_CREDITS.md": "463aeaf75b5f39f058e7bc1fbb80fefddc9a977cc5ba3a0bdfe70b565d70ef20",
+      "docs/PACKAGE_SOURCES_AND_LICENSES.md": "2fdae2151390207cab5953651448e181912e9270347f7fe5129a211f2056e21c",
+      "docs/PPSSPP_SOURCE_AND_LICENSE_AUDIT.md": "fbeced8b72541b2ba8aac27334f749c6f870aff7506b1efde8de6958ff600e2e",
+      "docs/SOURCE_CODE_ACCESS.md": "93aa12f4cd110446325a63ff0c5c85c3daa01d543cd361643f112161dfcf490c",
+      "docs/evidence/achievement-translation-declarations-2026-10-31.json": "c8edd7472b7944348e39499ef1d2a59cd4e8a9e91338c3d7da46c8baf582df6b",
+      "docs/evidence/engine-source-license-audit-2026-10-21.json": "866e0a743ddaa4881fd8428dbce235c252e0773fb58ddefaaf1cef364d7607fd",
+      "docs/evidence/modified-sources-since-0.0.8-2026-10-21.json": "18a2c562d9271554e54644aeea3c66e7b498c8e5761f3532f04e8f5be2d4e9e7",
+      "docs/evidence/package-sources-license-audit-2026-10-21.json": "348c5c7840a9262e095519b46aca8d632341ba82483c386a96653108f4a8b72c",
+      "docs/evidence/pocket-originals-declarations-2026-11-03.json": "37388cacfd4623de2d580476e6d5f48a50daf8af449c42aed75fb4a4164e5641",
+      "docs/evidence/ppsspp-source-license-audit-2026-10-21.json": "34d4df4576cac7a5c2a6b1e89bed95e98870165146e11b058fd624cf009946ce",
+      "docs/evidence/retro-achievements-session-declarations-2026-11-01.json": "7d341d4f57dfdfc4abe32a6b8f6845ba4d6236f32615fc0eed848c9b9679ad1e",
+      "docs/evidence/rewindbox-glacier-declarations-2026-11-02.json": "3c391df6cfc68f6ee4aa3691f8c4e8e2fcd37fc9d596060fbb7946ab7810c924",
+      "docs/evidence/rpcs3-retroachievements-declarations-2026-11-02.json": "12abf0d5396a77c8457da822d328bcee5d68338058afc848df51fc73ea15b876",
+      "docs/licenses/cheats/Admentus-Enhancement-Codes-Credits.txt": "ea9f46181d8a6eed2c318a2795f73ff1dfa2a838f8992d6b07be74ed0d9fb93b",
+      "docs/licenses/cheats/Admentus-Enhancement-Codes-LICENSE.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "docs/licenses/cheats/Mupen64Plus-GPL-2.0.txt": "6774e66e59957ebf1da6c9e22be4e7b97fb169a534ab37e085e92831ff414fdd",
+      "docs/licenses/cheats/Mupen64Plus-mupencheat-header.txt": "39023c3dc42e1f1ea6085d79d44bdf9b59adf5846137496f9d73268f6ae7ecd5",
+      "docs/licenses/cheats/README.md": "191a16de4712ffb71f9604f0ed480b5ef1105e6f139575e77cff4b1b4d0dc340",
+      "docs/licenses/cheats/TAbdiukov-PPSSPP-patches-LICENCE.txt": "47a7bfd6b3e12546207665bcd53558b4087ac04fbcfc2592966968a3adab7987",
+      "docs/licenses/cheats/artemis-LICENSE.txt": "6a3e4ba999067b1c412f1740282bc077f8edf5f7178ea085acb5f5cca6fecb46",
+      "docs/licenses/cheats/provenance.json": "6a1ed0158a9f2c2c4f4ebed42b1c5e963baeac0c7c56fddfc4e84bf3c98ee843",
+      "docs/licenses/cheats/szTheory-NDS-Cheat-Databases-LICENSE.txt": "20b067f86de375aae6db0f283ab2e65de24d537733b89bd58432c101259d84cf",
+      "docs/licenses/cheats/tyler-EMERALD-NOTICE.txt": "868b4e7215a9a5835be022dc4d3c469ea18ce71598b20280d02b7b4c83f8621e",
+      "docs/licenses/cheats/tyler-GPL-3.0-LICENSE.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "docs/licenses/rpcs3-wiki-2026-10-28.json": "e844cbcf720d9f8af0f6dc38bb1dd9fed67bd2c83e17299db21cff95e2a54628",
+      "docs/licenses/rpcs3-wiki-2026-10-28.md": "6ae6c89711313c17a0f4585b02760688b75114dd76e6e994a40d9acdaadaf075",
+      "docs/retroarch-rollback-2026-10-08.md": "0d76d77ba6e51bfeda4c84388cf0fa8eb25af3c221943a4d41999a6692eeea0c"
+    }
   },
   "images": {
     "retained": {
@@ -580,6 +1520,7 @@
       "Runner"
     ],
     "retainedFingerprints": {
+      "Frameworks/ARMSX2Core.framework/ARMSX2Core": "e94131ab3e246a6f6162747a7cd0dd5c985b13121ef33bfaf61e8249d22a5998",
       "Frameworks/DolphinCore.framework/DolphinCore": "640e4389559c800087b3d4b2a2748b4c11307ae6a79bc72f59d55430ccddd6fc",
       "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec": "cad556ba3651eece2068166f1fb61671d33d56ff68444475865a0055d316c01d",
       "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil": "15acad8827f4dc80c453647c5196c91e393c8eb52e3f6367d1838454f7dee1c9",
@@ -629,12 +1570,8 @@
       "Frameworks/uzem_libretro.framework/uzem_libretro": "ae053a29eff0b1490f7cedd6af8a79d0df45950ef71fd604a93703ceaa039d93",
       "Frameworks/wasm4_libretro.framework/wasm4_libretro": "41dec5ccf2fdb0153db049f027424f42993ae0c83df61e4bd1db24b0cf9a4dde"
     },
-    "replacedFingerprints": {
-      "Frameworks/ARMSX2Core.framework/ARMSX2Core": "e94131ab3e246a6f6162747a7cd0dd5c985b13121ef33bfaf61e8249d22a5998"
-    },
-    "derivedMustChange": [
-      "Frameworks/App.framework/App"
-    ]
+    "replacedFingerprints": {},
+    "derivedMustChange": []
   },
   "tests": {
     "flutter": {
@@ -661,5 +1598,11 @@
     "libretro",
     "melonx-dependencies"
   ],
-  "s2armAsyncPSOTestDefault": true
+  "s2armAsyncPSOTestDefault": true,
+  "frozen": {
+    "at": "2026-11-27T03:39:05Z",
+    "commit": "58b3e047c66c80d6470ffc5451ccc3a706193bf6",
+    "tool": "standard_delivery.py freeze",
+    "inCI": false
+  }
 }
