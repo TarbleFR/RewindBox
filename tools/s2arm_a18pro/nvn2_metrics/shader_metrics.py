@@ -86,11 +86,31 @@ def transcend(n):
     for i in range(n):
         body += [EX2(4 + i % 4, 4 + (i + 1) % 4) if i % 2 else RSQ(4 + i % 4, 4 + (i + 1) % 4), FFMA(4 + (i + 1) % 4, 4 + i % 4, 5, 6)]
     return body + [alu(0x002, 1, k, rb=(32, 4 + k), m=(72, 0xf)) for k in range(4)]
+# Memory: storage buffer 0 (c[0][0x510], the input block on the GPU) read at many offsets, and raw guest memory through addresses loaded from it
+def ssbo_loads(n):
+    body = [C.LDC64(8, 0x510)]
+    for i in range(n):
+        body += [C.LDGO(12 + i % 4, 8, 4 * (i % 32)), IADD3(4 + i % 4, 4 + i % 4, 12 + i % 4)]
+    return [MOVI(4, 0), MOVI(5, 0), MOVI(6, 0), MOVI(7, 0)] + body + [alu(0x002, 1, k, rb=(32, 4 + k), m=(72, 0xf)) for k in range(4)]
+def ssbo_vec(n):   # 128-bit loads of the storage buffer
+    body = [C.LDC64(8, 0x510), MOVI(4, 0), MOVI(5, 0), MOVI(6, 0), MOVI(7, 0)]
+    for i in range(n):
+        body += [inst(0x381, rd=(16, 12), ra=(24, 8), off=(40, 16 * (i % 8)), e=(72, 1), size=(73, 6))] + [IADD3(4 + k, 4 + k, 12 + k) for k in range(4)]
+    return body + [alu(0x002, 1, k, rb=(32, 4 + k), m=(72, 0xf)) for k in range(4)]
+def raw_reads(n):   # addresses loaded from memory: the raw pool table (GlobalToStorage.TryGenerateRawStorageOp)
+    body = list(C.RAW_HEAD) + [MOVI(4, 0), MOVI(5, 0), MOVI(6, 0), MOVI(7, 0)]
+    for i in range(n):
+        body += [C.LDGO(14, 10 if i % 3 else 12, 4 * (i % 16)), IADD3(4 + i % 4, 4 + i % 4, 14)]
+    return body + [alu(0x002, 1, k, rb=(32, 4 + k), m=(72, 0xf)) for k in range(4)]
+SINPUT = list(range(0x100, 0x100 + 64))
+RINPUT = C.lohi(C.G1 + 0x10) + C.lohi(C.G1 + C.PS + 8)
 FINPUT = [f32(1.0009765625), f32(0.5), f32(-0.25), f32(0.125), 7]
 IINPUT = [0x12345678, 0x9abcdef1, 0x0f0f0f0f, 0x31415927, 7]
 CORPUS = [("f32_chain_64", f32_chain(64), FINPUT), ("f32_chain_256", f32_chain(256), FINPUT), ("int_mix_128", int_mix(128), IINPUT),
           ("repeated_32", repeated(32), FINPUT), ("cbuf_heavy_96", cbuf_heavy(96), FINPUT), ("loop_16x8", loop(16), FINPUT),
-          ("branchy_48", branchy(48), IINPUT), ("transcend_32", transcend(32), FINPUT)]
+          ("branchy_48", branchy(48), IINPUT), ("transcend_32", transcend(32), FINPUT),
+          ("ssbo_loads_48", ssbo_loads(48), SINPUT), ("ssbo_vec_16", ssbo_vec(16), SINPUT), ("raw_reads_24", raw_reads(24), RINPUT)]
+EXTRA = {"raw_reads_24": ["-P", f"5000:{C.G1:x}:1"]}   # frag_run's raw pool table (tests/ampere_isa/frag_run.m -P)
 
 def msl_metrics(msl):
     main = msl[msl.find("fragment "):] if "fragment " in msl else msl
@@ -151,7 +171,8 @@ for vname, env in variants:
         m = msl_metrics(v[0]); m["guest_instructions"] = len(body) + 1
         if args.mac:
             m.update(air_metrics(p, vdir))
-            g = subprocess.run([args.mac, str(p), *C.arg_spec(v[0]), *[f"{w & 0xffffffff:08x}" for w in inputs]], capture_output=True, text=True, timeout=120)
+            g = subprocess.run([args.mac, str(p), *C.arg_spec(v[0], v[1] if name in EXTRA else None), *EXTRA.get(name, []), *[f"{w & 0xffffffff:08x}" for w in inputs]],
+                               capture_output=True, text=True, timeout=120)
             m["gpu_words"] = g.stdout.split() if g.returncode == 0 else ["error", g.stderr.strip()[:200]]
         results.setdefault(name, {})[vname] = m
 (out / "shader_metrics.json").write_text(json.dumps(results, indent=1))
