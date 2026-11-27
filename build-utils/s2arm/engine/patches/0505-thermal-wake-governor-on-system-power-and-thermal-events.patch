@@ -1,0 +1,67 @@
+diff --git a/graphics/nvn/gfx/nvn/rb_spec_gate.h b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+--- a/graphics/nvn/gfx/nvn/rb_spec_gate.h
++++ b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+@@ -100,6 +100,15 @@
+     rb_spec_signal_locked(gate);
+     pthread_mutex_unlock(&gate->mutex);
+ }
++// Invalidate before waking; an epoch change also catches a worker that has
++// not yet parked. Only the sampler is needed until a changed plan is known.
++static inline void rb_spec_notify_sensor(rb_spec_gate *gate, _Atomic uint64_t *sampled) {
++    if (!atomic_exchange_explicit(sampled, 0, memory_order_acq_rel)) return;
++    pthread_mutex_lock(&gate->mutex);
++    atomic_fetch_add(&gate->epoch, 1);
++    RB_SPEC_DIAG("spec.signal", -2, pthread_cond_signal(&gate->primary));
++    pthread_mutex_unlock(&gate->mutex);
++}
+ static inline int rb_spec_publish_plan_mode(rb_spec_gate *gate, int level, unsigned limit,
+                                             int startup_floor, int energy_one) {
+     pthread_mutex_lock(&gate->mutex);
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -7478,7 +7478,12 @@
+ }
+ static pthread_mutex_t rb_kart_sample_mu = PTHREAD_MUTEX_INITIALIZER;
+ static _Atomic uint64_t g_spec_published;  // Set after publishing the complete plan.
+-static _Atomic int g_spec_snapshot_option;
++static _Atomic int g_spec_snapshot_option, g_spec_event_option;
++static void rb_spec_sensor_change(int thermal) {
++    if (atomic_load_explicit(&g_spec_event_option, memory_order_relaxed) == 2)
++        rb_spec_notify_sensor(&g_spec_gate, &g_spec_sampled);
++    else if (thermal) atomic_store(&g_spec_sampled, 0);
++}
+ static int rb_spec_level(void) {
+     int adaptive = rb_thermal_pacing();
+     int strict = adaptive || rb_kart_option(RB_KART_WORKERS);
+@@ -7493,12 +7498,18 @@
+             return atomic_load_explicit(&g_spec_gate.level, memory_order_relaxed);
+     }
+     if (strict) {
++        (void)rb_pacing_setting(&g_spec_event_option, "S2A_RB_SPEC_EVENT_WAKE");
+         static dispatch_once_t once;
+         dispatch_once(&once, ^{
+             [NSNotificationCenter.defaultCenter addObserverForName:NSProcessInfoThermalStateDidChangeNotification
+                 object:nil queue:nil usingBlock:^(NSNotification *note) {
+                     (void)note;
+-                    atomic_store(&g_spec_sampled,0);
++                    rb_spec_sensor_change(1);
++                }];
++            [NSNotificationCenter.defaultCenter addObserverForName:NSProcessInfoPowerStateDidChangeNotification
++                object:nil queue:nil usingBlock:^(NSNotification *note) {
++                    (void)note;
++                    rb_spec_sensor_change(0);
+                 }];
+         });
+         // Rivals may not use the previous unlimited plan while the first
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -493,6 +493,7 @@
+     atomic_store(&g_spec_sampled,0);
+     atomic_store(&g_spec_published,0);
+     atomic_store(&g_spec_snapshot_option,0);
++    atomic_store(&g_spec_event_option,0);
+     atomic_store(&g_spec_wake_option,0);
+     atomic_store(&rb_gov_next,0);
+     for (unsigned i=0; i<RB_KART_OPTIONS; i++) atomic_store(&rb_kart_settings[i],0);

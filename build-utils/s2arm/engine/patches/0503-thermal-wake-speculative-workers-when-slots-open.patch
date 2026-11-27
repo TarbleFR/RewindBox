@@ -1,0 +1,77 @@
+diff --git a/graphics/nvn/gfx/nvn/rb_spec_gate.h b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+--- a/graphics/nvn/gfx/nvn/rb_spec_gate.h
++++ b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+@@ -56,6 +56,7 @@
+ // uses it only under the Fair floor, never to grow memory past the Metal room.
+ enum { RB_FLOOR_NONE, RB_FLOOR_HOT_TIER, RB_FLOOR_NOMINAL };
+ enum { RB_LEASE_OPTIONAL, RB_LEASE_HOT_TIER, RB_LEASE_FOREGROUND };
++enum { RB_SPEC_HOT_TIER_LIMIT = 4 };
+ static inline int rb_spec_nominal_startup(int thermal, uint64_t available) {
+     return thermal == 0 && available != UINT64_MAX && available > (UINT64_C(3000) << 20);
+ }
+@@ -119,7 +120,7 @@
+     pthread_mutex_lock(&gate->mutex);
+     int level = atomic_load(&gate->level);
+     unsigned limit = gate->limit;
+-    if (startup == RB_LEASE_HOT_TIER && level == RB_SPEC_RUN && limit == 2) limit = 4;
++    if (startup == RB_LEASE_HOT_TIER && level == RB_SPEC_RUN && limit == 2) limit = RB_SPEC_HOT_TIER_LIMIT;
+     int eligible = startup == RB_LEASE_FOREGROUND ||
+                    (startup == RB_LEASE_HOT_TIER && gate->startup_floor == RB_FLOOR_HOT_TIER);
+     int floor = gate->startup_floor && eligible && worker == 0 && level == RB_SPEC_HOLD;
+@@ -140,17 +141,25 @@
+     pthread_mutex_unlock(&gate->mutex);
+     return granted;
+ }
+-static inline void rb_spec_release(rb_spec_gate *gate, int *lease) {
++static inline void rb_spec_release_mode(rb_spec_gate *gate, int *lease, int coalesce) {
+     if (!*lease) return;
+     pthread_mutex_lock(&gate->mutex);
+     *lease = 0;
+-    --gate->active;
+-    if (gate->limit && atomic_load(&gate->level) == RB_SPEC_RUN) rb_spec_signal_locked(gate);
+-    else if (!gate->active && (atomic_load(&gate->level) == RB_SPEC_ONE || gate->startup_floor)) {
++    unsigned before = gate->active--;
++    int level = atomic_load(&gate->level);
++    if (gate->limit && level == RB_SPEC_RUN) {
++        // Only a full-to-available transition unblocks a worker. Hot-tier
++        // startup rows can have four slots while regular rows have two.
++        if (!coalesce || before == gate->limit || (gate->limit == 2 && before == RB_SPEC_HOT_TIER_LIMIT))
++            rb_spec_signal_locked(gate);
++    } else if (!gate->active && (level == RB_SPEC_ONE || gate->startup_floor)) {
+         atomic_fetch_add(&gate->epoch, 1);
+         RB_SPEC_DIAG("spec.signal", -2, pthread_cond_signal(&gate->primary));
+     }
+     pthread_mutex_unlock(&gate->mutex);
++}
++static inline void rb_spec_release(rb_spec_gate *gate, int *lease) {
++    rb_spec_release_mode(gate, lease, 0);
+ }
+ static inline int rb_cond_wait_for(pthread_cond_t *cv, pthread_mutex_t *mutex, uint64_t ns) {
+     struct timespec t;
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -7523,7 +7523,11 @@
+     *lease = 0;
+     return !rb_kart_thermal_workers() || rb_spec_take(0,lease);
+ }
+-void rb_spec_done(int *lease) { rb_spec_release(&g_spec_gate, lease); }
++static _Atomic int g_spec_wake_option;
++void rb_spec_done(int *lease) {
++    if (*lease)
++        rb_spec_release_mode(&g_spec_gate, lease, rb_pacing_setting(&g_spec_wake_option, "S2A_RB_SPEC_COALESCE_WAKE"));
++}
+ int rb_spec_take_optional(void) {
+     for (;;) {
+         uint64_t ticket = atomic_load(&g_spec_gate.epoch);
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -487,6 +487,7 @@
+     atomic_store(&g_spec_sampled,0);
+     atomic_store(&g_spec_published,0);
+     atomic_store(&g_spec_snapshot_option,0);
++    atomic_store(&g_spec_wake_option,0);
+     atomic_store(&rb_gov_next,0);
+     for (unsigned i=0; i<RB_KART_OPTIONS; i++) atomic_store(&rb_kart_settings[i],0);
+     atomic_store_explicit(&rb_pso_session_mode, 0, memory_order_relaxed);

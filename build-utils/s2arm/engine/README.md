@@ -896,3 +896,12 @@ Une plage sale entièrement contenue dans un niveau et une couche peut utiliser 
 ### 0501 — métadonnées des lectures RomFS aléatoires
 
 Un mot de 64 bits par fichier réunit la position et la longueur du chemin. La longueur du fichier reste partagée avec la table des intervalles. La [contre-mesure des petites lectures](../../../docs/evidence/s2arm-ram-0495-0500.md#contre-mesure-romfs--0501) motive cette disposition.
+
+### 0502–0505 — coordination énergétique
+
+- **0502** réutilise le plan publié du gouverneur. `S2A_RB_SPEC_SNAPSHOT=0` rétablit la lecture sous verrou.
+- **0503** limite les notifications de libération aux quotas qui viennent de rendre une place. Témoin `S2A_RB_SPEC_COALESCE_WAKE=0`.
+- **0504** utilise les relevés existants de sonde et de durée GPU pour borner les admissions facultatives. Garde optionnel `S2A_RB_ENERGY_SPEC_GUARD=1`, télémétrie indépendante `S2A_RB_ENERGY_DIAG=1`.
+- **0505** déclenche le relevé à partir des notifications système en profil strict. Témoin `S2A_RB_SPEC_EVENT_WAKE=0`.
+
+[Paires et protocole physique](../../../docs/evidence/s2arm-thermal-0502-0505.md).

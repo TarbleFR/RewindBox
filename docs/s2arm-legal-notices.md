@@ -173,7 +173,7 @@ package assembly, and the final link's map):
 
 | Component | Version / identity | Licence | Licence text (at the S2Arm pin) | In the IPA (S2Arm's table) |
 | --- | --- | --- | --- | --- |
-| S2Arm runtime, services, graphics, iOS guest (with RewindBox patches 0001–0501) | `6b6a5715` | Apache-2.0; keep `NOTICE` | `LICENSE`, `NOTICE` | yes |
+| S2Arm runtime, services, graphics, iOS guest (with RewindBox patches 0001–0505) | `6b6a5715` | Apache-2.0; keep `NOTICE` | `LICENSE`, `NOTICE` | yes |
 | ns2pro-bridge | baseline `4d7ce092` | MIT | `runtime/ns2pro/LICENSE` | yes (`NS2Pro.framework`) |
 | Ryujinx tree | `compat/tree` | MIT | `compat/tree/LICENSE.txt` | yes |
 | Ryujinx NuGet packages kept in the engine: Gommon 2.8.1.2, Open.Nat.V2 3.2.1, Ryujinx.LibHac 0.21.0-alpha.133 (MIT; LibHac also the ISC hactool and XTSSharp notices), System.IO.Hashing 10.0.9, Humanizer.Core 3.0.10, Microsoft.IO.RecyclableMemoryStream 3.0.1, NetCoreServer 8.0.7 (MIT), MsgPack.Cli 1.0.1 (Apache-2.0) | `compat/tree/Directory.Packages.props` | as listed | the package archive or the pinned source commit of its nuspec (table above) | kept (inventory of runs 43119291210, 43122083170) |
@@ -426,3 +426,7 @@ memory, compact the deferred-zero table and avoid unnecessary reset writes.
 
 Patch 0501 packs the path offset and length read from the persisted RomFS
 index in `services/S2A.Services/RomFsIndex.cs` (S2Arm, Apache-2.0).
+
+Patches 0502–0505 modify the S2Arm optional-work governor in
+`graphics/nvn/gfx/nvn/{nvn_mtl.m,nvn_session.inc,rb_spec_gate.h,rb_energy_guard.h}`
+(Apache-2.0), including its publication, admission and notification paths.

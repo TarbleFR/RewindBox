@@ -1,0 +1,72 @@
+diff --git a/graphics/nvn/gfx/nvn/rb_spec_gate.h b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+--- a/graphics/nvn/gfx/nvn/rb_spec_gate.h
++++ b/graphics/nvn/gfx/nvn/rb_spec_gate.h
+@@ -10,6 +10,12 @@
+ #include <time.h>
+ 
+ enum { RB_SPEC_RUN, RB_SPEC_ONE, RB_SPEC_HOLD };
++// A timestamp taken before the sensor query is only a claim. Readers can
++// reuse the plan once that same claim is published, unless invalidated.
++#define RB_SPEC_SAMPLE_NS UINT64_C(500000000)
++static inline int rb_spec_snapshot_ready(uint64_t now, uint64_t claimed, uint64_t published) {
++    return published && published == claimed && now >= published && now - published < RB_SPEC_SAMPLE_NS;
++}
+ enum { RB_SPEC_CLEAR, RB_SPEC_FAIR, RB_SPEC_LOW_POWER, RB_SPEC_HOT, RB_SPEC_LOW_MEMORY, RB_SPEC_COOLING };
+ // Unknown headroom is UINT64_MAX. For an iOS app, zero may mean that the
+ // process limit has already been exceeded; an actual zero is a valid reading.
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -7417,11 +7417,21 @@
+     return (uint64_t)x << 20;
+ }
+ static pthread_mutex_t rb_kart_sample_mu = PTHREAD_MUTEX_INITIALIZER;
++static _Atomic uint64_t g_spec_published;  // Set after publishing the complete plan.
++static _Atomic int g_spec_snapshot_option;
+ static int rb_spec_level(void) {
+     int adaptive = rb_thermal_pacing();
+     int strict = adaptive || rb_kart_option(RB_KART_WORKERS);
+     int metalBudget = rb_working_set_on();
+     if (!strict && !rb_spec_on() && !rb_gov_on() && !metalBudget) return RB_SPEC_RUN;
++    int cached = strict && rb_pacing_setting(&g_spec_snapshot_option, "S2A_RB_SPEC_SNAPSHOT");
++    if (cached) {
++        uint64_t now = bp_now();
++        uint64_t published = atomic_load_explicit(&g_spec_published, memory_order_acquire);
++        uint64_t claimed = atomic_load_explicit(&g_spec_sampled, memory_order_acquire);
++        if (rb_spec_snapshot_ready(now, claimed, published))
++            return atomic_load_explicit(&g_spec_gate.level, memory_order_relaxed);
++    }
+     if (strict) {
+         static dispatch_once_t once;
+         dispatch_once(&once, ^{
+@@ -7436,7 +7446,9 @@
+         pthread_mutex_lock(&rb_kart_sample_mu);
+     }
+     uint64_t now = bp_now(), prev = atomic_load_explicit(&g_spec_sampled, memory_order_relaxed);
+-    if ((!prev || (now > prev && now - prev >= 500000000ull)) && atomic_compare_exchange_strong_explicit(&g_spec_sampled, &prev, now, memory_order_relaxed, memory_order_relaxed)) {
++    if ((!prev || (cached && prev != atomic_load_explicit(&g_spec_published, memory_order_relaxed)) ||
++         (now > prev && now - prev >= RB_SPEC_SAMPLE_NS)) &&
++        atomic_compare_exchange_strong_explicit(&g_spec_sampled, &prev, now, memory_order_relaxed, memory_order_relaxed)) {
+         NSProcessInfo *pi = NSProcessInfo.processInfo; int th = strict ? (int)pi.thermalState : rb_cached_thermal(), low = pi.isLowPowerModeEnabled ? 1 : 0;
+ #ifdef RB_TEST_FIRST_FRAME
+         if (rb_test_first_scope) th=1;
+@@ -7463,6 +7475,7 @@
+         else if (adaptive && th == 1 && why == RB_SPEC_FAIR && !low) startupFloor = RB_FLOOR_HOT_TIER;
+         int was = rb_spec_publish_plan(&g_spec_gate, level, strict ? 2 : 0, startupFloor);
+         if (strict) {
++            atomic_store_explicit(&g_spec_published, now, memory_order_release);
+             static unsigned lastStartup; // rb_kart_sample_mu
+             unsigned startup = level == RB_SPEC_RUN ? 4u : (startupFloor || level == RB_SPEC_ONE ? 1u : 0u);
+             if (!prev || was != level || startup != lastStartup)
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -485,6 +485,8 @@
+     atomic_store_explicit(&g_rb_queue_wait_drains, 0, memory_order_relaxed);
+     atomic_store_explicit(&g_rb_queue_wait_drain_ns, 0, memory_order_relaxed);
+     atomic_store(&g_spec_sampled,0);
++    atomic_store(&g_spec_published,0);
++    atomic_store(&g_spec_snapshot_option,0);
+     atomic_store(&rb_gov_next,0);
+     for (unsigned i=0; i<RB_KART_OPTIONS; i++) atomic_store(&rb_kart_settings[i],0);
+     atomic_store_explicit(&rb_pso_session_mode, 0, memory_order_relaxed);
