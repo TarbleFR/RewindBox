@@ -16,6 +16,9 @@ Rappel : iOS 26 tourne sur **Metal 3** (`nvn_be.h`, `ios26x`), le chemin à opti
 ## Prochaine action
 1. Relire le run CI 46006446704 (commit 26562819e, `0478`, couvre aussi `0477` ; run 0477 46005579324). Si rouge ou pixels/état différents sur
    `m3_arg_hint_off` / `m3_bind_cache_off` : corriger ou retirer le patch fautif.
-2. Ensuite : 14 fences par image (m3_wait/m4_end entre encodeurs). Attention : sauter un `waitForFence` casse la transitivité de la chaîne
-   (l’encodeur suivant n’attendrait que le précédent) → ne retirer qu’une paire wait+update prouvée sans dépendance, ou abandonner l’axe.
+2. Axe fences abandonné (27/11, analyse) : 14 = 7 encodeurs × (wait+update) ; chaque paire ordonne upload→rendu, rendu→rendu
+   ou rendu→relecture, accès bindless non suivis par Metal → aucune paire prouvable sans dépendance. Ne pas rouvrir.
+   Arène : 677 allocs ≈ minimum 256 o (173 Ko/image), transfert négligeable → pas un goulet GPU.
+   Si 0477/0478 verts et fidèles : axes GPU du rejeu synthétique épuisés (load 0, stores requis, 1 encodeur/passe,
+   liaisons dédupliquées) → désactiver la tâche après validation, sauf nouvelle preuve de goulet.
 3. Ne pas refaire : coupures 0/4/16/64, vidage des tables de ressources (retiré), comparaisons de temps mural du runner (bruit ±30 %).
