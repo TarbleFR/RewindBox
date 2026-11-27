@@ -1,0 +1,156 @@
+{
+  "schema": 1,
+  "date": "2026-11-27",
+  "branch": "Claude",
+  "source": "d473517bb1a4d1be92ebd9dd9e68d3aef6e910bd",
+  "producerSource": "b4ea094fe5c7fd4ca87ee27ae7d302d9a4a9f30a",
+  "upstream": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
+  "wiimmfiABI": 2,
+  "compiled": true,
+  "producerRun": 45972261314,
+  "firstProducer": {
+    "source": "ae3cedab7534adfe8beb9928feabd96dc6c36cc1",
+    "run": 45970520840,
+    "result": "success",
+    "abi": 1,
+    "superseded": true,
+    "coreSha256": "221d06f6379c0379b7e574fb3c2c0ce40e2100c91bec87b174797183bad5e737"
+  },
+  "host": {
+    "flutterSDK": "3.47.2",
+    "pubspecLockUnchanged": true,
+    "flutterBehaviorTests": 10,
+    "existingWiiImportAndLaunchTests": 14,
+    "nandValidator": {
+      "valid": 1,
+      "hostileOrCancel": 16,
+      "asan": true,
+      "ubsan": true,
+      "lsan": "unavailable under Linux tracer; not disabled in Apple CI"
+    },
+    "offlineGate": {
+      "requests": 27,
+      "iterations": 100,
+      "offlineHostCalls": 0
+    },
+    "analysis": "no issues",
+    "review": "two independent reviews; offline network/recovery/cancel corrections included"
+  },
+  "submodulePins": {
+    "Externals/FFmpeg-bin": "9bc087fbca36ce5a85eb4fd73f0c73813593e5a2",
+    "Externals/Qt": "495517af2b922c10c24f543e0fd6ea3ddf774e50",
+    "Externals/SDL/SDL": "c9a6709bd21750f1ad9597be21abace78c6378c9",
+    "Externals/SFML/SFML": "016bea9491ccafc3529019fe1d403885a8b3a6ae",
+    "Externals/Vulkan-Headers": "39f924b810e561fd86b2558b6711ca68d4363f68",
+    "Externals/VulkanMemoryAllocator": "3bab6924988e5f19bf36586a496156cf72f70d9f",
+    "Externals/cubeb/cubeb": "54217bca3f3e0cd53c073690a23dd25d83557909",
+    "Externals/curl/curl": "75a2079d5c28debb2eaa848ca9430f1fe0d7844c",
+    "Externals/enet/enet": "2a85cd64459f6ba038d233a634d9440490dbba12",
+    "Externals/fmt/fmt": "e69e5f977d458f2650bb346dadf2ad30c5320281",
+    "Externals/gtest": "58d77fa8070e8cec2dc1ed015d66b454c8d78850",
+    "Externals/hidapi/hidapi-src": "7011fa98af2dde00c298105735e470de800288c7",
+    "Externals/implot/implot": "3da8bd34299965d3b0ab124df743fe3e076fa222",
+    "Externals/libadrenotools": "8fae8ce254dfc1344527e05301e43f37dea2df80",
+    "Externals/libspng/libspng": "dc5b1032c08efac68ad30170f7ccbf0aa8dd55c9",
+    "Externals/libusb/libusb": "ba698478afc3d3a72644eef9fc4cd24ce8383a4c",
+    "Externals/lz4/lz4": "5fc0630a0ed55e9755b0fe3990cd021ae1c3edc1",
+    "Externals/mGBA/mgba": "8739b22fbc90fdf0b4f6612ef9c0520f0ba44a51",
+    "Externals/miniupnpc/miniupnp": "bf4215a7574f88aa55859db9db00e3ae58cf42d6",
+    "Externals/minizip-ng/minizip-ng": "55db144e03027b43263e5ebcb599bf0878ba58de",
+    "Externals/rcheevos/rcheevos": "b443902b1cdfee5a66b09fec20a94d2d2afaf2ec",
+    "Externals/spirv_cross/SPIRV-Cross": "ebe2aa0cd80f5eb5cd8a605da604cacf72205f3b",
+    "Externals/tinygltf/tinygltf": "c5641f2c22d117da7971504591a8f6a41ece488b",
+    "Externals/watcher/watcher": "b03bdcfc11549df595b77239cefe2643943a3e2f",
+    "Externals/xxhash/xxHash": "e626a72bc2321cd320e953a0ccf1584cad60f363",
+    "Externals/zlib-ng/zlib-ng": "ce01b1e41da298334f8214389cc9369540a7560f",
+    "Externals/zstd/zstd": "f8745da6ff1ad1e7bab384bd1f9d742439278e99"
+  },
+  "sourceInputs": {
+    "build-utils/patch_dolphin_internal_core_v2.py": "367da5b2e9c3595bb66cb0ea00657461467c82a0ad4b922f25305eed49481d50",
+    "build-utils/dolphin_wiimmfi.py": "94e010b21734bbd5c1e5d7888951b0c5356fa60b13340982759f5f9e6ad41bee",
+    "packages/dolphin_internal_bridge/core/NeoStationAchievementPresentation.inc": "8402b3b8600a6b95ac71582023257eca506f223933ff4ca8994ace7560228980",
+    "packages/dolphin_internal_bridge/core/NeoStationAchievementSession.inc": "8daa7fb8fe786a654fb7ebb5ae997628397ebb3afec7dc31fe55918e020fa1b5",
+    "packages/dolphin_internal_bridge/core/NeoStationPerformance.inc": "b4947587e2f45c1047c0467be6f8d9df677e7259aff4f5b7b34a130bd71ea1ff",
+    "packages/dolphin_internal_bridge/core/NeoStationSavestates.inc": "69117c5733537908036917c213c4cf009e87fb61be88bc976dab5dfa4d4e84ac",
+    "packages/dolphin_internal_bridge/core/NeoStationSession.inc": "d55e46324fa5502870cb2db5eb4a1c14ab2cdfd6681759c80c70da42f7639616",
+    "packages/dolphin_internal_bridge/core/NeoStationStateCompression.inc": "fa197967e0adcf490631559d525952cb5b926e9c154d2e519c27067216ffa757",
+    "packages/dolphin_internal_bridge/core/NeoStationWiimmfi.inc": "d877f5d01726b9ccb17574c3e2d9546222baa2aed84a42972e775caf030cc965"
+  },
+  "iPhone": {
+    "tested": false,
+    "reference": "iPhone 16 Pro Max / A18 Pro / 8 GiB",
+    "nandDecryptionWithRealConsole": false,
+    "authentication": false,
+    "publicRace": false,
+    "privateRoom": false,
+    "reconnect": false,
+    "cpuRamThermalComparison": false
+  },
+  "limitations": [
+    "User-supplied officially patched image; patch security version not certified",
+    "No ECC/HMAC or Nintendo identity cryptographic certification",
+    "Official live compatibility/statistics unavailable; no fabricated counts",
+    "Whole app/Flutter UIKit bridge not built as IPA; only Core and import SDK adapter checked"
+  ],
+  "ipaProduced": false,
+  "producerResult": "success",
+  "coreSha256": "d4ac87f989a9be73e21bb1c904932d7355d93fefee65cdd32424f83041512ae2",
+  "producerIdentity": {
+    "schema_version": 1,
+    "repository": "https://github.com/OatmealDome/dolphin-ios.git",
+    "host_commit": "b4ea094fe5c7fd4ca87ee27ae7d302d9a4a9f30a",
+    "source_revision": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
+    "sha256": "d4ac87f989a9be73e21bb1c904932d7355d93fefee65cdd32424f83041512ae2",
+    "architectures": [
+      "arm64"
+    ],
+    "abi": "NeoStation Dolphin internal v3 + cheat manager",
+    "wiimmfi_abi": 2,
+    "cheat_catalogues": [
+      "Gecko/WiiRD",
+      "Action Replay/local INI"
+    ],
+    "device_runtime_tested": false,
+    "achievement_presenter": 1,
+    "use_retro_achievements": true,
+    "source_inputs": {
+      "build-utils/patch_dolphin_internal_core_v2.py": "367da5b2e9c3595bb66cb0ea00657461467c82a0ad4b922f25305eed49481d50",
+      "packages/dolphin_internal_bridge/core/NeoStationAchievementPresentation.inc": "8402b3b8600a6b95ac71582023257eca506f223933ff4ca8994ace7560228980",
+      "packages/dolphin_internal_bridge/core/NeoStationAchievementSession.inc": "8daa7fb8fe786a654fb7ebb5ae997628397ebb3afec7dc31fe55918e020fa1b5",
+      "packages/dolphin_internal_bridge/core/NeoStationPerformance.inc": "b4947587e2f45c1047c0467be6f8d9df677e7259aff4f5b7b34a130bd71ea1ff",
+      "packages/dolphin_internal_bridge/core/NeoStationSavestates.inc": "69117c5733537908036917c213c4cf009e87fb61be88bc976dab5dfa4d4e84ac",
+      "packages/dolphin_internal_bridge/core/NeoStationSession.inc": "d55e46324fa5502870cb2db5eb4a1c14ab2cdfd6681759c80c70da42f7639616",
+      "packages/dolphin_internal_bridge/core/NeoStationStateCompression.inc": "fa197967e0adcf490631559d525952cb5b926e9c154d2e519c27067216ffa757",
+      "packages/dolphin_internal_bridge/core/NeoStationWiimmfi.inc": "d877f5d01726b9ccb17574c3e2d9546222baa2aed84a42972e775caf030cc965"
+    }
+  },
+  "artifacts": [
+    {
+      "id": 15186006136,
+      "name": "DolphinCore-AchievementTranslation-b4ea094fe5c7fd4ca87ee27ae7d302d9a4a9f30a",
+      "digest": "sha256:eb20ad9fdce835118282fecadec8f0f612e5afc4cbd484559d0b0a9a57991965",
+      "size": 11020402
+    },
+    {
+      "id": 15185159328,
+      "name": "DolphinCore-diagnostics-b4ea094fe5c7fd4ca87ee27ae7d302d9a4a9f30a",
+      "digest": "sha256:cef6839ecff7187a3e38b8e42693341e19d00eeba9027998e1af06956718546a",
+      "size": 307027
+    }
+  ],
+  "warnings": {
+    "baseline": 35,
+    "final": 35,
+    "newWarnings": []
+  },
+  "sdkAdapter": "iPhoneOS arm64 syntax compilation passed with -Wall -Wextra -Werror",
+  "producerIdentitySupplement": "dolphin_wiimmfi.py is pinned by producer commit and recorded separately in sourceInputs; include it in future component source-path retention guards",
+  "uiFollowup": {
+    "paths": [
+      "lib/widgets/wiimmfi_panel.dart",
+      "lib/services/wiimmfi/wiimmfi_service.dart"
+    ],
+    "behavior": "Collapsed game-properties section and explicit failed DNS diagnostic; core code unchanged",
+    "validation": "Dart analysis: no issues"
+  }
+}

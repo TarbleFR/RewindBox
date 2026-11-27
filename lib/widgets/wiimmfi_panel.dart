@@ -199,7 +199,7 @@ class _WiimmfiPanelState extends State<WiimmfiPanel> {
     final supported = _status?['supported'] == true;
     final images = _settings?['images'];
     final declared = images is Map && images[widget.gamePath] is Map;
-    return PopScope(
+    final panel = PopScope(
       canPop: !_busy,
       child: GlassSurface(
         margin: const EdgeInsets.symmetric(vertical: 8),
@@ -369,6 +369,13 @@ class _WiimmfiPanelState extends State<WiimmfiPanel> {
           ],
         ),
       ),
+    );
+    if (widget.gamePath == null) return panel;
+    return ExpansionTile(
+      leading: const Icon(Icons.public),
+      title: const Text('Wiimmfi'),
+      subtitle: Text(t(declared ? 'declared' : 'notTested')),
+      children: [panel],
     );
   }
 }

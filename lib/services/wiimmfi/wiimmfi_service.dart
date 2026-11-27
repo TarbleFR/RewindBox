@@ -274,6 +274,7 @@ abstract final class WiimmfiService {
         client.close(force: true);
       }
     } catch (_) {
+      if (result['dns'] == 'unknown') result['dns'] = 'failed';
       /* No raw URLs, addresses, console identities or network errors logged. */
     }
     _diagnosticDate = DateTime.now().toUtc();
