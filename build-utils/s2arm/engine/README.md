@@ -919,6 +919,6 @@ Un mot de 64 bits par fichier réunit la position et la longueur du chemin. La l
 
 [Cas reproduits et limites](../../../docs/evidence/s2arm-counterreview-0513-0516.md).
 
-### 0518–0521 — ombres NVN2 et copies de profondeur
+### 0518–0522 — ombres NVN2 et copies de profondeur
 
-0518 corrige la comptabilité logique D16 et D32S8 et ajoute `S2A_RB_SHADOW_TRACE=1`. 0519 teste la réutilisation de snapshots après effacement d’un niveau ou d’une couche disjointe avec `S2A_RB_SHADOW_MIP_CACHE=1`. 0520 protège la lecture de profondeur dans les passes sans couleur, avec retour témoin via `S2A_RB_SHADOW_DEPTH_FEEDBACK=0`. 0521 ajoute le contrôle différentiel des profondeurs et du stencil. [Protocole et preuves](../../../docs/evidence/s2arm-shadows/README.md).
+0518 corrige la comptabilité logique D16 et D32S8 et ajoute `S2A_RB_SHADOW_TRACE=1`. 0519 teste la réutilisation de snapshots après effacement d’un niveau ou d’une couche disjointe avec `S2A_RB_SHADOW_MIP_CACHE=1`. 0520 protège la lecture de profondeur dans les passes sans couleur, avec retour témoin via `S2A_RB_SHADOW_DEPTH_FEEDBACK=0`. 0521 ajoute le contrôle différentiel des profondeurs et du stencil. 0522 exclut les passes ayant des producteurs non classés de la réutilisation. [Protocole et preuves](../../../docs/evidence/s2arm-shadows/README.md).

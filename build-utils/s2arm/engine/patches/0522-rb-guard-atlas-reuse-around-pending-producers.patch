@@ -1,0 +1,65 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 196854b..5a24ebc 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -27659,9 +27659,16 @@ static unsigned mtl_pf_chmask(MTLPixelFormat pf) {
+ // A single-sample 2D colour region / channel mask uses the same typed clear triangle as attachment clears; unsupported targets and formats report a failure.
+ static void clear_tex_tri(const p_clear_tex *c, id<MTLTexture> t, unsigned level, unsigned layer);
+ static void clear_tex_impl(const p_clear_tex *c, int track_depth) {
+-    if (track_depth && (g_nlc || R.clear_d || R.clear_s)) {
+-        dsnap_stale_tex(c->tex);
+-        track_depth = 0;
++    if (track_depth) {
++        int pending = g_nlc || R.clear_d || R.clear_s;
++        for (int i = 0; i < 8; ++i) pending |= R.clear_c[i];
++        if (pending || g_game_barrier || g_defer_replaying || g_fz.active ||
++            (g_enc && (g_pass_swrite || g_pass_geo || g_pass.layered || S.tf_on))) {
++            // A clear can flush pending work in addition to writing its declared view.
++            // With an unclassified producer restore the pre-flush invalidation.
++            dsnap_stale_tex(c->tex);
++            track_depth = 0;
++        }
+     }
+     if (!(c->mask & 0xf) || !c->r.width || !c->r.height) return;
+     if (fold_copy_skip(c->tex, "texture clear")) return;
+diff --git a/graphics/nvn/tests/t_nvn_feedback_snapshot.m b/graphics/nvn/tests/t_nvn_feedback_snapshot.m
+index 286fef7..950099a 100644
+--- a/graphics/nvn/tests/t_nvn_feedback_snapshot.m
++++ b/graphics/nvn/tests/t_nvn_feedback_snapshot.m
+@@ -209,24 +209,27 @@ static void clear_mip(tex_t *depth, unsigned level, float value, unsigned stenci
+ static void verify_depth_mip(id<MTLTexture> texture, unsigned level, float depth, uint8_t stencil) {
+     REQUIRE(texture);
+     unsigned w=4>>level;
+-    id<MTLBuffer> buffer=[g_dev newBufferWithLength:512 options:MTLResourceStorageModeShared];
++    id<MTLBuffer> buffer=[g_dev newBufferWithLength:2048 options:MTLResourceStorageModeShared];
+     id<MTLCommandQueue> queue=[g_dev newCommandQueue];
+     id<MTLCommandBuffer> cb=[queue commandBuffer];
+     id<MTLBlitCommandEncoder> copy=[cb blitCommandEncoder];
+     REQUIRE(buffer && copy);
+     [copy copyFromTexture:texture sourceSlice:0 sourceLevel:level sourceOrigin:MTLOriginMake(0,0,0)
+         sourceSize:MTLSizeMake(w,w,1) toBuffer:buffer destinationOffset:0
+-        destinationBytesPerRow:w*4 destinationBytesPerImage:w*w*4 options:MTLBlitOptionDepthFromDepthStencil];
++        destinationBytesPerRow:256 destinationBytesPerImage:1024 options:MTLBlitOptionDepthFromDepthStencil];
+     [copy copyFromTexture:texture sourceSlice:0 sourceLevel:level sourceOrigin:MTLOriginMake(0,0,0)
+-        sourceSize:MTLSizeMake(w,w,1) toBuffer:buffer destinationOffset:256
+-        destinationBytesPerRow:w destinationBytesPerImage:w*w options:MTLBlitOptionStencilFromDepthStencil];
++        sourceSize:MTLSizeMake(w,w,1) toBuffer:buffer destinationOffset:1024
++        destinationBytesPerRow:256 destinationBytesPerImage:1024 options:MTLBlitOptionStencilFromDepthStencil];
+     [copy endEncoding]; [cb commit]; [cb waitUntilCompleted];
+     REQUIRE(cb.status==MTLCommandBufferStatusCompleted);
+-    const float *depths=buffer.contents;
+-    const uint8_t *stencils=(const uint8_t *)buffer.contents+256;
+-    for (unsigned i=0;i<w*w;++i) {
+-        REQUIRE(depths[i]==depth);
+-        REQUIRE(stencils[i]==stencil);
++    const uint8_t *data=buffer.contents;
++    for (unsigned y=0;y<w;++y) {
++        const float *depths=(const float *)(data+y*256);
++        const uint8_t *stencils=data+1024+y*256;
++        for (unsigned x=0;x<w;++x) {
++            REQUIRE(depths[x]==depth);
++            REQUIRE(stencils[x]==stencil);
++        }
+     }
+     CHECK(1,"mip %u: all %u depth and stencil values match",level,w*w);
+ }

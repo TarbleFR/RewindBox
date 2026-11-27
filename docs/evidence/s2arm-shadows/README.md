@@ -24,6 +24,7 @@ Une rotation d’atlas fondée sur la seule caméra, des `DontCare` globaux apr�
 - **0519** conserve un snapshot d’un niveau ou d’une couche disjointe lors d’un clear explicite. Comparaison sur texture et stockage Metal identiques, niveau et intervalle de couches bornés. Une conversion de format, une texture redimensionnée, un clear différé, un alias, un resolve et une écriture compute suivent le chemin historique. Les rectangles d’un même mip n’autorisent aucune réutilisation supplémentaire. Le candidat ne garde ni nouvelle texture ni masque de pixels.
 - **0520** corrige la sortie prématurée de la protection de lecture lorsqu’un fragment lit la profondeur de sa passe et que le jeu n’a attaché aucune couleur. Cette correction peut ajouter une copie requise. La scène de contrôle utilise un fragment pouvant éliminer un pixel.
 - **0521** étend le banc de cohérence à 9 450 cas mip/couche et deux contrôles d’identité par cas. Linux avec ASan et UBSan réussit. La scène Metal vérifie le nombre de copies pour 16 clears disjoints, une écriture chevauchante, la séparation du binding et relit les deux plans de l’atlas et du snapshot. Les mesures de cette scène sont rattachées au run Apple.
+- **0522** rétablit l’invalidation entière avant vidange si la file porte un clear différé, une barrière, une passe multicouche ou un producteur pouvant écrire en mémoire. Les lectures de vérification respectent un pas de ligne de 256 octets pour chaque plan.
 
 ## Campagne sur iPhone
 
