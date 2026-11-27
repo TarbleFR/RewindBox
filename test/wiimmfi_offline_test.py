@@ -44,7 +44,8 @@ public:
 namespace IOS::HLE::FS {
 enum class Mode { ReadWrite };
 struct Modes { Mode a,b,c; };
-struct FileSystem {
+class FileSystem {
+public:
   unsigned deletes=0, writes=0;
   void Delete(int,int,const std::string&) { ++deletes; }
   void CreateFullPath(int,int,const std::string&,int,Modes) {}
