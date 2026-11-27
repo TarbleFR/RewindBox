@@ -13,7 +13,7 @@ $(rb_shader_host_targets): NVN_TEST_WEAK += $(rb_shader_shell_object)
 $(rb_shader_host_targets): $(rb_shader_shell_object)
 
 # RewindBox (patch 0469): reproducible NVN replay with hardware-independent backend metrics (t_rb_replay_metrics.m; records from the encode stream)
-$(BUILD)/tests/t_rb_replay_metrics: $(rb_shader_test_dir)t_rb_replay_metrics.m $(NVN_MTL_DEPS) graphics/nvn/gfx/nvn/nvn_protos.h $(NVN_TEST_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN)
+$(BUILD)/tests/t_nvn_rb_replay_metrics: $(rb_shader_test_dir)t_rb_replay_metrics.m $(NVN_MTL_DEPS) graphics/nvn/gfx/nvn/nvn_protos.h $(NVN_TEST_HOST_OBJS) $(NVN_TEST_LIB) $(NVN_TEST_WIDEN)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -fobjc-arc -Wno-unused-function -Wno-unguarded-availability-new -Wno-unguarded-availability \
 	  $(NATIVE_INC) -Igraphics/nvn/host -Igraphics/nvn/gfx/nvn -Igraphics/nvn/gfx/nvn/include -Igraphics/nvn/third_party/vulkan-headers/include \
