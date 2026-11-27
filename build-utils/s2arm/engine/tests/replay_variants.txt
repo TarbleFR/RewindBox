@@ -12,3 +12,4 @@ rt_cont_off            S2A_RB_RT_CONT=0
 m3_arg_hint_off        S2A_RB_M3_ARG_HINT=0
 draw_barriers_full     S2A_RB_DRAW_BARRIERS=full
 producer_cover_on      DM_NVN_PRODUCER_COVER=1
+m3_bind_cache_off      S2A_RB_M3_BIND_CACHE=0

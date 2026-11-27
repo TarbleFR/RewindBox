@@ -8,11 +8,14 @@ Rappel : iOS 26 tourne sur **Metal 3** (`nvn_be.h`, `ios26x`), le chemin à opti
   6 encodeurs de rendu, 14 barrières/fences, 700 liaisons Metal 3, 677 allocations d’arène (173 Ko) pour 372 dessins.
 - Stores restants : non prouvables morts dans la soumission (lecture finale, preuve inter-soumissions = `xv`, coupée pour les titres hébergés bindless).
 - `0477` (cette passe) : `bind_args` donne son tampon d’arène à `tab_addr`, plus de `m3_buf_at` (verrou `g_res_mu` + recherche binaire) par bloc d’arguments.
-  Preuve attendue : `m3_arg_hints` ≈ liaisons de blocs par image, variante `m3_arg_hint_off` pixels/état identiques. CI à relire au prochain tour.
+  Preuve attendue : `m3_arg_hints` ≈ liaisons de blocs par image, variante `m3_arg_hint_off` pixels/état identiques.
+- `0478` : état lié par étage dans `m3_table_apply` → liaison identique sautée, `set*BufferOffset` si même tampon (`RO_M3_BOFF` en fin d’énumération).
+  Preuve attendue : `m3_bind_skips` > 0, `m3_buffer_offset_binds` > 0, `m3_buffer_binds` en baisse ; variante `m3_bind_cache_off` pixels/état identiques.
+  Arbre de travail patché : `/tmp/s2arm-loop/cur` (base `work` 0468 + 0469–0478).
 
 ## Prochaine action
-1. Relire le run CI 46005579324 (commit 3952c45ad, `0477` (`[s2arm-replay-metrics]`, homebrew, thermique). Si rouge ou pixels différents : corriger ou retirer `0477`.
-2. Puis Metal 3 `m3_table_apply` : même tampon, autre décalage → `set*BufferOffset:atIndex:` (ajouter les sélecteurs au proxy `nvn_rec.h`,
-   drapeau dans `RO_M3_BUF`). Gain seulement côté pilote : pas de preuve de temps sur runner paravirtuel → ne garder que si un compteur exact suffit.
-3. Ensuite : 14 fences par image (m3_wait/m4_end entre encodeurs) — vérifier lesquelles ne protègent aucune dépendance réelle.
-4. Ne pas refaire : coupures 0/4/16/64, vidage des tables de ressources (retiré), comparaisons de temps mural du runner (bruit ±30 %).
+1. Relire le run CI de `0478` (il couvre aussi `0477` ; run 46005579324 encore en file au tour précédent). Si rouge ou pixels/état différents sur
+   `m3_arg_hint_off` / `m3_bind_cache_off` : corriger ou retirer le patch fautif.
+2. Ensuite : 14 fences par image (m3_wait/m4_end entre encodeurs). Attention : sauter un `waitForFence` casse la transitivité de la chaîne
+   (l’encodeur suivant n’attendrait que le précédent) → ne retirer qu’une paire wait+update prouvée sans dépendance, ou abandonner l’axe.
+3. Ne pas refaire : coupures 0/4/16/64, vidage des tables de ressources (retiré), comparaisons de temps mural du runner (bruit ±30 %).

@@ -142,6 +142,7 @@ static void rbm_exec(const void *rp) {
     case RO_M3_TEX: if (a[1] < 5 && a[2] < 32) rbm_s.tex[a[1]][a[2]] = rbm_id(a[0]); break;
     case RO_M3_SMP: if (a[1] < 5 && a[2] < 32) rbm_s.smp[a[1]][a[2]] = rbm_id(a[0]); break;
     case RO_M3_BUF: if (a[1] < 5 && a[3] < 32) rbm_s.buf[a[1]] |= 1u << a[3]; break;   // the slot, not the scratch offset: argument contents are checked through the pixels
+    case RO_M3_BOFF: if (a[1] < 5 && a[3] < 32) rbm_s.buf[a[1]] |= 1u << a[3]; break;   // patch 0478: the slot's buffer kept, another offset
     case RO_C_COPY_BB: rbm_copy_bytes += a[4]; break;
     case RO_C_COPY_BT: case RO_C_COPY_TB: rbm_copy_bytes += a[5 + (r->op == RO_C_COPY_TB ? 2 : 0)] * a[6 + (r->op == RO_C_COPY_TB ? 2 : 0)] * a[7 + (r->op == RO_C_COPY_TB ? 2 : 0)] * 4; break;
     case RO_C_COPY_TT: rbm_copy_bytes += a[7] * a[8] * a[9] * 4; break;
@@ -342,13 +343,13 @@ int main(int argc, char **argv) { @autoreleasepool {
     API(nvnBlendStateSetDefaults)(&bl_alpha); API(nvnBlendStateSetBlendTarget)(&bl_alpha, 0);
     API(nvnBlendStateSetBlendFunc)(&bl_alpha, NVN_BLEND_FUNC_SRC_ALPHA, NVN_BLEND_FUNC_ONE_MINUS_SRC_ALPHA, NVN_BLEND_FUNC_ONE, NVN_BLEND_FUNC_ONE_MINUS_SRC_ALPHA);
     // Warm-up frame (pipelines, textures, residency), then the measured frames
-    uint64_t base_put[RBM_OPS] = {0}, base_exec[RBM_OPS] = {0}, pass0 = 0, draw0 = 0, bwl0 = 0, bws0 = 0, ar0 = 0, arb0 = 0, rs0 = 0, d0 = 0, k0 = 0, ld0 = 0, st0 = 0, cl0 = 0, dc0 = 0, cp0 = 0, fl0 = 0, cut0 = 0, pcut0 = 0, mh0 = 0;
+    uint64_t base_put[RBM_OPS] = {0}, base_exec[RBM_OPS] = {0}, pass0 = 0, draw0 = 0, bwl0 = 0, bws0 = 0, ar0 = 0, arb0 = 0, rs0 = 0, d0 = 0, k0 = 0, ld0 = 0, st0 = 0, cl0 = 0, dc0 = 0, cp0 = 0, fl0 = 0, cut0 = 0, pcut0 = 0, mh0 = 0, bk0 = 0;
     double frame_ms[64]; int nfm = 0;   // wall time of each measured frame, submit to queue finish (Mac runner: CPU encode + GPU + idle, not an iPhone frame time)
     for (int f = 0; f <= frames; f++) {
         rbm_ptrace_n = 0; rbm_ptrace[0] = 0;   // the queue is idle here: the trace holds the last frame only
         if (f == 1) { for (int i = 0; i < RBM_OPS; i++) { base_put[i] = atomic_load(&rbm_put_n[i]); base_exec[i] = rbm_exec_n[i]; }
             pass0 = g_stat_pass; draw0 = g_stat_draw; bwl0 = g_bw_load; bws0 = g_bw_store; ar0 = rbm_arena_calls; arb0 = rbm_arena_bytes; rs0 = rbm_res_adds;
-            cut0 = g_cuts; pcut0 = g_pass_cuts; mh0 = g_rb_m3_hint_hits; d0 = rbm_draws; k0 = rbm_dispatches; ld0 = rbm_load_bytes; st0 = rbm_store_bytes; cl0 = rbm_clear_atts; dc0 = rbm_dontcare_atts; cp0 = rbm_copy_bytes; fl0 = rbm_fill_bytes;
+            cut0 = g_cuts; pcut0 = g_pass_cuts; mh0 = g_rb_m3_hint_hits; bk0 = g_rb_m3_bind_skip; d0 = rbm_draws; k0 = rbm_dispatches; ld0 = rbm_load_bytes; st0 = rbm_store_bytes; cl0 = rbm_clear_atts; dc0 = rbm_dontcare_atts; cp0 = rbm_copy_bytes; fl0 = rbm_fill_bytes;
             rbm_h = 0xcbf29ce484222325ull;
             const char *tp = getenv("RBM_TRACE"); if (tp && *tp) { rbm_tf = fopen(tp, "w"); REQUIRE(rbm_tf); } }
         if (rbm_tf && f >= 1) fprintf(rbm_tf, "F %d\n", f);
@@ -371,18 +372,18 @@ int main(int argc, char **argv) { @autoreleasepool {
     uint64_t barriers = pr[RO_BAR_QUEUE] + pr[RO_BAR_AFTER_STAGES] + pr[RO_BAR_ENCODER] + pr[RO_M3_WAIT] + pr[RO_M3_UPD] + pr[RO_M3_MB];
     uint64_t state = pr[RO_R_PSO] + pr[RO_R_DSS] + pr[RO_R_VIEWPORT] + pr[RO_R_SCISSOR] + pr[RO_R_CULL] + pr[RO_R_WINDING] + pr[RO_R_FILL] + pr[RO_R_BIAS] + pr[RO_R_CLIP]
                    + pr[RO_R_SREF] + pr[RO_R_BLEND] + pr[RO_R_VIS] + pr[RO_C_PSO] + pr[RO_R_STORE_C] + pr[RO_R_STORE_D] + pr[RO_R_STORE_S];
-    uint64_t args = pr[RO_T_ADDR] + pr[RO_T_TEX] + pr[RO_T_SAMP] + pr[RO_R_TABLE] + pr[RO_C_TABLE] + pr[RO_M3_BUF] + pr[RO_M3_TEX] + pr[RO_M3_SMP];
+    uint64_t args = pr[RO_T_ADDR] + pr[RO_T_TEX] + pr[RO_T_SAMP] + pr[RO_R_TABLE] + pr[RO_C_TABLE] + pr[RO_M3_BUF] + pr[RO_M3_BOFF] + pr[RO_M3_TEX] + pr[RO_M3_SMP];
     uint64_t total = 0; for (int i = 0; i < RBM_OPS; i++) total += pr[i];
     printf("METRICS {\"backend\":\"Metal%d\",\"enc_thread\":%d,\"frames\":%d,\"records\":%.1f,\"render_encoders\":%.1f,\"compute_encoders\":%.1f,\"blit_encoders\":%.1f,"
            "\"barriers_fences\":%.1f,\"state_records\":%.1f,\"pso_binds\":%.1f,\"dss_binds\":%.1f,\"viewport_scissor\":%.1f,\"argument_records\":%.1f,\"m3_buffer_binds\":%.1f,\"m3_texture_binds\":%.1f,"
            "\"table_writes\":%.1f,\"draws\":%.1f,\"dispatches\":%.1f,\"commits\":%.1f,\"load_bytes\":%.0f,\"store_bytes\":%.0f,\"cleared_attachments\":%.1f,\"dontcare_loads\":%.1f,"
            "\"copy_bytes\":%.0f,\"fill_bytes\":%.0f,\"arena_allocs\":%.1f,\"arena_bytes\":%.0f,\"residency_adds\":%.1f,\"engine_passes\":%.1f,\"engine_draws\":%.1f,"
-           "\"engine_load_bytes\":%.0f,\"engine_store_bytes\":%.0f,\"cuts\":%.1f,\"pass_cuts\":%.1f,\"m3_arg_hints\":%.1f,\"state_digest\":\"%016llx\",\"pixel_digest\":\"%016llx\",\"exec_equals_put\":%d}\n",
+           "\"engine_load_bytes\":%.0f,\"engine_store_bytes\":%.0f,\"cuts\":%.1f,\"pass_cuts\":%.1f,\"m3_arg_hints\":%.1f,\"m3_buffer_offset_binds\":%.1f,\"m3_bind_skips\":%.1f,\"state_digest\":\"%016llx\",\"pixel_digest\":\"%016llx\",\"exec_equals_put\":%d}\n",
            g_m3 ? 3 : 4, rec_on(), frames, PF(total), PF(pr[RO_RE_BEGIN]), PF(pr[RO_CE_BEGIN] + pr[RO_CE_BEGIN_D]), PF(pr[RO_CB_BLIT]),
            PF(barriers), PF(state), PF(pr[RO_R_PSO] + pr[RO_C_PSO]), PF(pr[RO_R_DSS]), PF(pr[RO_R_VIEWPORT] + pr[RO_R_SCISSOR]), PF(args), PF(pr[RO_M3_BUF]), PF(pr[RO_M3_TEX] + pr[RO_M3_SMP]),
            PF(pr[RO_T_ADDR] + pr[RO_T_TEX] + pr[RO_T_SAMP]), PF(rbm_draws - d0), PF(rbm_dispatches - k0), PF(pr[RO_COMMIT] + pr[RO_COMMIT_REAL] + pr[RO_COMMIT_M3]),
            PF(rbm_load_bytes - ld0), PF(rbm_store_bytes - st0), PF(rbm_clear_atts - cl0), PF(rbm_dontcare_atts - dc0), PF(rbm_copy_bytes - cp0), PF(rbm_fill_bytes - fl0),
-           PF(rbm_arena_calls - ar0), PF(rbm_arena_bytes - arb0), PF(rbm_res_adds - rs0), PF(g_stat_pass - pass0), PF(g_stat_draw - draw0), PF(g_bw_load - bwl0), PF(g_bw_store - bws0), PF(g_cuts - cut0), PF(g_pass_cuts - pcut0), PF(g_rb_m3_hint_hits - mh0),
+           PF(rbm_arena_calls - ar0), PF(rbm_arena_bytes - arb0), PF(rbm_res_adds - rs0), PF(g_stat_pass - pass0), PF(g_stat_draw - draw0), PF(g_bw_load - bwl0), PF(g_bw_store - bws0), PF(g_cuts - cut0), PF(g_pass_cuts - pcut0), PF(g_rb_m3_hint_hits - mh0), PF(pr[RO_M3_BOFF]), PF(g_rb_m3_bind_skip - bk0),
            (unsigned long long)rbm_h, (unsigned long long)px, !memcmp(pr, ex, sizeof pr));
     printf("TIMES"); for (int i = 0; i < nfm; i++) printf(" %.4f", frame_ms[i]); printf("\n");
     printf("PASSES%s\n", rbm_ptrace);
