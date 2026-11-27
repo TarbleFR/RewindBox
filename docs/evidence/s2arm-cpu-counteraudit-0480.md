@@ -18,7 +18,7 @@ Banc Linux compilant le bloc `case 0x15` et les fonctions réelles d’attributi
 
 300 courses et 3 400 créations, suivi des handles, bitmap et restitution hors verrou. Quota déjà plein, prêt refusé et table de handles pleine vérifiés. Aucun handle ni bit d’occupation restant après retrait. Les appels Mach du prêt restent simulés. Les preuves appareil restent à établir.
 
-Compilation iPhoneOS à suivre. FPS, mémoire résidente, température et consommation sur iPhone non mesurés.
+0480 compile pour iPhoneOS sur macOS 15 et 26. Les contrôles natifs mémoire, threads et pages distantes passent sur macOS 26. [CI 0480](https://github.com/TarbleFR/RewindBox/actions/runs/46011786771). FPS, mémoire résidente, température et consommation sur iPhone non mesurés.
 
 
 ## Pic mémoire déclaré au jeu
@@ -31,4 +31,7 @@ Cas reproduit, charge fixe de 33 Mio, puis mappage et libération de 64 Kio. Le 
 
 Le parcours des ombres 0473 passe également sur **4 500 plages par mode** dans un répertoire de 32 768 entrées couvrant 64 Gio, avec des blocs non contigus, des entrées absentes et des erreurs Mach simulées.
 
-Compilation iPhoneOS de 0484 à suivre. FPS, empreinte physique et énergie sur iPhone non mesurés.
+0484 compile pour iPhoneOS sur macOS 15 et 26. Les contrôles natifs mémoire, threads et pages distantes passent sur macOS 26. [CI 0484](https://github.com/TarbleFR/RewindBox/actions/runs/46012990218). FPS, empreinte physique et énergie sur iPhone non mesurés.
+
+
+La revue de 0475 confirme que le bitmap est écrit et retiré avec les handles sous `G`, y compris pendant la remise à zéro de session. La revue de 0479 confirme le parcours circulaire, le redimensionnement et la fermeture hors verrou. Les benchmarks précédents chronomètrent des opérations isolées sur Linux. Les gains en jeu, la mémoire physique et la consommation de l’A18 Pro restent à mesurer.
