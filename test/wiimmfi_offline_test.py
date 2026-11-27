@@ -21,6 +21,7 @@ def main():
     ioctl = function(top, 'std::optional<IPCReply> NetIPTopDevice::IOCtl(')
     ioctlv = function(top, 'std::optional<IPCReply> NetIPTopDevice::IOCtlV(')
     new_socket = function(socket, 's32 WiiSockMan::NewSocket(')
+    logger = (root / 'Source/Core/Common/Logging/LogManager.cpp').read_text()
     constants = sorted(set(re.findall(r'case (IOCTL\w+):', ioctl + ioctlv)))
     core = (Path(__file__).resolve().parents[1] /
             'packages/dolphin_internal_bridge/core/NeoStationWiimmfi.inc').read_text()
@@ -30,6 +31,8 @@ def main():
 #include <optional>
 #include <cassert>
 #include <cstdint>
+#include <array>
+#include <string>
 using s32=int32_t;
 int host_work=0;
 std::atomic<bool> g_wiimmfi_network_allowed{false};
@@ -60,6 +63,26 @@ struct WiiSockMan {
 };
 '''
     program += ioctl + '\n' + ioctlv + '\n' + new_socket + '\n'
+    program += r'''
+using LogLevel=int; using LogType=int;
+int log_formats=0, log_writes=0;
+constexpr char LOG_LEVEL_TO_CHAR[]="N";
+namespace fmt { template<class... T> std::string format(T...) {++log_formats;return "public fixture";} }
+struct Listener { void Log(LogLevel,const char*) {++log_writes;} };
+struct LogManager {
+  struct Entry { bool m_enable=true; };
+  Entry m_log[1]; Listener listener;
+  std::array<int,1> m_listener_ids{0};
+  std::array<Listener*,1> m_listeners{&listener};
+  LogLevel GetLogLevel() const {return 0;}
+  const char* GetTimestamp()const{return "test";}
+  const char* GetShortName(LogType)const{return "test";}
+  bool IsEnabled(LogType,LogLevel)const;
+  void LogWithFullPath(LogLevel,LogType,const char*,int,const char*);
+};
+'''
+    program += function(logger, 'bool LogManager::IsEnabled(') + '\n'
+    program += function(logger, 'void LogManager::LogWithFullPath(') + '\n'
     program += 'int main(){NetIPTopDevice top;WiiSockMan sockets;\n'
     program += 'for(int cycle=0;cycle<100;++cycle){g_wiimmfi_network_allowed=false;int before=host_work;\n'
     for constant in constants:
@@ -71,7 +94,19 @@ struct WiiSockMan {
   assert(top.IOCtl(Request{IOCTL_SO_GETHOSTBYNAME})->value==77);
   assert(sockets.NewSocket(2,1,0)==43);assert(host_work==before+2);
   assert(sockets.NewSocket(99,1,0)==-SO_EAFNOSUPPORT);
-}}
+}
+  LogManager logger;
+  for(int cycle=0;cycle<100;++cycle) {
+    g_wiimmfi_network_allowed=true;
+    assert(!logger.IsEnabled(0,0));
+    logger.LogWithFullPath(0,0,"fixture",1,"public diagnostic");
+    assert(log_writes==cycle && log_formats==cycle);
+    g_wiimmfi_network_allowed=false;
+    assert(logger.IsEnabled(0,0));
+    logger.LogWithFullPath(0,0,"fixture",1,"public diagnostic");
+    assert(log_writes==cycle+1 && log_formats==cycle+1);
+  }
+}
 '''
     with tempfile.TemporaryDirectory() as temp:
         source = Path(temp) / 'offline.cpp'
@@ -81,6 +116,7 @@ struct WiiSockMan {
         subprocess.run([compiler, '-std=c++20', '-DIPHONEOS', str(source), '-o', str(binary)], check=True)
         subprocess.run([str(binary)], check=True)
     print(f'PASS: real IOS IP/IOCtlV/NewSocket offline gates, {len(constants)} requests x100; zero host work offline')
+    print('PASS: actual logger entry points suppress formatting/listeners online and restore offline x100')
 
 
 if __name__ == '__main__':

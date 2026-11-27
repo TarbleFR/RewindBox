@@ -60,6 +60,33 @@ def patch_wfc_offline_gate(root: Path) -> None:
 
 
 def patch_online_memory_and_identity(root: Path) -> None:
+    # Upstream HTTP/IPC/OSReport messages can contain console credentials even
+    # when PCAP/SSL dump options are off. Suspend upstream listeners online;
+    # owned RewindBox JSON diagnostics do not pass through this logger.
+    path = root / 'Source/Core/Common/Logging/LogManager.cpp'
+    text = path.read_text()
+    declaration = '''#ifdef IPHONEOS
+// Weak for standalone iOS tools that link Common without the embedded bridge.
+extern "C" bool neostation_dolphin_wiimmfi_network_allowed() __attribute__((weak_import));
+#endif
+'''
+    if declaration not in text:
+        text = declaration + text
+    for signature, refusal in [
+        ('bool LogManager::IsEnabled(LogType type, LogLevel level) const', 'return false;'),
+        ('void LogManager::LogWithFullPath(LogLevel level, LogType type, const char* file, int line,\n                                 const char* message)', 'return;'),
+    ]:
+        anchor = signature + '\n{'
+        guarded = anchor + '''
+#ifdef IPHONEOS
+  if (neostation_dolphin_wiimmfi_network_allowed &&
+      neostation_dolphin_wiimmfi_network_allowed()) ''' + refusal + '\n#endif'
+        if guarded not in text:
+            if text.count(anchor) != 1:
+                raise SystemExit(f'Pinned logger entry changed: {signature}')
+            text = text.replace(anchor, guarded, 1)
+    path.write_text(text)
+
     path = root / 'Source/Core/Core/PatchEngine.cpp'
     text = path.read_text()
     declaration = '#ifdef IPHONEOS\nextern "C" bool neostation_dolphin_wiimmfi_network_allowed();\n#endif\n'
