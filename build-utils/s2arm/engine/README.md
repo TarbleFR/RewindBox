@@ -844,3 +844,7 @@ Série `0468–0470` compilée ensemble sur `macos-15` et `macos-26` (run [`4598
 - **Preuves** : compteurs `m3_bind_skips` et `m3_buffer_offset_binds` du rejeu NVN synthétique, variante `m3_bind_cache_off` (pixels et état aux dessins identiques attendus). Passe syntaxique ARC locale du code ajouté ; compilation et rejeu par la CI. Temps non mesuré ; non mesuré sur iPhone.
 
 `0471` vérifié (run [`46001412062`](https://github.com/TarbleFR/RewindBox/actions/runs/46001412062), macOS 15/26 verts) : `test_pos_const` 3/3 ; rejeu NVN synthétique, 12 runs par variante, pixels et état identiques : octets chargés par image `81 920 → 0` (deux passes de réduction plein écran ouvertes sans chargement) ; `S2A_RB_COVER_CONST=0` et `S2A_RB_COVER_LOAD=0` les rétablissent. Non mesuré sur iPhone.
+
+### 0479 — parcours circulaire des sessions IPC
+
+`Dispatcher.AddSession` remet l’index à zéro en fin de tableau. Le calcul du reste disparaît de chaque visite. Le premier emplacement disponible depuis le curseur, les numéros de session, le doublement de capacité et la fermeture hors verrou suivent les mêmes règles. [Banc NativeAOT](../../../docs/evidence/s2arm-runtime-0479.md).

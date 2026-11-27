@@ -1,0 +1,35 @@
+diff --git a/services/S2A.Services/Dispatcher.cs b/services/S2A.Services/Dispatcher.cs
+--- a/services/S2A.Services/Dispatcher.cs
++++ b/services/S2A.Services/Dispatcher.cs
+@@ -220,18 +220,23 @@
+         {
+             lock (_sessionLock)
+             {
+-                for (int n = 0; n < _sessions.Length; n++)
+-                {
+-                    int i = (_freeHint + n) % _sessions.Length;
+-
+-                    if (_sessions[i] == null)
+-                    {
+-                        _sessions[i] = target;
++                SessionTarget[] sessions = _sessions;
++                int length = sessions.Length;
++                int first = _freeHint == length ? 0 : _freeHint;
++                int i = first;
++                do
++                {
++                    if (sessions[i] == null)
++                    {
++                        sessions[i] = target;
+                         _sessionCount++;
+                         _freeHint = i + 1;
+                         return (ulong)i + 1;
+                     }
+-                }
++
++                    if (++i == length) i = 0;
++                }
++                while (i != first);
+ 
+                 Array.Resize(ref _sessions, _sessions.Length * 2);
+                 return AddSession(target);

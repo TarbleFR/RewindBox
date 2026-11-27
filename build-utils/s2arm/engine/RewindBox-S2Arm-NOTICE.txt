@@ -126,3 +126,6 @@ These runtime changes are provided under Apache-2.0.
 
 RewindBox patch 0476 reuses the native per-kind handle count to check the
 transfer-memory limit. This runtime change is provided under Apache-2.0.
+
+RewindBox patch 0479 searches the service session table in its existing
+circular order without a per-slot remainder. This change is provided under Apache-2.0.
