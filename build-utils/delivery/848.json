@@ -248,7 +248,7 @@
           "binary": "sysdata/SHA256SUMS"
         }
       ],
-      "pinSha256": "f90255c9447cbeefdd1df54b4772ac9c1f439bbfe6394f811c91532bee69b172"
+      "pinSha256": "97fefe5cbcc6ae70b6129fb0a4d21768fa54f39d83d12aa0f64072fb772e25f3"
     }
   },
   "recipient": {
@@ -267,18 +267,18 @@
     "flutter": {
       "mode": "not-run",
       "commands": [],
-      "reason": "Compilation des derniers ajouts demandée ; suites Flutter/natives non exécutées conformément à AGENTS.md, contrôles de livraison conservés."
+      "reason": "Compilation des derniers ajouts demand\u00e9e ; suites Flutter/natives non ex\u00e9cut\u00e9es conform\u00e9ment \u00e0 AGENTS.md, contr\u00f4les de livraison conserv\u00e9s."
     },
     "native": {
       "mode": "not-run",
       "commands": [],
-      "reason": "Compilation des derniers ajouts demandée ; suites Flutter/natives non exécutées conformément à AGENTS.md, contrôles de livraison conservés."
+      "reason": "Compilation des derniers ajouts demand\u00e9e ; suites Flutter/natives non ex\u00e9cut\u00e9es conform\u00e9ment \u00e0 AGENTS.md, contr\u00f4les de livraison conserv\u00e9s."
     },
     "awaitMinutes": 75
   },
   "build": 848,
-  "status": "draft",
-  "note": "Derniers ajouts : Wiimmfi ABI4 et parcours Nextendo, versions moteurs, S2Arm0464–0470. Autres moteurs authentifiés conservés. Aucun gain sur iPhone annoncé.",
+  "status": "frozen",
+  "note": "Derniers ajouts : Wiimmfi ABI4 et parcours Nextendo, versions moteurs, S2Arm0464\u20130470. Autres moteurs authentifi\u00e9s conserv\u00e9s. Aucun gain sur iPhone annonc\u00e9.",
   "s2armAsyncPSOTestDefault": true,
   "base": {
     "build": 847,
@@ -567,9 +567,1176 @@
       },
       {
         "commit": "025a688f0621831edf1f11883816bc3b258b1aa7",
-        "note": "Afficher les versions des moteurs dans les playlists, différé explicitement à848 par847."
+        "note": "Afficher les versions des moteurs dans les playlists, diff\u00e9r\u00e9 explicitement \u00e0848 par847."
       }
-    ]
+    ],
+    "freezeCommit": "0e6e5b44a96e08a2d0da55cdb34792c5872be247",
+    "freezeTree": "764854d20c0cfe1f4dc05c15769091b23f528c65",
+    "baseEffectiveDigest": "a7f03d8fa490b8c8a0aa56610d05ec3691342806e36791b45b7ea954f522354c",
+    "inheritedDeferredPaths": [
+      "build-utils/maintenance/actions-cleanup-2026-11-10-followup.json",
+      "build-utils/maintenance/actions-cleanup-2026-11-10.json",
+      "build-utils/maintenance/actions-cleanup-2026-11-13-bulk.json",
+      "build-utils/maintenance/actions-cleanup-2026-11-23-pass2.json",
+      "build-utils/maintenance/actions-cleanup-2026-11-23.json",
+      "build-utils/maintenance/cleanup_actions.py",
+      "build-utils/melonx/metal-archive/README.md",
+      "build-utils/melonx/metal-archive/moltenvk-v1.4.2-binary-archives.patch",
+      "build-utils/s2arm/engine/benchmarks/README.md",
+      "build-utils/s2arm/engine/benchmarks/coreml/IOSApp.swift",
+      "build-utils/s2arm/engine/benchmarks/coreml/Main.swift",
+      "build-utils/s2arm/engine/benchmarks/coreml/ReconstructionBench.swift",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/README.md",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.manifest.json",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Data/com.apple.CoreML/model.mlmodel",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Data/com.apple.CoreML/weights/weight.bin",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Manifest.json",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.manifest.json",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Data/com.apple.CoreML/model.mlmodel",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Data/com.apple.CoreML/weights/weight.bin",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Manifest.json",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/generate_probe.py",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/requirements.txt",
+      "build-utils/s2arm/engine/benchmarks/coreml/run_macos.sh",
+      "build-utils/s2arm/engine/benchmarks/ga.c",
+      "build-utils/s2arm/engine/benchmarks/ga_guard.c",
+      "build-utils/s2arm/engine/benchmarks/push_bench.c",
+      "build-utils/s2arm/engine/benchmarks/push_selective.c",
+      "build-utils/s2arm/engine/benchmarks/rid_bench.m",
+      "build-utils/s2arm/engine/benchmarks/run_coreml.py",
+      "build-utils/s2arm/engine/benchmarks/ubo_bench.c",
+      "build-utils/s2arm/engine/benchmarks/ubo_guard.c",
+      "native/enhancements/catalogue/r/2026-11-16T2112Z.a85f516925ab/index.json.gz",
+      "native/enhancements/catalogue/r/2026-11-16T2139Z.d8b055350a6c/index.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/index.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-00.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-01.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-02.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-03.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-04.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-05.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-06.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-07.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-08.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-09.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-10.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-11.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-12.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-13.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-14.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-15.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-16.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-17.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-18.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-19.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-20.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-21.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-22.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-23.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-24.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-25.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-26.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-27.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-28.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-29.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-30.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-31.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-00.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-01.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-02.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-03.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-04.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-05.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-06.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-07.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-08.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-09.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-10.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-11.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-12.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-13.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-14.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-15.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-16.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-17.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-18.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-19.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-20.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-21.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-22.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-23.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-24.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-25.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-26.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-27.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-28.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-29.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-30.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-31.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-00.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-01.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-02.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-03.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-04.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-05.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-06.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-07.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-08.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-09.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-10.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-11.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-12.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-13.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-14.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-15.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-16.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-17.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-18.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-19.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-20.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-21.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-22.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-23.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-24.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-25.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-26.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-27.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-28.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-29.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-30.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-31.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-00.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-01.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-02.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-03.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-04.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-05.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-06.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-07.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-08.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-09.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-10.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-11.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-12.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-13.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-14.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-15.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-16.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-17.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-18.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-19.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-20.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-21.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-22.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-23.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-24.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-25.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-26.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-27.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-28.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-29.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-30.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-31.json.gz",
+      "source.json",
+      "test/actions_cleanup_test.py",
+      "test/melonx_metal_binary_archive/generate_shaders.py",
+      "test/melonx_metal_binary_archive/metal_probe.mm",
+      "test/melonx_metal_binary_archive/mvk_archive_test.cpp",
+      "test/melonx_metal_binary_archive/run_mvk.py",
+      "test/melonx_metal_binary_archive/run_probe.py",
+      "test/melonx_metal_binary_archive/shaders.spvz"
+    ],
+    "recipeDefinitionSHA256": "bb612f4a43186a801232ffa15ad61fcd22e4df60e31a7392b69cd7ab094f2b2a",
+    "recipeDefinition": {
+      "prefixes": [
+        ".github/",
+        "docs/",
+        ".claude/",
+        "build-utils/delivery/"
+      ],
+      "files": [
+        "build-utils/rpcs3/core-pin.json",
+        "build-utils/melonx/reads-core-pin.json",
+        "build-utils/melonx/arrays-core-pin.json",
+        "build-utils/melonx/dma-core-pin.json",
+        "test/standard_delivery_contract_test.py",
+        "build-utils/verify_downloaded_delivery.py"
+      ],
+      "globs": [
+        "build-utils/delivery-*-recipient.pem"
+      ],
+      "rootMarkdown": true
+    },
+    "commits": [
+      {
+        "commit": "2372080fbee42e0340189bbcb41f6db093f076ce",
+        "subject": "[s2arm-benchmark] Measure low-level race alternatives and Core ML image processing",
+        "role": "promoted",
+        "productPaths": 1,
+        "partial": true
+      },
+      {
+        "commit": "fc0017a965edf0afaf3f472d86dfc2f525791bb4",
+        "subject": "[s2arm-benchmark] [s2arm-rid-only] Measure direct validated texture IDs and enforce Core ML comparison",
+        "role": "promoted",
+        "productPaths": 1,
+        "partial": true
+      },
+      {
+        "commit": "025a688f0621831edf1f11883816bc3b258b1aa7",
+        "subject": "[skip ci] Afficher la version des moteurs embarqu\u00e9s dans les playlists",
+        "role": "promoted",
+        "productPaths": 11,
+        "partial": false
+      },
+      {
+        "commit": "b3a5225e90815f7b0b3689273136c3f634294935",
+        "subject": "[skip ci] Record verified private IPA 847 with S2Arm 0427-0463",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "24467341824615fb97b86f078ea824230cbd7e58",
+        "subject": "s2arm: 0464-0466 rb-args slot gens, vbuf dirty bitmask, zero-ARC subcommit [s2arm-engine] [s2arm-pipeline-driver] [s2arm-homebrew-check] [s2arm-homebrew-pacing] [s2arm-pacing-host] [s2arm-thermal-checks]",
+        "role": "reviewed",
+        "productPaths": 5
+      },
+      {
+        "commit": "cff026c6a8467177257c0f421be340d240e33314",
+        "subject": "s2arm: 0466 forward-declare NvArena/g_cur_arena before ubd_shadow [s2arm-engine] [s2arm-pipeline-driver] [s2arm-homebrew-check] [s2arm-homebrew-pacing] [s2arm-pacing-host] [s2arm-thermal-checks]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "89c0fc3aa618d08b9e6aea95d8d24c654aee8b9f",
+        "subject": "s2arm: 0467 account 8-byte g_amask probes in svc_mem unit-test counter [s2arm-engine] [s2arm-pipeline-driver] [s2arm-homebrew-check] [s2arm-homebrew-pacing] [s2arm-pacing-host] [s2arm-thermal-checks]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "8ff05795a54ce14ccb4a2630ebab9f25417d2404",
+        "subject": "docs(s2arm): record 0464-0467 green macOS-15/26 Metal & iOS proofs (run 45945441918) [skip ci]",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "868f349b3da6c5bdf0a43c5b251e367a15ad033e",
+        "subject": "s2arm: 0468 probe encode-thread Objective-C dispatch on the Apple runtime [s2arm-benchmark] [s2arm-rec-only]",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "6f5bb0772d2c66f4fe70f8987db34367f9c0522a",
+        "subject": "s2arm: 0468 encode-thread records through per-class cached IMPs [s2arm-engine] [s2arm-pipeline-driver] [s2arm-homebrew-check] [s2arm-homebrew-pacing] [s2arm-pacing-host] [s2arm-thermal-checks]",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "4a5c0323ffa621e8b0c7f2e291842813e8615358",
+        "subject": "docs(s2arm): record 0468 encode-thread IMP cache, rejected rec_put lock merge, next axis [skip ci]",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "2694ce7eb4942b425e5f566acf05d4b969054306",
+        "subject": "docs(s2arm): reject 0469 sdx bucket reuse, note runner variance, next axis [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "3769ab0b56411d9d70927b2eedd29914da5194aa",
+        "subject": "s2arm: 0469 probe submit-side stand-in messages against direct records [s2arm-benchmark] [s2arm-rec-only]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "d04948795b9175152662db08e9236da2df50e7a2",
+        "subject": "s2arm: 0469 submit-thread wrappers write stand-in records directly [s2arm-engine] [s2arm-pipeline-driver] [s2arm-homebrew-check] [s2arm-homebrew-pacing] [s2arm-pacing-host] [s2arm-thermal-checks]",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "43bec6d59a11141f03f4ffafb231814a46937627",
+        "subject": "s2arm: 0469 probe clears record words before hashing [s2arm-benchmark] [s2arm-rec-only]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "49476f2b65fdf4dfb60c4813571c773a2418198f",
+        "subject": "s2arm: 0469 probe caches the stand-in test per receiver [s2arm-benchmark] [s2arm-rec-only]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "0ee844769e94cef2a5b5f03805b1ea1ff1bc97bf",
+        "subject": "s2arm: withdraw 0469 submit-side direct records (measured slower), record probes [skip ci]",
+        "role": "reviewed",
+        "productPaths": 3
+      },
+      {
+        "commit": "d451b00747de24bcee0fb3be3738dd9945b8293b",
+        "subject": "s2arm: 0470 store lookahead lists live slots per stage [s2arm-engine] [s2arm-pipeline-driver] [s2arm-homebrew-check] [s2arm-homebrew-pacing] [s2arm-pacing-host] [s2arm-thermal-checks]",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "4d08c2b157806fdeabae209e16937b18afd1dcf5",
+        "subject": "docs(s2arm): record 0470 live slot lists (compiled), close rebind axis by analysis, next axis [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "7b915f9f8550bc5cb9862b9f3eecd511e9e6a1df",
+        "subject": "docs(s2arm): CPU micro-path review, hash costs, next axis GPU A/B [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "d48b2820b2abc3981f30cb2d546fb7f10c4c3469",
+        "subject": "s2arm: GPU A/B timing of S2A.Dsh passes on the Mac GPU [s2arm-lab] [s2arm-gpu-ab]",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "b304f1814e631c80f8d7ab713c0f324e2d87ba64",
+        "subject": "s2arm: GPU A/B step fetches the Metal toolchain [s2arm-lab] [s2arm-gpu-ab]",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "ead133ece19bdf8924f947c76b023cce6356dfd2",
+        "subject": "s2arm: GPU A/B runner without blocks, dispatches timed alone [s2arm-lab] [s2arm-gpu-ab]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "a000001d2179cb89a0c6d57e3a7e19f426b6ae8a",
+        "subject": "s2arm: GPU A/B of the raw guest-memory LDG.128 helpers [s2arm-lab] [s2arm-gpu-ab]",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "c1f154198b8ac563bb84e2a8d4a1c01fe0e62c28",
+        "subject": "docs(s2arm): first GPU A/B of wide memory 0394/0395 on the Mac GPU [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "d0bf5acb09d49880837ef8b8fc57aa38a683e5e8",
+        "subject": "s2arm: GPU A/B raw cases with one load a thread, searched or hinted [s2arm-lab] [s2arm-gpu-ab]",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "7b6b5812b52be3e7f731e3f58de370a32bf7669c",
+        "subject": "docs(s2arm): GPU A/B raw lookup cost, 0394 repeated, GPU search closed on runner [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "53b53312898b265891d749e653e8083f3628810f",
+        "subject": "s2arm: 0469 replay metrics hooks and synthetic NVN frame bench [s2arm-lab] [s2arm-replay-metrics]",
+        "role": "reviewed",
+        "productPaths": 6
+      },
+      {
+        "commit": "a5eb2b3e046a7e41ab1bd79040ef18b35e4698b9",
+        "subject": "s2arm: NVN2 shader corpus with MSL / AIR metrics and GPU equivalence [s2arm-lab] [s2arm-shader-metrics]",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "dd8a6da802427308b81886eb6f1709201564c11f",
+        "subject": "s2arm: replay metrics binary under the t_nvn_ include rule [s2arm-lab] [s2arm-replay-metrics]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "9af0abffda8dfa65197dcffed17279edd5064dd8",
+        "subject": "[skip ci] feat(dolphin): add bounded BootMii import and protected Wiimmfi sessions",
+        "role": "reviewed",
+        "productPaths": 10
+      },
+      {
+        "commit": "ae3cedab7534adfe8beb9928feabd96dc6c36cc1",
+        "subject": "[wiimmfi-core] ci(dolphin): compile BootMii and Wiimmfi C ABI with iPhoneOS checks",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "789a1c638c105aff31f059d4ea4428992245527d",
+        "subject": "s2arm: replay metrics links the host shell adapter; memory shaders in the NVN2 corpus [s2arm-lab] [s2arm-replay-metrics] [s2arm-shader-metrics]",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "d473517bb1a4d1be92ebd9dd9e68d3aef6e910bd",
+        "subject": "[skip ci] feat(wii): integrate Wiimmfi setup and enforce real offline networking",
+        "role": "reviewed",
+        "productPaths": 17
+      },
+      {
+        "commit": "b4ea094fe5c7fd4ca87ee27ae7d302d9a4a9f30a",
+        "subject": "[wiimmfi-core] ci(dolphin): verify ABI 2 offline IP gates and record its identity",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "c3a1f975a0b4a746e6fe4ea0223164513806acdc",
+        "subject": "s2arm: 0469 replay on a GPU without residency sets declares resources per encoder [s2arm-lab] [s2arm-replay-metrics]",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "cecc0117cce5bb85c8d6d587af93c27de4456084",
+        "subject": "[skip ci] fix(wii): keep Wiimmfi properties compact and record host/Core checks",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "221062340a48ec3aa4b9152cc0cc590118b659fa",
+        "subject": "s2arm: 0469 placement-sparse probe survives devices that throw; lab steps continue on error [s2arm-lab] [s2arm-replay-metrics] [s2arm-shader-metrics]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "a101ee2456e7bd1696ddd108e5280b6cd3c82c78",
+        "subject": "[wiimmfi-core] fix(dolphin): close Wiimmfi counter-audit findings",
+        "role": "reviewed",
+        "productPaths": 10
+      },
+      {
+        "commit": "cfda3d61e62cbc508c15d48084986df0651d1f3b",
+        "subject": "[skip ci] fix(wii): protect historical NAND snapshots and preserve launch diagnostics",
+        "role": "reviewed",
+        "productPaths": 6
+      },
+      {
+        "commit": "a660c33702ffbdf3815c99e632ddaad34f1e09b1",
+        "subject": "[wiimmfi-core] fix(dolphin): suppress unfiltered upstream logs during Wiimmfi",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "e0c4a54c441f52ec285cc98fb871698ec5d86195",
+        "subject": "[skip ci] docs(wiimmfi): record final Core proof and correct host link model",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "e19a37ac497102d1c45c0ff47e8d309f69257f31",
+        "subject": "[wiimmfi-core] fix(wiimmfi): preserve imported saves and own launch interruption",
+        "role": "reviewed",
+        "productPaths": 17
+      },
+      {
+        "commit": "bfb58ac3ad731aac5dd19c97afada96496ce4f7d",
+        "subject": "[skip ci] docs(wiimmfi): confirm ABI4 build and record remaining controller gap",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "33d653f6753d3cc44fbf0a12c27f4c8bcc447a24",
+        "subject": "s2arm: compile 0469 guards in the full engine; replay metrics 5 runs per variant, state digest checked against baseline repeats [s2arm-engine] [s2arm-pipeline-driver] [s2arm-homebrew-check] [s2arm-homebrew-pacing] [s2arm-pacing-host] [s2arm-thermal-checks] [s2arm-replay-metrics]",
+        "role": "reviewed",
+        "productPaths": 3
+      },
+      {
+        "commit": "61658cbdcae5f9c6f28ee5e179bd36636151b046",
+        "subject": "fix(wiimmfi): finish controller controls and owned dialog input",
+        "role": "reviewed",
+        "productPaths": 12
+      },
+      {
+        "commit": "f4a545bc67a1f6e4d5f1b1a5d982e50363bf866b",
+        "subject": "s2arm: replay metrics per-draw trace names where runs part (state digest unstable across baseline runs) [s2arm-lab] [s2arm-replay-metrics]",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "0dbe4056d39595aa59a913281361938d4cdb4e72",
+        "subject": "s2arm: replay state digest reads only the record slots each call uses (draw args, float low words) [s2arm-lab] [s2arm-replay-metrics]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "27512e49833c04cb73deb81bc2c53eeb88c75ebb",
+        "subject": "feat(wiimmfi): share Nextendo online setup layout and playlist entry",
+        "role": "reviewed",
+        "productPaths": 7
+      },
+      {
+        "commit": "f2af173fb1b71181bc3e5d8e05129a92b3f813db",
+        "subject": "docs(s2arm): 0469 guards compiled, homebrew exact, replay digest fixed, in-pass cut cost opened [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "071b7d90d57f17d39a3205c52af7c38111a770d8",
+        "subject": "docs(s2arm): task board row for the 0469 compile states the digest fix [skip ci]",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "e64d53205f934ac8aa699fc3a8bc55fdce4cc790",
+        "subject": "s2arm: build 0468-0470 together for iOS [s2arm-engine] [s2arm-pipeline-driver] [s2arm-homebrew-check] [s2arm-homebrew-pacing] [s2arm-pacing-host] [s2arm-thermal-checks]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "ecf4e4c8f60bd700825eb158964abbaa9e9b1071",
+        "subject": "docs(s2arm): record 0468-0470 iOS build together [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "c63966c1e521fd306f7e4ceac5c6d71a7637035e",
+        "subject": "s2arm: replay counts in-pass cuts and frame wall time, cut variants (0, 16, 4), 12 rounds [s2arm-lab] [s2arm-replay-metrics]",
+        "role": "reviewed",
+        "productPaths": 3
+      },
+      {
+        "commit": "9db43e5d8e46023f57c5742787c3fb1b9753c1a8",
+        "subject": "docs(s2arm): in-pass cut bounded in bytes, runner frame time too noisy, next axis prog_peek_jobs keys [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "4982547084463857714d9603dbe53cd57d974145",
+        "subject": "docs(s2arm): close the GPU cut chantier, record the sustained-performance loop and next axis [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "f4cde25ed0dbe8af921097f1084d58fb2064f887",
+        "subject": "s2arm: replay traces each pass's attachment load/store actions; TBDR policy variants [s2arm-lab] [s2arm-replay-metrics]",
+        "role": "reviewed",
+        "productPaths": 3
+      },
+      {
+        "commit": "ec2487593f9ff67beffd4b643b9f85761842fc34",
+        "subject": "build: prepare authenticated Wiimmfi ABI4 and S2Arm 0470 delivery [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "42c09c71ac48866b90cd42f352290071ae301601",
+        "subject": "build: prepare private 848 manifest from verified 847 [skip ci]",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "7d6d71c32802e9d1fc3e1a7cfaedadd1422bfc50",
+        "subject": "s2arm: replay pass trace buffer renamed beside the per-draw trace [s2arm-lab] [s2arm-replay-metrics]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "5d3d3ad608377e790e691e7e7b12714408e19ef4",
+        "subject": "build: bind Wiimmfi and playlist declarations without altering historic reviews [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "228012fab7f97299fe59d7c8a6a673828f043b25",
+        "subject": "build: bind the complete 848 source and legal review [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "00aa2d023d30f12099ec3cec1b0ae5a4149595d8",
+        "subject": "build: order the promoted 848 source history [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "0e6e5b44a96e08a2d0da55cdb34792c5872be247",
+        "subject": "build: keep legacy retained-input checks and verify the Dolphin producer revision [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      }
+    ],
+    "deferred": {},
+    "effective": {
+      "build-utils/collect_build_source_evidence.py": {
+        "mode": "100644",
+        "gitBlob": "ee9a70489dfbdb8b36311b0afb05bba1dbf7769c",
+        "sha256": "4d3dff68d464dd663195408828437a1a3e9ade4b2b41cb89622e82582665b214"
+      },
+      "build-utils/dolphin_wiimmfi.py": {
+        "mode": "100644",
+        "gitBlob": "bac3cbde6ab8f022aeb13ef96e4fd9b6bfdee949",
+        "sha256": "df9d3618fd03002f9d5eda8a2f015e89551fda504f66b3d964f2de47110bf06a"
+      },
+      "build-utils/patch_dolphin_internal_core_v2.py": {
+        "mode": "100644",
+        "gitBlob": "cfaadb20e0eacf14bc1ebf3fe4de8bc2e4edfabe",
+        "sha256": "d5bc300c3b65f9c304e829cfa78c31ca5fac961abd38e97d1347ac52c1295d16"
+      },
+      "build-utils/s2arm/engine-pin.json": {
+        "mode": "100644",
+        "gitBlob": "de525c9393a81f610fd817dde39afc681f941e96",
+        "sha256": "97fefe5cbcc6ae70b6129fb0a4d21768fa54f39d83d12aa0f64072fb772e25f3"
+      },
+      "build-utils/s2arm/engine/README.md": {
+        "mode": "100644",
+        "gitBlob": "c589a965729a22f17b0301bf6d2830b014303071",
+        "sha256": "5db4c67fcb462008ac802148b41591906aa7e317c67e91ebf7a7e71c43844d86"
+      },
+      "build-utils/s2arm/engine/benchmarks/rec_bench.m": {
+        "mode": "100644",
+        "gitBlob": "00c08dcd07bacae9be138787e7bd98bd10e3185c",
+        "sha256": "9d708d635dbc2173d01ed39aedfcdc5f32b66711173d0bb89522192f3fd58497"
+      },
+      "build-utils/s2arm/engine/benchmarks/run_cpu.py": {
+        "mode": "100644",
+        "gitBlob": "23eee5830d0651f3373e919085ebc465f1409bf7",
+        "sha256": "5bd17fb3fddc617e9515111230124f12f9805caf901e08b5cac17461d59ef673"
+      },
+      "build-utils/s2arm/engine/patches/0464-rb-args-slot-gens-and-ubolen-fast.patch": {
+        "mode": "100644",
+        "gitBlob": "91cf4ef7850ac0adb4b582c5747d610272db6d46",
+        "sha256": "7a2fef3ab38c82a527b33cdf0f5d3611ed9122dd08baa397014fcb055c057d20"
+      },
+      "build-utils/s2arm/engine/patches/0465-rb-vbuf-dirty-bitmask.patch": {
+        "mode": "100644",
+        "gitBlob": "4f63b251aba9805c448f39df76620898d3ac6e84",
+        "sha256": "933ee9e5a2ec1dc76b387288d9d65f10fd2f9b397159212b1ab72f752db50084"
+      },
+      "build-utils/s2arm/engine/patches/0466-rb-arena-ubs-subcommit-zero-arc.patch": {
+        "mode": "100644",
+        "gitBlob": "81bec395d5a382476e8055dc8668b087236cbeee",
+        "sha256": "a42f4f2dfcaaa708e49fd888aa55a67a146a518bd1910cf485c86a4c40acbb94"
+      },
+      "build-utils/s2arm/engine/patches/0467-rb-svc-mem-amask-probe-count.patch": {
+        "mode": "100644",
+        "gitBlob": "30813f294ec82825a4328cc2a260a99a8826e66d",
+        "sha256": "ca82061e8c4bfaeb3bb5c64962b81ab026b09102a2908e0d32350e053280cdc2"
+      },
+      "build-utils/s2arm/engine/patches/0468-rb-rec-exec-imp-cache.patch": {
+        "mode": "100644",
+        "gitBlob": "a33d700700352c5fc8b70b2c9b3e0a2b6ade48b1",
+        "sha256": "221a745e72118a99f99a927cf8cd7c4082edf8836e373bb383bfc87edc6a1489"
+      },
+      "build-utils/s2arm/engine/patches/0469-rb-replay-metrics-hooks.patch": {
+        "mode": "100644",
+        "gitBlob": "e21ea20f8adf36b6b66c435254f8686c0ee97822",
+        "sha256": "af87f50e245ba36ea9cd014f043ea5ad7e00e613206349da50662a6143afa767"
+      },
+      "build-utils/s2arm/engine/patches/0470-rb-sdx-live-slot-lists.patch": {
+        "mode": "100644",
+        "gitBlob": "04700dd78da52247d8a768022981f5f006cd23b1",
+        "sha256": "e837089d92c8d8f7f28528ca0db2c6272f1c849773a35517f23052321396c344"
+      },
+      "build-utils/s2arm/engine/tests/gpu_ab.m": {
+        "mode": "100644",
+        "gitBlob": "60f765d7fa19dc13e2dfe557e54088ba5d7f0990",
+        "sha256": "f2b69ac5f76aa127a1cbc4aa331dac3c457f1f90dad6fc1ee1340925315c0b30"
+      },
+      "build-utils/s2arm/engine/tests/gpu_ab.py": {
+        "mode": "100644",
+        "gitBlob": "e0ab9872d619a6c77b6cb67dfc528286f24defee",
+        "sha256": "4da39a311ae137e5f96a5660214c4e8527b00e2079a4226652d2e9280213885e"
+      },
+      "build-utils/s2arm/engine/tests/gpu_ab_raw.m": {
+        "mode": "100644",
+        "gitBlob": "387fd0947b1664c2a45c7d0898698c1e68109e0e",
+        "sha256": "f504569edaa80bff2944ddec42437a2acce65c7911c7384314137dfc677fffc1"
+      },
+      "build-utils/s2arm/engine/tests/host-tests.mk": {
+        "mode": "100644",
+        "gitBlob": "80b7814dc6fd8f00cae9551e83635ac26ced396d",
+        "sha256": "f2abffaa183138334271fa508fa0936954bce8de0e13d148b0d75d31a10d503a"
+      },
+      "build-utils/s2arm/engine/tests/replay_compare.py": {
+        "mode": "100644",
+        "gitBlob": "e3f2d17d69236f0d0a0cc1c590731b99f49b5d5f",
+        "sha256": "1b3e9e0259b1523a65fd386560c5fa20236e126f5a32cba37560bf4d913ed7f3"
+      },
+      "build-utils/s2arm/engine/tests/replay_variants.txt": {
+        "mode": "100644",
+        "gitBlob": "103c961defb10b4d34a845f7bf4ec2b2fc969f70",
+        "sha256": "111d92d9639ca759ac4000dd3dccf00c45b13db2902873f4bfd92935ab0d6fd6"
+      },
+      "build-utils/s2arm/engine/tests/t_rb_replay_metrics.m": {
+        "mode": "100644",
+        "gitBlob": "abe816b501ed020bdd02adf001aa8e8b290d7e76",
+        "sha256": "c36a3e1700cb8f366dd9329b98aed1a338d900d63df7bfbf3164b4beaf243389"
+      },
+      "lib/l10n/embedded_emulator_locale.dart": {
+        "mode": "100644",
+        "gitBlob": "ca1e14cfedeca11f79f4328d6c0d3835ff351f28",
+        "sha256": "a9f1ee811392b6c067cba97b70cb4ec78c4743260dd9cb6a4e8e8744d5496dc5"
+      },
+      "lib/l10n/wiimmfi_locale.dart": {
+        "mode": "100644",
+        "gitBlob": "7314d3a04ac97273d571cd13c9d9e8ec54a3bacc",
+        "sha256": "443ea862cfbf35edc8392b813ecdeb47020649273cfd603ba01c1971c4f34f30"
+      },
+      "lib/screens/game_screen/game_settings_dialog/game_settings_dialog.dart": {
+        "mode": "100644",
+        "gitBlob": "d5c40016be1d501fc417b9f7e20087e28276bba2",
+        "sha256": "463e622e463fcdb22870303cae2211a7bf499c4a42ad434e7c8b1bd50d22dace"
+      },
+      "lib/screens/game_screen/game_settings_dialog/game_settings_manage_tab.dart": {
+        "mode": "100644",
+        "gitBlob": "e5275f888eaa995843c33ca3cdd174f7c83d8493",
+        "sha256": "9d8cd564c72ac1724ed9ae3d71d5e6968dcb71e53ebb635d1674cb2d7dcb2f99"
+      },
+      "lib/services/dolphin_internal_v2_service.dart": {
+        "mode": "100644",
+        "gitBlob": "e3d2d11e1fb81372d55fb083b5e674e0bc156784",
+        "sha256": "f7730003d2184c3740f3f88c97e83d3e758a04d3fd032d579e375edb80c04a6e"
+      },
+      "lib/services/embedded_engine_build_info.dart": {
+        "mode": "100644",
+        "gitBlob": "57cbf4cf0170b09e3928aeff98893a72262b3cad",
+        "sha256": "321a7e177f577fa61ff964fe727396e0f09fb88e7494d04a63beb4ce538f61b4"
+      },
+      "lib/services/game/game_launch_service.dart": {
+        "mode": "100644",
+        "gitBlob": "023cb9a1b91764a8ef2888faa7b54a312db04504",
+        "sha256": "1d6ed99345ee54737b2fdd7c9ee8a01431f303693ed43756bcd4e54053a4c2c5"
+      },
+      "lib/services/game_service.dart": {
+        "mode": "100644",
+        "gitBlob": "dfce2aa699070c1f972617a8e613194290353bb9",
+        "sha256": "ae486cfeac6c54b11282588551813d3a4a6ceb5604e3426a9109e80e99335ca8"
+      },
+      "lib/services/libretro_core_build_info.dart": {
+        "mode": "100644",
+        "gitBlob": "614837ed847bc1fd6030173a356652c5ae97fdfa",
+        "sha256": "9b80b5a8ea0900ce77442305502ec0bfa772b597de7c18fdfe126289a5b72b39"
+      },
+      "lib/services/libretro_internal_service.dart": {
+        "mode": "100644",
+        "gitBlob": "12f7f7275614d72e4decd458a13d9b4916ab2512",
+        "sha256": "5f9bd5efdf6b34c611373480461bb72517497607bc8cfe8ac968f57e5af3a7d1"
+      },
+      "lib/services/wiimmfi/wiimmfi_catalog.dart": {
+        "mode": "100644",
+        "gitBlob": "341b68f1da60af6764e6d3856247993b6c283ab8",
+        "sha256": "cf96db284a7a164cf9c0e44274f0d680b026416c2033ef3dcc73f257c1d3f8dc"
+      },
+      "lib/services/wiimmfi/wiimmfi_service.dart": {
+        "mode": "100644",
+        "gitBlob": "c27499baebe4405b82a372496d432e6abab94572",
+        "sha256": "47cb0b86896d168acce03dc63cee21c84abbff27aa5f610dfbc03f80d9536c00"
+      },
+      "lib/services/wiimmfi/wiimmfi_store.dart": {
+        "mode": "100644",
+        "gitBlob": "c2facb0374932d41e61c1e93856139d315d46875",
+        "sha256": "8d5f31ac55fbdb64c94ec978fefe374b156d788d124f425e5258c3a90f106999"
+      },
+      "lib/utils/game_launch_utils.dart": {
+        "mode": "100644",
+        "gitBlob": "48c5a358003de1674b53bef276418e1c3fced5b6",
+        "sha256": "92e58c46acf4bf6050665b1f665c506d6e11f08ed79c662d4c051319de18ea38"
+      },
+      "lib/utils/gamepad_nav.dart": {
+        "mode": "100644",
+        "gitBlob": "a98de05f1d1a805e20ccfb54cc64bebafcefc168",
+        "sha256": "f78cccc3aa365567b4c9e697c033005cbe5ab949cbc949447deba66d1cf5e3b1"
+      },
+      "lib/widgets/confirm_action_dialog.dart": {
+        "mode": "100644",
+        "gitBlob": "cc33f190a307119f6648975d65baeef2b532d1e3",
+        "sha256": "5750f7a2e6c9b38fb38c07424bb9f0125f46fc84ee4e6c417227c2f64203a6da"
+      },
+      "lib/widgets/dolphin_internal_playlist_actions.dart": {
+        "mode": "100644",
+        "gitBlob": "15c8d65160f987d5d21e8f4493fff762a01aad52",
+        "sha256": "c0f8d328ea192e96bb489a1811ae2bb4f513bb22c1940b24b4a43409dbe7f090"
+      },
+      "lib/widgets/game_launch_dialog.dart": {
+        "mode": "100644",
+        "gitBlob": "89e6df3a90aa2ea195ffe86ce02833ffbd6951e6",
+        "sha256": "53ed57dd77cf42f000549db3a6fcb8b62ff0829099f29bb5dc42d2b439c7d8bc"
+      },
+      "lib/widgets/libretro_engine_panel.dart": {
+        "mode": "100644",
+        "gitBlob": "ebeb38033920be2734d9b947de42d3f0b39d4f3a",
+        "sha256": "dfce5df4e90e46e344c71d9de6c453a8f1d0a37c57195a7d46968aa3e2002b95"
+      },
+      "lib/widgets/nextendo_dialog.dart": {
+        "mode": "100644",
+        "gitBlob": "d4b7e9022f966696962ae69604259df97a2605a9",
+        "sha256": "6f035c2b07821f55330e6811fdcc0eccca5b21559454f12901711748854ba74e"
+      },
+      "lib/widgets/online_service_widgets.dart": {
+        "mode": "100644",
+        "gitBlob": "ccf1369c3813cbe4818bd85d8ffbeca32a540873",
+        "sha256": "32dd7771328f484d32f778125565ccb2199864d118d1c1f27376fefcdd60fcff"
+      },
+      "lib/widgets/system_emulator_settings_dialog.dart": {
+        "mode": "100644",
+        "gitBlob": "1baa0da1e890afdc3ac5f5a87fcce485c86142e5",
+        "sha256": "41741f348b57c5e2c6a176daf5f3bda8b03ce36fb80e67ad7e948298419ca711"
+      },
+      "lib/widgets/system_emulator_settings_dialog/chrome.dart": {
+        "mode": "100644",
+        "gitBlob": "08597e45b83644483eb685bdc41fb2f937612b3d",
+        "sha256": "970cb360fc1a67ec30f00443bf77544299a0179bc9ebdb90788f2e8efd32f3fe"
+      },
+      "lib/widgets/system_emulator_settings_dialog/gamepad_nav.dart": {
+        "mode": "100644",
+        "gitBlob": "63f04cd29320a2d802c39439947606a3b70f9f05",
+        "sha256": "08889aa17099b1457b21c992f7160f8d4864030a740f55ee06c237cfe096bb34"
+      },
+      "lib/widgets/system_emulator_settings_dialog/tabs.dart": {
+        "mode": "100644",
+        "gitBlob": "8211c4228bcf69e2900b2171d4204b539459fc0e",
+        "sha256": "c2085dfd4b4583b8cd98605589b545b96242cef33096ad006a3ad0110bd1fd1f"
+      },
+      "lib/widgets/wiimmfi_dialog_controls.dart": {
+        "mode": "100644",
+        "gitBlob": "f20292c179664462d739987e382be4d809710e3b",
+        "sha256": "4ed6a8b5c9929920a6143e001fbac4b387fee05069f93d258601a51c329718f2"
+      },
+      "lib/widgets/wiimmfi_panel.dart": {
+        "mode": "100644",
+        "gitBlob": "92e7d895bcafe644c04a20afd828fc5f2598c63c",
+        "sha256": "cba461d26822b686e66765dc4a99efd84b52462be9b60a8d00e84680e41bd396"
+      },
+      "packages/dolphin_internal_bridge/core/NeoStationSavestates.inc": {
+        "mode": "100644",
+        "gitBlob": "1c01edd6f4570eda5a85bee151a3cfb4535408d7",
+        "sha256": "69117c5733537908036917c213c4cf009e87fb61be88bc976dab5dfa4d4e84ac"
+      },
+      "packages/dolphin_internal_bridge/core/NeoStationWiimmfi.inc": {
+        "mode": "100644",
+        "gitBlob": "8bbb40220366eb82ee26dea524d0e0072491f6fd",
+        "sha256": "8718dffd3f5a6adb0ec84085e3754699c613b70194bb45ad1252909420065245"
+      },
+      "packages/dolphin_internal_bridge/ios/Classes/DOLWiimmfi.h": {
+        "mode": "100644",
+        "gitBlob": "77da2602f9f498aaab2251b25465312ca77f8cf3",
+        "sha256": "9da5d11b7bb2401cf1af5a30849d0e6d5897ab66fec475cb2f1d58ade40b2868"
+      },
+      "packages/dolphin_internal_bridge/ios/Classes/DolphinInternalBridgePlugin.mm": {
+        "mode": "100644",
+        "gitBlob": "a8f944ad0065f1e731483c4541b039b8c3b83f28",
+        "sha256": "48a63f062d22b868b60fa6c91faa9bdd3864ccc29a70aaa3dd7c0b1d58f03b8e"
+      },
+      "packages/dolphin_internal_bridge/ios/dolphin_internal_bridge.podspec": {
+        "mode": "100644",
+        "gitBlob": "49cfffc7e63fca77b77e2275354f43269b6192a9",
+        "sha256": "5eda8ad6b0d12e58ea9ef0f300e3a590e235a94e75c79c0e2abda33c3c9ff962"
+      },
+      "packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m": {
+        "mode": "100644",
+        "gitBlob": "254bde3370b4d6867321001f1d65fd92506612ac",
+        "sha256": "651ca2c22d9a5852506ddbf078381591ca8e05b5863bfdd747f3a60ced62a2e0"
+      },
+      "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec": {
+        "mode": "100644",
+        "gitBlob": "112ecd86555284f9edbe5b8a820bfecd537f57d4",
+        "sha256": "14977385adb8e2b404bf7ffe3e3cf86120ceaa25be0855fa2224f496951c0c4d"
+      },
+      "packages/libretro_internal_bridge/lib/libretro_internal_bridge.dart": {
+        "mode": "100644",
+        "gitBlob": "04b897af21ffc0a8d53dc5d86329b8fc9eee7760",
+        "sha256": "940e382e5b4f9c7671244301398233fb4c4dd03dc07d7551033343e2e182baf3"
+      },
+      "test/dolphin_process_lifecycle_test.py": {
+        "mode": "100644",
+        "gitBlob": "102ad963ea4d5e1e6c38d1cd84ac1137192557bf",
+        "sha256": "14a09e4a8d9564409d6eb3afe5ac11c45c77e7345c914f99aaf6af7d5efaa205"
+      },
+      "test/game_launch_route_test.py": {
+        "mode": "100644",
+        "gitBlob": "cd710c379ca2b1ed841fa6fa542effd167542238",
+        "sha256": "fb1af017ea2740e27f004d755645e30d7fce70f2bd5764788611b4e3385afc8f"
+      },
+      "test/integrated_import_tab_contract_test.py": {
+        "mode": "100644",
+        "gitBlob": "4d241cb0f613b872681f89485c29519faa89e33f",
+        "sha256": "2ef721af3c922c49a43b799f202a7aa3517b5da2ea3646aba68e64e5f21b12ee"
+      },
+      "test/ios_gamepad_navigation_test.dart": {
+        "mode": "100644",
+        "gitBlob": "9e347bef23b587dafe1f7293d8364f47e0da77e0",
+        "sha256": "0510ef75e59b56a93cec3139280fe0d36fb14b0521b1e03a6a1cf27ed5d4710b"
+      },
+      "test/melonx_launch_flow_test.py": {
+        "mode": "100644",
+        "gitBlob": "c20f70364683803369a7153349d904b5155b23c9",
+        "sha256": "59cc1edf25e3dba198793727fa9aac3744a1ee84561644cc9c15346f85b7a4ff"
+      },
+      "test/playlist_emulator_build_metadata_test.dart": {
+        "mode": "100644",
+        "gitBlob": "a49050818efb8e0525974d2a1c29263a04c28a71",
+        "sha256": "271e20ff3f117883bb3a168ce4d21e8000845fc8991b39bac504abf3d59f9566"
+      },
+      "test/storage_contract_test.py": {
+        "mode": "100644",
+        "gitBlob": "95622e101d0269ec9b56838bcb82e7297a68b80a",
+        "sha256": "5c6075349833b4afa943168f0454264b4c2eb45b7e49a9a245cfb4844cd41a9f"
+      },
+      "test/wiimmfi_nand_reader_test.py": {
+        "mode": "100644",
+        "gitBlob": "4bf3b363eadef3ecb7b53eaa53da7fbbf4a7f1dc",
+        "sha256": "21cbc0166ae7b2bcf2f54a30f6bfc5694ac3ab3bad1ce9dbfb02fe5cd49ce941"
+      },
+      "test/wiimmfi_offline_test.py": {
+        "mode": "100644",
+        "gitBlob": "38c7ecb634b4a0aa799f9bc9928c2baae79ab319",
+        "sha256": "1a115f6be603aa9747b90ccc33ab6ad83fb105d471679e3fd2eb56bfd3f756f5"
+      },
+      "test/wiimmfi_sdk_test.py": {
+        "mode": "100644",
+        "gitBlob": "baf0b20c8857aeb4259ebb92e495b8e7bcf4e69b",
+        "sha256": "2617fb6b2f6a4762469b547af643bdd44ff0ca1df21775c743466b2d9d97d912"
+      },
+      "test/wiimmfi_test.dart": {
+        "mode": "100644",
+        "gitBlob": "34c29c8a66e6eddaa4c9e1596bb4cee0d173ec54",
+        "sha256": "9dd173be467e772f33e49c9eace5a654e1d33b71e7af8fcd2e0665e11d3927c7"
+      },
+      "tools/s2arm_a18pro/nvn2_metrics/shader_metrics.py": {
+        "mode": "100644",
+        "gitBlob": "443c35071ce28c3776a1622c1636ff6922dadfc8",
+        "sha256": "faf8d8405061cb80714d216dca27c53cc077a4f7574035dcf22a1d65bf5e2481"
+      },
+      "tools/s2arm_a18pro/nvn2_metrics/shader_variants.txt": {
+        "mode": "100644",
+        "gitBlob": "397a6881ea62a68c53fb50905525d213af665eb5",
+        "sha256": "e84b7035cb312df23b1497d672f2cb9e080c3741958c922db50613da4280a143"
+      },
+      "tools/s2arm_a18pro/perf_history.json": {
+        "mode": "100644",
+        "gitBlob": "599bca3848ba34a8a326bc39f888659fc9ac04bb",
+        "sha256": "8b2aabba491c692865750c02b1b1f724e4612fa15215180eaa56221608d086ff"
+      }
+    },
+    "restore": {
+      "build-utils/maintenance/actions-cleanup-2026-11-10-followup.json": null,
+      "build-utils/maintenance/actions-cleanup-2026-11-10.json": null,
+      "build-utils/maintenance/actions-cleanup-2026-11-13-bulk.json": null,
+      "build-utils/maintenance/actions-cleanup-2026-11-23-pass2.json": null,
+      "build-utils/maintenance/actions-cleanup-2026-11-23.json": null,
+      "build-utils/maintenance/cleanup_actions.py": {
+        "mode": "100644",
+        "gitBlob": "d9d9eebd0b5f280598442a336aaf958cc9d033b6",
+        "sha256": "9e491611b6146032815aac0b8934e6edbdbc14e2f817350c006e7e8541773b97"
+      },
+      "build-utils/melonx/metal-archive/README.md": null,
+      "build-utils/melonx/metal-archive/moltenvk-v1.4.2-binary-archives.patch": null,
+      "build-utils/s2arm/engine/benchmarks/README.md": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/IOSApp.swift": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/Main.swift": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/ReconstructionBench.swift": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/README.md": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.manifest.json": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Data/com.apple.CoreML/model.mlmodel": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Data/com.apple.CoreML/weights/weight.bin": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Manifest.json": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.manifest.json": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Data/com.apple.CoreML/model.mlmodel": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Data/com.apple.CoreML/weights/weight.bin": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Manifest.json": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/generate_probe.py": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/requirements.txt": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/run_macos.sh": null,
+      "build-utils/s2arm/engine/benchmarks/ga.c": null,
+      "build-utils/s2arm/engine/benchmarks/ga_guard.c": null,
+      "build-utils/s2arm/engine/benchmarks/push_bench.c": null,
+      "build-utils/s2arm/engine/benchmarks/push_selective.c": null,
+      "build-utils/s2arm/engine/benchmarks/rid_bench.m": null,
+      "build-utils/s2arm/engine/benchmarks/run_coreml.py": null,
+      "build-utils/s2arm/engine/benchmarks/ubo_bench.c": null,
+      "build-utils/s2arm/engine/benchmarks/ubo_guard.c": null,
+      "native/enhancements/catalogue/r/2026-11-16T2112Z.a85f516925ab/index.json.gz": {
+        "mode": "100644",
+        "gitBlob": "93c81ad2f4f9e33d61a61f57259ec8595c62ae12",
+        "sha256": "ef2f17505620e6e5c38154f2289196b3fdf69bc524991c83112ecfb7b956a7e8"
+      },
+      "native/enhancements/catalogue/r/2026-11-16T2139Z.d8b055350a6c/index.json.gz": {
+        "mode": "100644",
+        "gitBlob": "93c81ad2f4f9e33d61a61f57259ec8595c62ae12",
+        "sha256": "ef2f17505620e6e5c38154f2289196b3fdf69bc524991c83112ecfb7b956a7e8"
+      },
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/index.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-00.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-01.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-02.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-03.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-04.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-05.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-06.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-07.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-08.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-09.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-10.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-11.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-12.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-13.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-14.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-15.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-16.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-17.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-18.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-19.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-20.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-21.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-22.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-23.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-24.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-25.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-26.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-27.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-28.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-29.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-30.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-31.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-00.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-01.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-02.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-03.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-04.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-05.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-06.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-07.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-08.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-09.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-10.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-11.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-12.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-13.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-14.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-15.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-16.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-17.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-18.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-19.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-20.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-21.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-22.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-23.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-24.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-25.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-26.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-27.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-28.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-29.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-30.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-31.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-00.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-01.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-02.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-03.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-04.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-05.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-06.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-07.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-08.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-09.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-10.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-11.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-12.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-13.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-14.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-15.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-16.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-17.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-18.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-19.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-20.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-21.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-22.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-23.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-24.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-25.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-26.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-27.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-28.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-29.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-30.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-31.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-00.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-01.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-02.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-03.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-04.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-05.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-06.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-07.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-08.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-09.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-10.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-11.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-12.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-13.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-14.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-15.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-16.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-17.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-18.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-19.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-20.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-21.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-22.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-23.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-24.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-25.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-26.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-27.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-28.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-29.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-30.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-31.json.gz": null,
+      "source.json": null,
+      "test/actions_cleanup_test.py": {
+        "mode": "100644",
+        "gitBlob": "b45856faaeaea9078ae6f1fab4f4dc420b3c2704",
+        "sha256": "3436f073837177c60de87fa823bcd4c46a3f06e78e06636713ac7daa2d4b78b0"
+      },
+      "test/melonx_metal_binary_archive/generate_shaders.py": null,
+      "test/melonx_metal_binary_archive/metal_probe.mm": null,
+      "test/melonx_metal_binary_archive/mvk_archive_test.cpp": null,
+      "test/melonx_metal_binary_archive/run_mvk.py": null,
+      "test/melonx_metal_binary_archive/run_probe.py": null,
+      "test/melonx_metal_binary_archive/shaders.spvz": null
+    },
+    "effectiveDigest": "54290a3d53b8e6726ebc1109d13d3052c1becf5716d95cb200294648403908a2",
+    "productFiles": 10008,
+    "embeddedRecipeInputs": {
+      "LICENSE.md": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "NOTICE.md": "3943d6fb637c747d3ab7c8b0ec54108a6c44afa8666dd99a06d7e871bfbbcf58",
+      "docs/CHEAT_CATALOG_SOURCES.md": "b99792de4c9e917758628869bfc948ca8f653f47cb926378f3d8ad61d9c755f1",
+      "docs/ENGINE_CORRESPONDING_SOURCES.md": "d79c0a19a08dccedf3c7e1c65fdea6ae307e7dbd0b1c310430e9de7a7a5c4dd5",
+      "docs/HD_TEXTURE_CATALOG_SOURCES.md": "ca835a124356907c6ba68067a2399d55ba9326988e0fb732978cd4fe910d4392",
+      "docs/HD_TEXTURE_SOURCES_AND_CREDITS.md": "058e36570f6b4b3e374ea790dad6d684192e65b526fe64dd7f40f09dda0c4041",
+      "docs/LEGAL_AND_CREDITS.md": "8748bbba251fd104421f412976d4138fcadcf517c2f41b81610840012af0dd91",
+      "docs/OVERLAY_SOURCES_AND_CREDITS.md": "463aeaf75b5f39f058e7bc1fbb80fefddc9a977cc5ba3a0bdfe70b565d70ef20",
+      "docs/PACKAGE_SOURCES_AND_LICENSES.md": "2fdae2151390207cab5953651448e181912e9270347f7fe5129a211f2056e21c",
+      "docs/PPSSPP_SOURCE_AND_LICENSE_AUDIT.md": "fbeced8b72541b2ba8aac27334f749c6f870aff7506b1efde8de6958ff600e2e",
+      "docs/SOURCE_CODE_ACCESS.md": "93aa12f4cd110446325a63ff0c5c85c3daa01d543cd361643f112161dfcf490c",
+      "docs/evidence/achievement-translation-declarations-2026-10-31.json": "c8edd7472b7944348e39499ef1d2a59cd4e8a9e91338c3d7da46c8baf582df6b",
+      "docs/evidence/engine-source-license-audit-2026-10-21.json": "866e0a743ddaa4881fd8428dbce235c252e0773fb58ddefaaf1cef364d7607fd",
+      "docs/evidence/modified-sources-since-0.0.8-2026-10-21.json": "18a2c562d9271554e54644aeea3c66e7b498c8e5761f3532f04e8f5be2d4e9e7",
+      "docs/evidence/package-sources-license-audit-2026-10-21.json": "348c5c7840a9262e095519b46aca8d632341ba82483c386a96653108f4a8b72c",
+      "docs/evidence/pocket-originals-declarations-2026-11-03.json": "37388cacfd4623de2d580476e6d5f48a50daf8af449c42aed75fb4a4164e5641",
+      "docs/evidence/ppsspp-source-license-audit-2026-10-21.json": "34d4df4576cac7a5c2a6b1e89bed95e98870165146e11b058fd624cf009946ce",
+      "docs/evidence/retro-achievements-session-declarations-2026-11-01.json": "7d341d4f57dfdfc4abe32a6b8f6845ba4d6236f32615fc0eed848c9b9679ad1e",
+      "docs/evidence/rewindbox-glacier-declarations-2026-11-02.json": "3c391df6cfc68f6ee4aa3691f8c4e8e2fcd37fc9d596060fbb7946ab7810c924",
+      "docs/evidence/rpcs3-retroachievements-declarations-2026-11-02.json": "12abf0d5396a77c8457da822d328bcee5d68338058afc848df51fc73ea15b876",
+      "docs/evidence/wiimmfi-playlist-declarations-2026-11-27.json": "6ae4f03fa3ef861f37262a3bcd948fbf8becae907ee05e1444957519975f9a01",
+      "docs/licenses/cheats/Admentus-Enhancement-Codes-Credits.txt": "ea9f46181d8a6eed2c318a2795f73ff1dfa2a838f8992d6b07be74ed0d9fb93b",
+      "docs/licenses/cheats/Admentus-Enhancement-Codes-LICENSE.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "docs/licenses/cheats/Mupen64Plus-GPL-2.0.txt": "6774e66e59957ebf1da6c9e22be4e7b97fb169a534ab37e085e92831ff414fdd",
+      "docs/licenses/cheats/Mupen64Plus-mupencheat-header.txt": "39023c3dc42e1f1ea6085d79d44bdf9b59adf5846137496f9d73268f6ae7ecd5",
+      "docs/licenses/cheats/README.md": "191a16de4712ffb71f9604f0ed480b5ef1105e6f139575e77cff4b1b4d0dc340",
+      "docs/licenses/cheats/TAbdiukov-PPSSPP-patches-LICENCE.txt": "47a7bfd6b3e12546207665bcd53558b4087ac04fbcfc2592966968a3adab7987",
+      "docs/licenses/cheats/artemis-LICENSE.txt": "6a3e4ba999067b1c412f1740282bc077f8edf5f7178ea085acb5f5cca6fecb46",
+      "docs/licenses/cheats/provenance.json": "6a1ed0158a9f2c2c4f4ebed42b1c5e963baeac0c7c56fddfc4e84bf3c98ee843",
+      "docs/licenses/cheats/szTheory-NDS-Cheat-Databases-LICENSE.txt": "20b067f86de375aae6db0f283ab2e65de24d537733b89bd58432c101259d84cf",
+      "docs/licenses/cheats/tyler-EMERALD-NOTICE.txt": "868b4e7215a9a5835be022dc4d3c469ea18ce71598b20280d02b7b4c83f8621e",
+      "docs/licenses/cheats/tyler-GPL-3.0-LICENSE.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "docs/licenses/rpcs3-wiki-2026-10-28.json": "e844cbcf720d9f8af0f6dc38bb1dd9fed67bd2c83e17299db21cff95e2a54628",
+      "docs/licenses/rpcs3-wiki-2026-10-28.md": "6ae6c89711313c17a0f4585b02760688b75114dd76e6e994a40d9acdaadaf075",
+      "docs/retroarch-rollback-2026-10-08.md": "0d76d77ba6e51bfeda4c84388cf0fa8eb25af3c221943a4d41999a6692eeea0c"
+    }
   },
   "images": {
     "retained": {
@@ -640,13 +1807,178 @@
       "dolphin": "Frameworks/DolphinCore.framework/DolphinCore"
     },
     "mustChange": [
+      "Frameworks/App.framework/App",
+      "Frameworks/DolphinCore.framework/DolphinCore",
       "Frameworks/S2ArmEngine.framework/S2ArmEngine",
-      "Runner",
+      "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+      "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge",
+      "Runner"
+    ],
+    "added": [],
+    "removed": [],
+    "baseImages": [
+      "Frameworks/ARMSX2Core.framework/ARMSX2Core",
+      "Frameworks/App.framework/App",
+      "Frameworks/DolphinCore.framework/DolphinCore",
+      "Frameworks/Flutter.framework/Flutter",
+      "Frameworks/GTMSessionFetcher.framework/GTMSessionFetcher",
+      "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec",
+      "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil",
+      "Frameworks/MeloNXCore.framework/MeloNXCore",
+      "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport",
+      "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK",
+      "Frameworks/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone",
+      "Frameworks/MeloNXSDL3.framework/MeloNXSDL3",
+      "Frameworks/MoltenVK.framework/MoltenVK",
+      "Frameworks/NS2Pro.framework/NS2Pro",
+      "Frameworks/PDFium.framework/PDFium",
+      "Frameworks/S2ArmEngine.framework/S2ArmEngine",
+      "Frameworks/StikJIT.framework/StikJIT",
+      "Frameworks/XeniaCore.framework/XeniaCore",
+      "Frameworks/a5200_libretro.framework/a5200_libretro",
+      "Frameworks/achievement_translation.framework/achievement_translation",
+      "Frameworks/ardens_libretro.framework/ardens_libretro",
+      "Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge",
+      "Frameworks/azahar_libretro.framework/azahar_libretro",
+      "Frameworks/battery_plus.framework/battery_plus",
+      "Frameworks/desmume_libretro.framework/desmume_libretro",
+      "Frameworks/device_info_plus.framework/device_info_plus",
+      "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+      "Frameworks/external_display.framework/external_display",
+      "Frameworks/external_folder_access.framework/external_folder_access",
+      "Frameworks/fbneo_libretro.framework/fbneo_libretro",
+      "Frameworks/file_picker.framework/file_picker",
+      "Frameworks/flutter_7zip.framework/flutter_7zip",
+      "Frameworks/flutter_localization.framework/flutter_localization",
+      "Frameworks/flutter_secure_storage_darwin.framework/flutter_secure_storage_darwin",
+      "Frameworks/freechaf_libretro.framework/freechaf_libretro",
+      "Frameworks/freeintv_libretro.framework/freeintv_libretro",
+      "Frameworks/gambatte_libretro.framework/gambatte_libretro",
+      "Frameworks/gamepads_darwin.framework/gamepads_darwin",
+      "Frameworks/gearcoleco_libretro.framework/gearcoleco_libretro",
+      "Frameworks/genesis_plus_gx_libretro.framework/genesis_plus_gx_libretro",
+      "Frameworks/genesis_plus_gx_wide_libretro.framework/genesis_plus_gx_wide_libretro",
+      "Frameworks/gw_libretro.framework/gw_libretro",
+      "Frameworks/handy_libretro.framework/handy_libretro",
+      "Frameworks/libRPCS3Core.dylib",
+      "Frameworks/libmetalirconverter.dylib",
+      "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge",
+      "Frameworks/mednafen_ngp_libretro.framework/mednafen_ngp_libretro",
+      "Frameworks/mednafen_pce_fast_libretro.framework/mednafen_pce_fast_libretro",
+      "Frameworks/mednafen_pcfx_libretro.framework/mednafen_pcfx_libretro",
+      "Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro",
+      "Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro",
+      "Frameworks/mednafen_vb_libretro.framework/mednafen_vb_libretro",
+      "Frameworks/mednafen_wswan_libretro.framework/mednafen_wswan_libretro",
+      "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
+      "Frameworks/mesen_libretro.framework/mesen_libretro",
+      "Frameworks/mgba_libretro.framework/mgba_libretro",
+      "Frameworks/mupen64plus_next_libretro.framework/mupen64plus_next_libretro",
+      "Frameworks/neo_cheat_catalog.framework/neo_cheat_catalog",
+      "Frameworks/neo_shader_kit.framework/neo_shader_kit",
+      "Frameworks/neo_swap.framework/neo_swap",
+      "Frameworks/neo_texture_catalog.framework/neo_texture_catalog",
+      "Frameworks/neo_touch_layout.framework/neo_touch_layout",
+      "Frameworks/nestopia_libretro.framework/nestopia_libretro",
+      "Frameworks/o2em_libretro.framework/o2em_libretro",
+      "Frameworks/objective_c.framework/objective_c",
+      "Frameworks/package_info_plus.framework/package_info_plus",
+      "Frameworks/pdfium_flutter.framework/pdfium_flutter",
+      "Frameworks/picodrive_libretro.framework/picodrive_libretro",
+      "Frameworks/pokemini_libretro.framework/pokemini_libretro",
+      "Frameworks/potator_libretro.framework/potator_libretro",
+      "Frameworks/ppsspp_libretro.framework/ppsspp_libretro",
+      "Frameworks/prosystem_libretro.framework/prosystem_libretro",
+      "Frameworks/retro_achievements_session.framework/retro_achievements_session",
+      "Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
+      "Frameworks/sameduck_libretro.framework/sameduck_libretro",
+      "Frameworks/share_plus.framework/share_plus",
+      "Frameworks/shared_preferences_foundation.framework/shared_preferences_foundation",
+      "Frameworks/snes9x_libretro.framework/snes9x_libretro",
+      "Frameworks/sqlite3.framework/sqlite3",
+      "Frameworks/stella_libretro.framework/stella_libretro",
+      "Frameworks/stikjit_bridge.framework/stikjit_bridge",
+      "Frameworks/url_launcher_ios.framework/url_launcher_ios",
+      "Frameworks/uzem_libretro.framework/uzem_libretro",
+      "Frameworks/video_player_avfoundation.framework/video_player_avfoundation",
+      "Frameworks/wakelock_plus.framework/wakelock_plus",
+      "Frameworks/wasm4_libretro.framework/wasm4_libretro",
+      "Frameworks/xenia_internal_bridge.framework/xenia_internal_bridge",
+      "PlugIns/ARMSX2JITHelper.appex/ARMSX2JITHelper",
+      "PlugIns/DolphinJITHelper.appex/DolphinJITHelper",
+      "PlugIns/LibretroJITHelper.appex/LibretroJITHelper",
+      "PlugIns/MeloNXJITHelper.appex/MeloNXJITHelper",
+      "PlugIns/MeloNXRamDonor.appex/MeloNXRamDonor",
+      "PlugIns/NeoSwapDonor.appex/NeoSwapDonor",
+      "PlugIns/NeoSwapPageRelay.appex/NeoSwapPageRelay",
+      "PlugIns/RPCS3JITHelper.appex/RPCS3JITHelper",
+      "PlugIns/S2ArmJITHelper.appex/S2ArmJITHelper",
+      "PlugIns/XeniaJITHelper.appex/XeniaJITHelper",
+      "Runner"
+    ],
+    "retainedFingerprints": {
+      "Frameworks/ARMSX2Core.framework/ARMSX2Core": "e94131ab3e246a6f6162747a7cd0dd5c985b13121ef33bfaf61e8249d22a5998",
+      "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec": "cad556ba3651eece2068166f1fb61671d33d56ff68444475865a0055d316c01d",
+      "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil": "15acad8827f4dc80c453647c5196c91e393c8eb52e3f6367d1838454f7dee1c9",
+      "Frameworks/MeloNXCore.framework/MeloNXCore": "1f344f3cc0e58c01b2ec4d9af93520209bcfd4713e8588288ca7c21ff0905be4",
+      "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport": "b85104bbc6e7464cd949b1cbf51989b6c3d6af16bddc10c33728cacca043700e",
+      "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK": "ea81c0e4728457b9e2fa6faf6360232467bda505f5f2c3927376fe7535083aac",
+      "Frameworks/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone": "38fd2da5cac56fe93580a021008837cf1e72d93a19cfd12263f2a92f0de658d8",
+      "Frameworks/MeloNXSDL3.framework/MeloNXSDL3": "cfd1e95b4fe64309b8f16efd2b2d3134cef3390cd6d5172bb13c4b8520aba942",
+      "Frameworks/MoltenVK.framework/MoltenVK": "7cbd35be66c78e741768528c7b0fbf3cf20f5b468dc5361893033d4924741520",
+      "Frameworks/NS2Pro.framework/NS2Pro": "8a3320df120185bf7f88c4b46ee9ca6293fb1c10a869f38485bf02ed7ee88654",
+      "Frameworks/XeniaCore.framework/XeniaCore": "5adfe13dde3c681773d4f1be915f8a7d03fad5db2d6db23fd8ac040d3b23b613",
+      "Frameworks/a5200_libretro.framework/a5200_libretro": "cfa6fedeb2b2ae954565491f0e103c67d62c0168edf3480fc08a301a9ca1a19b",
+      "Frameworks/ardens_libretro.framework/ardens_libretro": "5b1b62c69036580263c57d482cb8be16faa793a42614b556b5a32c7ff08ababc",
+      "Frameworks/azahar_libretro.framework/azahar_libretro": "997635b6bcfc12fd85c4e5d76d09f3b546034322d2d256c8c2eab10b714fbf3a",
+      "Frameworks/desmume_libretro.framework/desmume_libretro": "fab54cb3b77f57a1a239c900f2c01221b3abab23514fb2f76b064215f548375d",
+      "Frameworks/fbneo_libretro.framework/fbneo_libretro": "18102405bbe565cbba25fc822871ba87bee1db7dda5cf1da02302f6904ce5aec",
+      "Frameworks/freechaf_libretro.framework/freechaf_libretro": "fd60db6eac893840535a18cf3e025730a5682814120f4aacf339f437c37aab1c",
+      "Frameworks/freeintv_libretro.framework/freeintv_libretro": "dcccda5d6ca628c30dea61694cbe3115f4d35e04eef1615875b69ed02d15b9c1",
+      "Frameworks/gambatte_libretro.framework/gambatte_libretro": "3e803dca4a105e7d8469c3cd1ec79c41c5fe5d87137ebe3a91afbafc25957e30",
+      "Frameworks/gearcoleco_libretro.framework/gearcoleco_libretro": "9f5496ac38b3b464ac3dfe0b2d90c0ac5a1a365fe6c160e07d5f67be0b8a276e",
+      "Frameworks/genesis_plus_gx_libretro.framework/genesis_plus_gx_libretro": "e732f8a67cce93ad7bf2a3ad0c27bd8c6444882cb6ab67855b2354f1e838c7c1",
+      "Frameworks/genesis_plus_gx_wide_libretro.framework/genesis_plus_gx_wide_libretro": "145e71994f9cf2d7b72bd8e30ba49a348099aebb805450e7736619dee916b904",
+      "Frameworks/gw_libretro.framework/gw_libretro": "1561851ab719f3c1063bce1059d93982bd6fd0ad7ed8fa99144961ccd8fbd7c0",
+      "Frameworks/handy_libretro.framework/handy_libretro": "7a46ec1712e3e0f95db8a2c04c6626cc0882c374d904c4e1673d9e7781fcad31",
+      "Frameworks/libRPCS3Core.dylib": "57693835b7c0d41656a6fa6ef98361cc07e1469312242953fd48a6afa0cc92e4",
+      "Frameworks/libmetalirconverter.dylib": "c7f9161b2bb302c77f2ecc07d7f440a883c1a5016da947ab997d2e24fe1cf8db",
+      "Frameworks/mednafen_ngp_libretro.framework/mednafen_ngp_libretro": "7a22292d47f0d92c7fcc75c9b4b72b71172edd0f11132d5edc20afc11ae36c3f",
+      "Frameworks/mednafen_pce_fast_libretro.framework/mednafen_pce_fast_libretro": "e9f0abcb0f5b71111a6631e4e29f3ee0387325af3804e20a2a7a2717ec51a354",
+      "Frameworks/mednafen_pcfx_libretro.framework/mednafen_pcfx_libretro": "ad5aa730fb7862d5185da7b4c66fea236bbbdeb981d83f1be856800e5d675887",
+      "Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro": "35e355127154edc8250a2d4715f6a28586830f707ba745c20f811ea05c826d2a",
+      "Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro": "20a8bbd1d5db1c17b36adb13a5f1583ae2afb2f7257387a9d1f3d3134b8ec2a2",
+      "Frameworks/mednafen_vb_libretro.framework/mednafen_vb_libretro": "8eb3437fa0c5e247c15c959a18a9d3179f7646d1c616f6d6d6dc07ad59d70d16",
+      "Frameworks/mednafen_wswan_libretro.framework/mednafen_wswan_libretro": "29cce20057b765de6d99d962ea5e55a1a4a47e86cee83255e6d16b0e1ba0c545",
+      "Frameworks/mesen_libretro.framework/mesen_libretro": "e76d6c1dd46f8eb51a5478a1a21b2808d79bae0c7175199594b0f6781ee38684",
+      "Frameworks/mgba_libretro.framework/mgba_libretro": "a8f8613a1895d58cbac8effd04ccd84bb6dbb4c59a60cbc18efc2bf268a6d181",
+      "Frameworks/mupen64plus_next_libretro.framework/mupen64plus_next_libretro": "ba845fc8a78edf87639a750203b2d09eb0fd294cd7969473115ad816f9280286",
+      "Frameworks/nestopia_libretro.framework/nestopia_libretro": "847be8672c95558feebe0be55bdf3264e7e241009451b11a023a835b44d3e0ef",
+      "Frameworks/o2em_libretro.framework/o2em_libretro": "535cdf027548eab1117dff0522d9a589ac403d996e8fc569b81996c5bc3f1209",
+      "Frameworks/picodrive_libretro.framework/picodrive_libretro": "65d6dc5a241efda5ea1965443b3c9fe1e763538a36e14ca290d9ec571377d9e1",
+      "Frameworks/pokemini_libretro.framework/pokemini_libretro": "c1c03e755afc328ba64bfce2f8491f8838d224e6f9685a73f2bd060c67b4ff6e",
+      "Frameworks/potator_libretro.framework/potator_libretro": "19a67f1d4f65a819cc87cb1576d7348a8eb1451e1b509aad25d7d73636fea681",
+      "Frameworks/ppsspp_libretro.framework/ppsspp_libretro": "377f669eacb492181ca3681e6ccd017bea78263b45320a575d8172dab2bd88c1",
+      "Frameworks/prosystem_libretro.framework/prosystem_libretro": "82b4af35d8c61093d1e7edb0f6c3eeca361acb4b8c96d3e83ddf3ffbad5150af",
+      "Frameworks/sameduck_libretro.framework/sameduck_libretro": "f648c6efc1455c280441c1f70dd62d3f2451a6e36b57268f3acf7ed6ff2256cb",
+      "Frameworks/snes9x_libretro.framework/snes9x_libretro": "e0326b241edce3f8860b85e3a08684806e611e292a21204534456b3af08ba788",
+      "Frameworks/stella_libretro.framework/stella_libretro": "a44e78a4e58dc481233737681fa3547ecebdfef0178219de8213aa067e8cf368",
+      "Frameworks/uzem_libretro.framework/uzem_libretro": "ae053a29eff0b1490f7cedd6af8a79d0df45950ef71fd604a93703ceaa039d93",
+      "Frameworks/wasm4_libretro.framework/wasm4_libretro": "41dec5ccf2fdb0153db049f027424f42993ae0c83df61e4bd1db24b0cf9a4dde"
+    },
+    "replacedFingerprints": {
+      "Frameworks/DolphinCore.framework/DolphinCore": "e28118ff6f707a9383d8a45383e7651bae598610d4434d49bd8f70c571a62762"
+    },
+    "derivedMustChange": [
       "Frameworks/App.framework/App",
       "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
       "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge"
-    ],
-    "added": [],
-    "removed": []
+    ]
+  },
+  "frozen": {
+    "at": "2026-11-27T12:18:08Z",
+    "commit": "0e6e5b44a96e08a2d0da55cdb34792c5872be247",
+    "tool": "standard_delivery.py freeze",
+    "inCI": false
   }
 }
