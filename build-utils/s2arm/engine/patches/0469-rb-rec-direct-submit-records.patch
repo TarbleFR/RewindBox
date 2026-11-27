@@ -1,0 +1,162 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 384814a..b11bb47 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -2572,7 +2572,7 @@ static void rb_ref_bound(id ps);
+ static void rb_trace_bound(id ps);
+ static void rb_pso_bound(id ps);
+ static inline void enc_r_pso(id<MTL4RenderCommandEncoder> e, id<MTLRenderPipelineState> p) {
+-    [e setRenderPipelineState:p];
++    if (rec_direct(e)) rec_w_pso(p); else [e setRenderPipelineState:p];   // RewindBox (patch 0469): rec_direct
+     if (e && rb_pso_cap_on()) rb_pso_bound(p);
+     if (g_rb_promoted_objects.n && e) rb_trace_bound(p);
+     if (g_rb_seed_objects.n && e) rb_ref_bound(p);
+@@ -2583,16 +2583,16 @@ static inline void enc_r_pso(id<MTL4RenderCommandEncoder> e, id<MTLRenderPipelin
+         t_rb_draw_pipeline=e && nvn_hm_get(&g_rb_draw_candidates,&raw) ? raw : NULL;
+     }
+ }
+-static inline void enc_r_dss(id<MTL4RenderCommandEncoder> e, id<MTLDepthStencilState> s) { [e setDepthStencilState:s]; }
+-static inline void enc_r_viewport(id<MTL4RenderCommandEncoder> e, MTLViewport v) { [e setViewport:v]; }
+-static inline void enc_r_scissor(id<MTL4RenderCommandEncoder> e, MTLScissorRect r) { [e setScissorRect:r]; }
+-static inline void enc_r_cull(id<MTL4RenderCommandEncoder> e, MTLCullMode m) { [e setCullMode:m]; }
+-static inline void enc_r_winding(id<MTL4RenderCommandEncoder> e, MTLWinding w) { [e setFrontFacingWinding:w]; }
+-static inline void enc_r_fill(id<MTL4RenderCommandEncoder> e, MTLTriangleFillMode m) { [e setTriangleFillMode:m]; }
+-static inline void enc_r_depth_bias(id<MTL4RenderCommandEncoder> e, float u, float s, float c) { [e setDepthBias:u slopeScale:s clamp:c]; }
+-static inline void enc_r_depth_clip(id<MTL4RenderCommandEncoder> e, BOOL v) { [e setDepthClipMode:v ? MTLDepthClipModeClip : MTLDepthClipModeClamp]; }
+-static inline void enc_r_stencil_ref(id<MTL4RenderCommandEncoder> e, uint32_t f, uint32_t b) { [e setStencilFrontReferenceValue:f backReferenceValue:b]; }   // NVN keeps a reference per face (SetStencilRef FRONT / BACK)
+-static inline void enc_r_blend_color(id<MTL4RenderCommandEncoder> e, float r, float g, float b, float a) { [e setBlendColorRed:r green:g blue:b alpha:a]; }
++static inline void enc_r_dss(id<MTL4RenderCommandEncoder> e, id<MTLDepthStencilState> s) { if (rec_direct(e)) rec_w_dss(s); else [e setDepthStencilState:s]; }
++static inline void enc_r_viewport(id<MTL4RenderCommandEncoder> e, MTLViewport v) { if (rec_direct(e)) rec_w_viewport(v); else [e setViewport:v]; }
++static inline void enc_r_scissor(id<MTL4RenderCommandEncoder> e, MTLScissorRect r) { if (rec_direct(e)) rec_w_scissor(r); else [e setScissorRect:r]; }
++static inline void enc_r_cull(id<MTL4RenderCommandEncoder> e, MTLCullMode m) { if (rec_direct(e)) rec_w_cull(m); else [e setCullMode:m]; }
++static inline void enc_r_winding(id<MTL4RenderCommandEncoder> e, MTLWinding w) { if (rec_direct(e)) rec_w_winding(w); else [e setFrontFacingWinding:w]; }
++static inline void enc_r_fill(id<MTL4RenderCommandEncoder> e, MTLTriangleFillMode m) { if (rec_direct(e)) rec_w_fill(m); else [e setTriangleFillMode:m]; }
++static inline void enc_r_depth_bias(id<MTL4RenderCommandEncoder> e, float u, float s, float c) { if (rec_direct(e)) rec_w_bias(u, s, c); else [e setDepthBias:u slopeScale:s clamp:c]; }
++static inline void enc_r_depth_clip(id<MTL4RenderCommandEncoder> e, BOOL v) { MTLDepthClipMode m = v ? MTLDepthClipModeClip : MTLDepthClipModeClamp; if (rec_direct(e)) rec_w_clip(m); else [e setDepthClipMode:m]; }
++static inline void enc_r_stencil_ref(id<MTL4RenderCommandEncoder> e, uint32_t f, uint32_t b) { if (rec_direct(e)) rec_w_sref(f, b); else [e setStencilFrontReferenceValue:f backReferenceValue:b]; }   // NVN keeps a reference per face (SetStencilRef FRONT / BACK)
++static inline void enc_r_blend_color(id<MTL4RenderCommandEncoder> e, float r, float g, float b, float a) { if (rec_direct(e)) rec_w_blend(r, g, b, a); else [e setBlendColorRed:r green:g blue:b alpha:a]; }
+ static inline void enc_r_visibility(id<MTL4RenderCommandEncoder> e, MTLVisibilityResultMode m, NSUInteger o) { [e setVisibilityResultMode:m offset:o]; }
+ // The table persists across encoders and submissions. Track every write to it, including converted streams,
+ // transform feedback and shader arguments; helper passes with their own tables do not change this state.
+@@ -2630,15 +2630,15 @@ static void udc_encode(void);   // every draw encode: the unwritten-attachment l
+ static inline void rb_draw_after_encoding(id e) {
+     if (t_rb_draw_pipeline) rb_draw_encoded(e);
+ }
+-static inline void enc_r_draw(id<MTL4RenderCommandEncoder> e, MTLPrimitiveType p, NSUInteger v, NSUInteger n) { udc_encode(); if (g_m3) m3_bind_draw(e); [e drawPrimitives:p vertexStart:v vertexCount:n]; rb_draw_after_encoding(e); }
+-static inline void enc_r_draw_instanced(id<MTL4RenderCommandEncoder> e, MTLPrimitiveType p, NSUInteger v, NSUInteger n, NSUInteger i, NSUInteger b) { udc_encode(); if (g_m3) m3_bind_draw(e); [e drawPrimitives:p vertexStart:v vertexCount:n instanceCount:i baseInstance:b]; rb_draw_after_encoding(e); }
++static inline void enc_r_draw(id<MTL4RenderCommandEncoder> e, MTLPrimitiveType p, NSUInteger v, NSUInteger n) { udc_encode(); if (g_m3) m3_bind_draw(e); if (rec_direct(e)) rec_w_draw(p, v, n); else [e drawPrimitives:p vertexStart:v vertexCount:n]; rb_draw_after_encoding(e); }
++static inline void enc_r_draw_instanced(id<MTL4RenderCommandEncoder> e, MTLPrimitiveType p, NSUInteger v, NSUInteger n, NSUInteger i, NSUInteger b) { udc_encode(); if (g_m3) m3_bind_draw(e); if (rec_direct(e)) rec_w_draw_inst(p, v, n, i, b); else [e drawPrimitives:p vertexStart:v vertexCount:n instanceCount:i baseInstance:b]; rb_draw_after_encoding(e); }
+ static inline void enc_r_draw_indirect(id<MTL4RenderCommandEncoder> e, MTLPrimitiveType p, uint64_t gpu) {
+     udc_encode(); if (!g_m3) { [e drawPrimitives:p indirectBuffer:gpu]; rb_draw_after_encoding(e); return; }
+     NSUInteger o; id<MTLBuffer> b; m3_bind_draw(e); if (!m3_buf_at(gpu, &b, &o)) return;
+     [(id<MTLRenderCommandEncoder>)e drawPrimitives:p indirectBuffer:b indirectBufferOffset:o]; rb_draw_after_encoding(e);
+ }
+ static inline void enc_r_draw_indexed(id<MTL4RenderCommandEncoder> e, MTLPrimitiveType p, NSUInteger n, MTLIndexType t, uint64_t gpu, NSUInteger len, NSUInteger i, NSInteger bv, NSUInteger bi) {
+-    udc_encode(); if (!g_m3) { [e drawIndexedPrimitives:p indexCount:n indexType:t indexBuffer:gpu indexBufferLength:len instanceCount:i baseVertex:bv baseInstance:bi]; rb_draw_after_encoding(e); return; }
++    udc_encode(); if (!g_m3) { if (rec_direct(e)) rec_w_draw_idx(p, n, t, gpu, len, i, bv, bi); else [e drawIndexedPrimitives:p indexCount:n indexType:t indexBuffer:gpu indexBufferLength:len instanceCount:i baseVertex:bv baseInstance:bi]; rb_draw_after_encoding(e); return; }
+     NSUInteger o; id<MTLBuffer> b; m3_bind_draw(e); if (!m3_buf_at(gpu, &b, &o)) return;
+     [(id<MTLRenderCommandEncoder>)e drawIndexedPrimitives:p indexCount:n indexType:t indexBuffer:b indexBufferOffset:o instanceCount:i baseVertex:bv baseInstance:bi]; rb_draw_after_encoding(e);
+ }
+@@ -2683,9 +2683,9 @@ static inline void enc_end_on(id e, BOOL metal4) {
+     [e endEncoding];
+ }
+ static inline void enc_c_end(id e) { m4_end(e); }
+-static inline void enc_c_pso(id e, id<MTLComputePipelineState> p) { [e setComputePipelineState:p]; if (e && rb_pso_cap_on()) rb_pso_bound(p); }
++static inline void enc_c_pso(id e, id<MTLComputePipelineState> p) { if (rec_direct(e)) rec_w_c_pso(p); else [e setComputePipelineState:p]; if (e && rb_pso_cap_on()) rb_pso_bound(p); }
+ static inline void enc_c_args(id e, uint64_t gpu, NSUInteger i) { (void)e; if (rb_tab_skip(g_rb_ct_addr, &g_rb_ct_valid, gpu, i)) return; if (rec_on() && !g_m3) rec_table_op(RO_T_ADDR, g_ct, gpu, i); else tab_addr(g_ct, gpu, i); }   // RewindBox (patch 0073): rb_tab_skip
+-static inline void enc_c_dispatch(id e, MTLSize n, MTLSize t) { if (g_m3) m3_bind_dispatch(e); [e dispatchThreadgroups:n threadsPerThreadgroup:t]; }
++static inline void enc_c_dispatch(id e, MTLSize n, MTLSize t) { if (g_m3) m3_bind_dispatch(e); if (rec_direct(e)) rec_w_dispatch(n, t); else [e dispatchThreadgroups:n threadsPerThreadgroup:t]; }
+ static inline void enc_c_dispatch_threads(id e, MTLSize n, MTLSize t) { if (g_m3) m3_bind_dispatch(e); [e dispatchThreads:n threadsPerThreadgroup:t]; }   // 最后一组不补满
+ // 同一计算编码器里前后两次派发的依赖（后一个读前一个写的缓冲）：Metal 4 编码器内派发可并行，要编码器内屏障；Metal 3 用缓冲域内存屏障（同 blit_barrier）。
+ //   用来把一串互相依赖的派发放进一个编码器，省掉每个编码器开头的整队屏障 / 栅栏（tess_draw 的搬运 → 外壳 → 计数 → 前缀和 → 展开）
+diff --git a/graphics/nvn/gfx/nvn/nvn_rec.h b/graphics/nvn/gfx/nvn/nvn_rec.h
+index 362d394..58e554e 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rec.h
++++ b/graphics/nvn/gfx/nvn/nvn_rec.h
+@@ -463,6 +463,26 @@ static inline void rec_table_op(uint32_t op, id t, uint64_t v, NSUInteger i) { r
+ @end
+ static inline id rec_table_real(id t) { return [t isKindOfClass:[DmRecTable class]] ? ((DmRecTable *)t)->real : t; }
+ 
++// RewindBox (patch 0469): the records of the most frequent encoder calls, written by one function each. The stand-in's methods below call them, and so do the submit thread's
++//   wrappers (nvn_mtl.m enc_r_* / enc_c_*) when the encoder is a stand-in (rec_direct): the same record without an objc_msgSend and a method call per draw and state change.
++//   S2A_RB_REC_DIRECT=0: every call through the stand-in's methods, as before
++static inline void rec_w_pso(id p) { rec_t *r = rec_put(RO_R_PSO, 1); r->a[0] = rec_obj(p); }
++static inline void rec_w_dss(id s) { rec_t *r = rec_put(RO_R_DSS, 1); r->a[0] = rec_obj(s); }
++static inline void rec_w_viewport(MTLViewport v) { rec_t *r = rec_put(RO_R_VIEWPORT, 0); memcpy(r->a, &v, sizeof v); }
++static inline void rec_w_scissor(MTLScissorRect s) { rec_t *r = rec_put(RO_R_SCISSOR, 0); memcpy(r->a, &s, sizeof s); }
++static inline void rec_w_cull(MTLCullMode m) { rec_put(RO_R_CULL, 0)->a[0] = m; }
++static inline void rec_w_winding(MTLWinding w) { rec_put(RO_R_WINDING, 0)->a[0] = w; }
++static inline void rec_w_fill(MTLTriangleFillMode m) { rec_put(RO_R_FILL, 0)->a[0] = m; }
++static inline void rec_w_bias(float u, float s, float c) { rec_t *r = rec_put(RO_R_BIAS, 0); r->a[0] = rec_f(u); r->a[1] = rec_f(s); r->a[2] = rec_f(c); }
++static inline void rec_w_clip(MTLDepthClipMode m) { rec_put(RO_R_CLIP, 0)->a[0] = m; }
++static inline void rec_w_sref(uint32_t f, uint32_t b) { rec_t *r = rec_put(RO_R_SREF, 0); r->a[0] = f; r->a[1] = b; }
++static inline void rec_w_blend(float r_, float g, float b, float a) { rec_t *r = rec_put(RO_R_BLEND, 0); r->a[0] = rec_f(r_); r->a[1] = rec_f(g); r->a[2] = rec_f(b); r->a[3] = rec_f(a); }
++static inline void rec_w_draw(MTLPrimitiveType p, NSUInteger v, NSUInteger n) { rec_t *r = rec_put(RO_R_DRAW, 0); r->a[0] = p; r->a[1] = v; r->a[2] = n; }
++static inline void rec_w_draw_inst(MTLPrimitiveType p, NSUInteger v, NSUInteger n, NSUInteger i, NSUInteger b) { rec_t *r = rec_put(RO_R_DRAW_INST, 0); r->a[0] = p; r->a[1] = v; r->a[2] = n; r->a[3] = i; r->a[4] = b; }
++static inline void rec_w_draw_idx(MTLPrimitiveType p, NSUInteger n, MTLIndexType t, uint64_t g, NSUInteger len, NSUInteger i, NSInteger bv, NSUInteger bi) {
++    rec_t *r = rec_put(RO_R_DRAW_IDX, 0); r->a[0] = p; r->a[1] = n; r->a[2] = t; r->a[3] = g; r->a[4] = len; r->a[5] = i; r->a[6] = (uint64_t)bv; r->a[7] = bi; }
++static inline void rec_w_c_pso(id p) { rec_t *r = rec_put(RO_C_PSO, 1); r->a[0] = rec_obj(p); }
++static inline void rec_w_dispatch(MTLSize n, MTLSize t) { rec_t *r = rec_put(RO_C_DISPATCH, 0); r->a[0] = n.width; r->a[1] = n.height; r->a[2] = n.depth; r->a[3] = t.width; r->a[4] = t.height; r->a[5] = t.depth; }
+ // render: the stand-in also answers for a render encoder (m4_end asks before it picks the fence update; Metal 3 only)
+ @interface DmRecEnc : NSObject { @public int render; } @end
+ @implementation DmRecEnc
+@@ -505,24 +525,23 @@ static inline id rec_table_real(id t) { return [t isKindOfClass:[DmRecTable clas
+ - (void)barrierAfterEncoderStages:(MTLStages)a beforeEncoderStages:(MTLStages)b visibilityOptions:(MTL4VisibilityOptions)v { rec_t *r = rec_put(RO_BAR_ENCODER, 0); r->a[0] = a; r->a[1] = b; r->a[2] = v; }
+ // Render
+ - (void)setArgumentTable:(id)t atStages:(MTLRenderStages)s { id x = rec_table_real(t); int keep = x != t; rec_t *r = rec_put(RO_R_TABLE, !keep); r->a[0] = keep ? (uint64_t)(uintptr_t)(__bridge void *)x : rec_obj(x); r->a[1] = s; }
+-- (void)setRenderPipelineState:(id)p { rec_t *r = rec_put(RO_R_PSO, 1); r->a[0] = rec_obj(p); }
+-- (void)setDepthStencilState:(id)s { rec_t *r = rec_put(RO_R_DSS, 1); r->a[0] = rec_obj(s); }
+-- (void)setViewport:(MTLViewport)v { rec_t *r = rec_put(RO_R_VIEWPORT, 0); memcpy(r->a, &v, sizeof v); }
+-- (void)setScissorRect:(MTLScissorRect)s { rec_t *r = rec_put(RO_R_SCISSOR, 0); memcpy(r->a, &s, sizeof s); }
+-- (void)setCullMode:(MTLCullMode)m { rec_put(RO_R_CULL, 0)->a[0] = m; }
+-- (void)setFrontFacingWinding:(MTLWinding)w { rec_put(RO_R_WINDING, 0)->a[0] = w; }
+-- (void)setTriangleFillMode:(MTLTriangleFillMode)m { rec_put(RO_R_FILL, 0)->a[0] = m; }
+-- (void)setDepthBias:(float)u slopeScale:(float)s clamp:(float)c { rec_t *r = rec_put(RO_R_BIAS, 0); r->a[0] = rec_f(u); r->a[1] = rec_f(s); r->a[2] = rec_f(c); }
+-- (void)setDepthClipMode:(MTLDepthClipMode)m { rec_put(RO_R_CLIP, 0)->a[0] = m; }
+-- (void)setStencilFrontReferenceValue:(uint32_t)f backReferenceValue:(uint32_t)b { rec_t *r = rec_put(RO_R_SREF, 0); r->a[0] = f; r->a[1] = b; }   // enc_r_stencil_ref: NVN keeps one reference per face
+-- (void)setBlendColorRed:(float)r_ green:(float)g blue:(float)b alpha:(float)a { rec_t *r = rec_put(RO_R_BLEND, 0); r->a[0] = rec_f(r_); r->a[1] = rec_f(g); r->a[2] = rec_f(b); r->a[3] = rec_f(a); }
++- (void)setRenderPipelineState:(id)p { rec_w_pso(p); }
++- (void)setDepthStencilState:(id)s { rec_w_dss(s); }
++- (void)setViewport:(MTLViewport)v { rec_w_viewport(v); }
++- (void)setScissorRect:(MTLScissorRect)s { rec_w_scissor(s); }
++- (void)setCullMode:(MTLCullMode)m { rec_w_cull(m); }
++- (void)setFrontFacingWinding:(MTLWinding)w { rec_w_winding(w); }
++- (void)setTriangleFillMode:(MTLTriangleFillMode)m { rec_w_fill(m); }
++- (void)setDepthBias:(float)u slopeScale:(float)s clamp:(float)c { rec_w_bias(u, s, c); }
++- (void)setDepthClipMode:(MTLDepthClipMode)m { rec_w_clip(m); }
++- (void)setStencilFrontReferenceValue:(uint32_t)f backReferenceValue:(uint32_t)b { rec_w_sref(f, b); }   // enc_r_stencil_ref: NVN keeps one reference per face
++- (void)setBlendColorRed:(float)r_ green:(float)g blue:(float)b alpha:(float)a { rec_w_blend(r_, g, b, a); }
+ - (void)setVisibilityResultMode:(MTLVisibilityResultMode)m offset:(NSUInteger)o { rec_t *r = rec_put(RO_R_VIS, 0); r->a[0] = m; r->a[1] = o; }
+-- (void)drawPrimitives:(MTLPrimitiveType)p vertexStart:(NSUInteger)v vertexCount:(NSUInteger)n { rec_t *r = rec_put(RO_R_DRAW, 0); r->a[0] = p; r->a[1] = v; r->a[2] = n; }
+-- (void)drawPrimitives:(MTLPrimitiveType)p vertexStart:(NSUInteger)v vertexCount:(NSUInteger)n instanceCount:(NSUInteger)i baseInstance:(NSUInteger)b {
+-    rec_t *r = rec_put(RO_R_DRAW_INST, 0); r->a[0] = p; r->a[1] = v; r->a[2] = n; r->a[3] = i; r->a[4] = b; }
++- (void)drawPrimitives:(MTLPrimitiveType)p vertexStart:(NSUInteger)v vertexCount:(NSUInteger)n { rec_w_draw(p, v, n); }
++- (void)drawPrimitives:(MTLPrimitiveType)p vertexStart:(NSUInteger)v vertexCount:(NSUInteger)n instanceCount:(NSUInteger)i baseInstance:(NSUInteger)b { rec_w_draw_inst(p, v, n, i, b); }
+ - (void)drawPrimitives:(MTLPrimitiveType)p indirectBuffer:(uint64_t)g { rec_t *r = rec_put(RO_R_DRAW_IND, 0); r->a[0] = p; r->a[1] = g; }
+ - (void)drawIndexedPrimitives:(MTLPrimitiveType)p indexCount:(NSUInteger)n indexType:(MTLIndexType)t indexBuffer:(uint64_t)g indexBufferLength:(NSUInteger)len instanceCount:(NSUInteger)i baseVertex:(NSInteger)bv baseInstance:(NSUInteger)bi {
+-    rec_t *r = rec_put(RO_R_DRAW_IDX, 0); r->a[0] = p; r->a[1] = n; r->a[2] = t; r->a[3] = g; r->a[4] = len; r->a[5] = i; r->a[6] = (uint64_t)bv; r->a[7] = bi; }
++    rec_w_draw_idx(p, n, t, g, len, i, bv, bi); }
+ - (void)drawIndexedPrimitives:(MTLPrimitiveType)p indexType:(MTLIndexType)t indexBuffer:(uint64_t)g indexBufferLength:(NSUInteger)len indirectBuffer:(uint64_t)ind {
+     rec_t *r = rec_put(RO_R_DRAW_IDX_IND, 0); r->a[0] = p; r->a[1] = t; r->a[2] = g; r->a[3] = len; r->a[4] = ind; }
+ - (void)drawMeshThreadgroups:(MTLSize)g threadsPerObjectThreadgroup:(MTLSize)ot threadsPerMeshThreadgroup:(MTLSize)mt { rec_t *r = rec_put(RO_R_MESH, 0); r->a[0] = g.width; r->a[1] = ot.width; r->a[2] = mt.width; }
+@@ -532,8 +551,8 @@ static inline id rec_table_real(id t) { return [t isKindOfClass:[DmRecTable clas
+ - (void)setStencilStoreAction:(MTLStoreAction)a { rec_put(RO_R_STORE_S, 0)->a[0] = a; }
+ // Compute and copies (Metal 4 copies are on the compute encoder)
+ - (void)setArgumentTable:(id)t { id x = rec_table_real(t); int keep = x != t; rec_t *r = rec_put(RO_C_TABLE, !keep); r->a[0] = keep ? (uint64_t)(uintptr_t)(__bridge void *)x : rec_obj(x); }
+-- (void)setComputePipelineState:(id)p { rec_t *r = rec_put(RO_C_PSO, 1); r->a[0] = rec_obj(p); }
+-- (void)dispatchThreadgroups:(MTLSize)n threadsPerThreadgroup:(MTLSize)t { rec_t *r = rec_put(RO_C_DISPATCH, 0); r->a[0] = n.width; r->a[1] = n.height; r->a[2] = n.depth; r->a[3] = t.width; r->a[4] = t.height; r->a[5] = t.depth; }
++- (void)setComputePipelineState:(id)p { rec_w_c_pso(p); }
++- (void)dispatchThreadgroups:(MTLSize)n threadsPerThreadgroup:(MTLSize)t { rec_w_dispatch(n, t); }
+ - (void)dispatchThreadgroupsWithIndirectBuffer:(uint64_t)g threadsPerThreadgroup:(MTLSize)t { rec_t *r = rec_put(RO_C_DISPATCH_IND, 0); r->a[0] = g; r->a[1] = t.width; r->a[2] = t.height; r->a[3] = t.depth; }
+ - (void)dispatchThreads:(MTLSize)n threadsPerThreadgroup:(MTLSize)t { rec_t *r = rec_put(RO_C_DISPATCH_THREADS, 0); r->a[0] = n.width; r->a[1] = n.height; r->a[2] = n.depth; r->a[3] = t.width; r->a[4] = t.height; r->a[5] = t.depth; }   // enc_c_dispatch_threads: the last group is not padded (tessellation TCS)
+ - (void)copyFromBuffer:(id)s sourceOffset:(NSUInteger)so toBuffer:(id)d destinationOffset:(NSUInteger)doff size:(NSUInteger)n {
+@@ -553,6 +572,9 @@ static inline id rec_table_real(id t) { return [t isKindOfClass:[DmRecTable clas
+ - (void)writeTimestampWithGranularity:(MTL4TimestampGranularity)g afterStage:(MTLRenderStages)st intoHeap:(id)h atIndex:(NSUInteger)i { rec_t *r = rec_put(RO_R_TS, 1); r->a[0] = rec_obj(h); r->a[1] = g; r->a[2] = st; r->a[3] = i; }
+ - (void)writeTimestampWithGranularity:(MTL4TimestampGranularity)g intoHeap:(id)h atIndex:(NSUInteger)i { rec_t *r = rec_put(RO_C_TS, 1); r->a[0] = rec_obj(h); r->a[1] = g; r->a[2] = i; }
+ @end
++// RewindBox (patch 0469): 1 when e is a stand-in encoder, whose calls the submit thread's wrappers record directly (rec_w_*). Submit thread
++static int rb_rec_direct_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_REC_DIRECT"); v = !(e && !strcmp(e, "0")); } return v; }
++static inline int rec_direct(id e) { static Class k; if (__builtin_expect(!k, 0)) k = [DmRecEnc class]; return e && object_getClass(e) == k && rb_rec_direct_on(); }
+ 
+ @interface DmRecCB : NSObject
+ - (id)rbRenderEncoder:(MTL4RenderPassDescriptor *)d restoreZero:(id<MTLTexture>)texture;
