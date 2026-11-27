@@ -89,11 +89,31 @@ static void rbm_track(void) {
     else if ([g_rx_enc conformsToProtocol:@protocol(MTLComputeCommandEncoder)]) [(id<MTLComputeCommandEncoder>)g_rx_enc useResources:v count:k usage:u];
     free(v);
 }
+// RBM_TRACE=<file>: one line per pass begin / end, draw and dispatch of the measured frames, with the canonical ids the state digest mixes,
+//   so that two runs can be compared line by line (replay_compare.py names the first line where the baseline's own runs part)
+static FILE *rbm_tf;
+static void rbm_trace(const rec_t *r) {
+    if (!rbm_tf) return;
+    switch (r->op) {
+    case RO_RE_BEGIN: fprintf(rbm_tf, "P"); for (int k = 0; k < rbm_pass.n; k++) fprintf(rbm_tf, " %llu:%d", (unsigned long long)rbm_id((uint64_t)(uintptr_t)(__bridge void *)rbm_pass.tex[k]), rbm_pass.load[k]); fprintf(rbm_tf, "\n"); break;
+    case RO_END: fprintf(rbm_tf, "E\n"); break;
+    case RO_C_DISPATCH: case RO_C_DISPATCH_IND: case RO_C_DISPATCH_THREADS: case RO_C_DISPATCH_IND_B: fprintf(rbm_tf, "K %u cpso=%llu\n", r->op, (unsigned long long)rbm_s.cpso); break;
+    case RO_R_DRAW: case RO_R_DRAW_INST: case RO_R_DRAW_IND: case RO_R_DRAW_IDX: case RO_R_DRAW_IDX_IND: case RO_R_DRAW_IND_B: case RO_R_DRAW_IDX_B: case RO_R_DRAW_IDX_IND_B:
+    case RO_R_MESH: case RO_R_MESH_IND: case RO_R_MESH_IND_B:
+        fprintf(rbm_tf, "D %u pso=%llu dss=%llu vp=%llx,%llx sc=%llx,%llx cull=%llu blend=%llx bufs=%x,%x,%x,%x,%x tex=", r->op, (unsigned long long)rbm_s.pso, (unsigned long long)rbm_s.dss,
+                (unsigned long long)rbm_s.vp[2], (unsigned long long)rbm_s.vp[3], (unsigned long long)rbm_s.sc[2], (unsigned long long)rbm_s.sc[3], (unsigned long long)rbm_s.cull,
+                (unsigned long long)rbm_s.blend[0], rbm_s.buf[0], rbm_s.buf[1], rbm_s.buf[2], rbm_s.buf[3], rbm_s.buf[4]);
+        for (int s = 0; s < 5; s++) for (int i = 0; i < 32; i++) if (rbm_s.tex[s][i] || rbm_s.smp[s][i]) fprintf(rbm_tf, "%d.%d:%llu/%llu ", s, i, (unsigned long long)rbm_s.tex[s][i], (unsigned long long)rbm_s.smp[s][i]);
+        fprintf(rbm_tf, "\n"); break;
+    default: break;
+    }
+}
 static void rbm_exec(const void *rp) {
     const rec_t *r = rp; const uint64_t *a = r->a; if (r->op < RBM_OPS) rbm_exec_n[r->op]++;
     rbm_track();
+    if (rbm_tf && r->op != RO_RE_BEGIN) rbm_trace(r);
     switch (r->op) {
-    case RO_RE_BEGIN: memset(&rbm_s, 0, sizeof rbm_s); rbm_pass_begin(rec_id(a[0])); break;   // a new encoder starts with no state
+    case RO_RE_BEGIN: memset(&rbm_s, 0, sizeof rbm_s); rbm_pass_begin(rec_id(a[0])); rbm_trace(r); break;   // a new encoder starts with no state
     case RO_CE_BEGIN: case RO_CE_BEGIN_D: case RO_CB_BLIT: memset(&rbm_s, 0, sizeof rbm_s); break;
     case RO_END: rbm_pass_end(); break;
     case RO_R_STORE_C: rbm_pass_store(0, (int)a[1], (int)a[0]); break;
@@ -314,12 +334,15 @@ int main(int argc, char **argv) { @autoreleasepool {
         if (f == 1) { for (int i = 0; i < RBM_OPS; i++) { base_put[i] = atomic_load(&rbm_put_n[i]); base_exec[i] = rbm_exec_n[i]; }
             pass0 = g_stat_pass; draw0 = g_stat_draw; bwl0 = g_bw_load; bws0 = g_bw_store; ar0 = rbm_arena_calls; arb0 = rbm_arena_bytes; rs0 = rbm_res_adds;
             d0 = rbm_draws; k0 = rbm_dispatches; ld0 = rbm_load_bytes; st0 = rbm_store_bytes; cl0 = rbm_clear_atts; dc0 = rbm_dontcare_atts; cp0 = rbm_copy_bytes; fl0 = rbm_fill_bytes;
-            rbm_h = 0xcbf29ce484222325ull; }
+            rbm_h = 0xcbf29ce484222325ull;
+            const char *tp = getenv("RBM_TRACE"); if (tp && *tp) { rbm_tf = fopen(tp, "w"); REQUIRE(rbm_tf); } }
+        if (rbm_tf && f >= 1) fprintf(rbm_tf, "F %d\n", f);
         API(nvnCommandBufferAddCommandMemory)(&cmd, &pool, 0, CMD); API(nvnCommandBufferBeginRecording)(&cmd);
         record_frame();
         NVNcommandHandle h = API(nvnCommandBufferEndRecording)(&cmd); REQUIRE(h);
         API(nvnQueueSubmitCommands)(&queue, 1, &h); API(nvnQueueFinish)(&queue); REQUIRE(!mtl_last_commit_error());
     }
+    if (rbm_tf) { FILE *tf = rbm_tf; rbm_tf = NULL; fclose(tf); }
     uint64_t px = 0xcbf29ce484222325ull; NVNtexture *outs[] = {&t_g0, &t_g1, &t_light, &t_final}; int sz[] = {W, W, W, W};
     for (int i = 0; i < 4; i++) px = rbm_mix(px, readback(outs[i], sz[i], 4));
     px = rbm_mix(px, readback(&t_half, W / 2, 4)); px = rbm_mix(px, readback(&t_quarter, W / 4, 4));

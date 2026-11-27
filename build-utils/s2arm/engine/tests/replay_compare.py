@@ -6,7 +6,8 @@ Each run is a new process with DM_NVN_ENC_THREAD=1 and the variant's switches. R
 and every variant runs `repeats` times (default 5). Prints, per variant, whether its metrics and digests were the same in every run, the metrics
 that differ from the baseline's (values of the first run, with their spread when runs disagree), and whether the state digest (what every draw and
 dispatch sees) and the pixel digest (every target read back) are identical to the baseline's. A digest is only compared when it is stable across
-the baseline's own runs; otherwise it is reported as unstable (not evidence either way).
+the baseline's own runs; otherwise it is reported as unstable (not evidence either way). Each run writes a per-draw trace (RBM_TRACE) and the
+first line where two runs part is printed: between the baseline's own runs, and for a variant whose metrics move.
 Exit 1 when a variant changes the pixels: such a switch is not an equivalent optimization.
 """
 import json, os, subprocess, sys
@@ -25,7 +26,7 @@ for line in variants.read_text().splitlines():
 runs = {name: [] for name, _ in plan}
 for k in range(repeats):
     for name, sw in plan[k % len(plan):] + plan[:k % len(plan)]:
-        env = {**os.environ, "DM_NVN_ENC_THREAD": "1", **sw}
+        env = {**os.environ, "DM_NVN_ENC_THREAD": "1", **sw, "RBM_TRACE": str(out / f"{name}.{k}.trace")}
         r = subprocess.run([str(binary), frames], capture_output=True, text=True, env=env, timeout=600)
         (out / f"{name}.{k}.log").write_text(r.stdout + r.stderr)
         m = [l for l in r.stdout.splitlines() if l.startswith("METRICS ")]
@@ -47,6 +48,23 @@ print(f"baseline digests across its runs: state {'stable' if st_ok else 'UNSTABL
 moving = [k for k in keys if not stable(base_runs, k)]
 if moving:
     print("baseline metrics that change between its own runs: " + ", ".join(f"{k} {sorted({r[k] for r in base_runs})}" for k in moving))
+def first_split(a, b):   # first line where two traces differ: (line number, line of a, line of b), or None
+    try:
+        la, lb = (out / a).read_text().splitlines(), (out / b).read_text().splitlines()
+    except OSError:
+        return ("no trace",)
+    for i, (x, y) in enumerate(zip(la, lb)):
+        if x != y:
+            return (i + 1, x, y)
+    return None if len(la) == len(lb) else (min(len(la), len(lb)) + 1, f"{len(la)} lines", f"{len(lb)} lines")
+def show_split(title, a, b):
+    d = first_split(a, b)
+    if d:
+        print(f"{title}: first difference at trace line {d[0]}" + (f"\n    {a}: {d[1][:300]}\n    {b}: {d[2][:300]}" if len(d) > 1 else ""))
+    return d
+splits = [show_split("baseline run 0 vs run %d" % k, "baseline.0.trace", f"baseline.{k}.trace") for k in range(1, repeats)]
+if not any(splits):
+    print("baseline traces identical across its runs")
 bad = 0 if px_ok else 1
 for name, rs in runs.items():
     if name == "baseline":
@@ -63,5 +81,9 @@ for name, rs in runs.items():
     print(f"\n### {name} ({len(rs)}/{repeats} runs)\npixels {'identical' if same_px else 'DIFFERENT'}, state at draws {same_st}")
     for d in diff:
         print(f"- {d}")
+    for k in range(len(rs)):
+        if any(rs[k][x] != base[x] for x in keys if x != "residency_adds"):
+            show_split(f"  {name} run {k} vs baseline run 0", "baseline.0.trace", f"{name}.{k}.trace")
+            break
     bad |= not same_px
 sys.exit(1 if bad else 0)
