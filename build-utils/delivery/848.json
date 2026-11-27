@@ -267,18 +267,18 @@
     "flutter": {
       "mode": "not-run",
       "commands": [],
-      "reason": "Compilation des derniers ajouts demandée ; suites Flutter/natives non exécutées conformément à AGENTS.md, contrôles de livraison conservés."
+      "reason": "Compilation des derniers ajouts demand\u00e9e ; suites Flutter/natives non ex\u00e9cut\u00e9es conform\u00e9ment \u00e0 AGENTS.md, contr\u00f4les de livraison conserv\u00e9s."
     },
     "native": {
       "mode": "not-run",
       "commands": [],
-      "reason": "Compilation des derniers ajouts demandée ; suites Flutter/natives non exécutées conformément à AGENTS.md, contrôles de livraison conservés."
+      "reason": "Compilation des derniers ajouts demand\u00e9e ; suites Flutter/natives non ex\u00e9cut\u00e9es conform\u00e9ment \u00e0 AGENTS.md, contr\u00f4les de livraison conserv\u00e9s."
     },
     "awaitMinutes": 75
   },
   "build": 848,
-  "status": "draft",
-  "note": "Derniers ajouts : Wiimmfi ABI4 et parcours Nextendo, versions moteurs, S2Arm0464–0470. Autres moteurs authentifiés conservés. Aucun gain sur iPhone annoncé.",
+  "status": "frozen",
+  "note": "Derniers ajouts : Wiimmfi ABI4 et parcours Nextendo, versions moteurs, S2Arm0464\u20130470. Autres moteurs authentifi\u00e9s conserv\u00e9s. Aucun gain sur iPhone annonc\u00e9.",
   "s2armAsyncPSOTestDefault": true,
   "base": {
     "build": 847,
@@ -587,11 +587,11 @@
       },
       {
         "commit": "025a688f0621831edf1f11883816bc3b258b1aa7",
-        "note": "Afficher les versions des moteurs dans les playlists, différé explicitement à848 par847."
+        "note": "Afficher les versions des moteurs dans les playlists, diff\u00e9r\u00e9 explicitement \u00e0848 par847."
       }
     ],
-    "freezeCommit": "0e6e5b44a96e08a2d0da55cdb34792c5872be247",
-    "freezeTree": "764854d20c0cfe1f4dc05c15769091b23f528c65",
+    "freezeCommit": "567e8abe97265b440c753f3d8549dac122b802d7",
+    "freezeTree": "04dbd6e063cf8acd02959f3e871f63c7e7016201",
     "baseEffectiveDigest": "a7f03d8fa490b8c8a0aa56610d05ec3691342806e36791b45b7ea954f522354c",
     "inheritedDeferredPaths": [
       "build-utils/maintenance/actions-cleanup-2026-11-10-followup.json",
@@ -804,7 +804,7 @@
       },
       {
         "commit": "025a688f0621831edf1f11883816bc3b258b1aa7",
-        "subject": "[skip ci] Afficher la version des moteurs embarqués dans les playlists",
+        "subject": "[skip ci] Afficher la version des moteurs embarqu\u00e9s dans les playlists",
         "role": "promoted",
         "productPaths": 11,
         "partial": false
@@ -1160,18 +1160,36 @@
       {
         "commit": "228012fab7f97299fe59d7c8a6a673828f043b25",
         "subject": "build: bind the complete 848 source and legal review [skip ci]",
-        "role": "recipe",
+        "role": "reviewed",
         "productPaths": 0
       },
       {
         "commit": "00aa2d023d30f12099ec3cec1b0ae5a4149595d8",
         "subject": "build: order the promoted 848 source history [skip ci]",
-        "role": "recipe",
+        "role": "reviewed",
         "productPaths": 0
       },
       {
         "commit": "0e6e5b44a96e08a2d0da55cdb34792c5872be247",
         "subject": "build: keep legacy retained-input checks and verify the Dolphin producer revision [skip ci]",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "e24166ebe904c4cbaf7e9c2a4831789c92b3e2c0",
+        "subject": "[ipa-delivery:848] Compile private IPA with Wiimmfi ABI4, latest interface and S2Arm 0470",
+        "role": "reviewed",
+        "productPaths": 0
+      },
+      {
+        "commit": "e3a2fe1afa12c2693bb60234cc4b9953cdb6b5a1",
+        "subject": "fix(libretro): reuse the identifier validator for launch console names [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "567e8abe97265b440c753f3d8549dac122b802d7",
+        "subject": "build: include the libretro compile correction in private 848 [skip ci]",
         "role": "recipe",
         "productPaths": 0
       }
@@ -1445,8 +1463,8 @@
       },
       "packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m": {
         "mode": "100644",
-        "gitBlob": "254bde3370b4d6867321001f1d65fd92506612ac",
-        "sha256": "651ca2c22d9a5852506ddbf078381591ca8e05b5863bfdd747f3a60ced62a2e0"
+        "gitBlob": "cbb68ee36724f9fe043b81c93e30d045faae25f0",
+        "sha256": "0107fe744220a941b3082941df929c4e939330cd45bf463c3647246b496221de"
       },
       "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec": {
         "mode": "100644",
@@ -1718,7 +1736,7 @@
       "test/melonx_metal_binary_archive/run_probe.py": null,
       "test/melonx_metal_binary_archive/shaders.spvz": null
     },
-    "effectiveDigest": "54290a3d53b8e6726ebc1109d13d3052c1becf5716d95cb200294648403908a2",
+    "effectiveDigest": "2b585cfe2940be1cdd485dd5870bb90a7aa33fcd344bf8bbf1a671016681e3b0",
     "productFiles": 10008,
     "embeddedRecipeInputs": {
       "LICENSE.md": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
@@ -1994,5 +2012,11 @@
       "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
       "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge"
     ]
+  },
+  "frozen": {
+    "at": "2026-11-27T12:36:40Z",
+    "commit": "567e8abe97265b440c753f3d8549dac122b802d7",
+    "tool": "standard_delivery.py freeze",
+    "inCI": false
   }
 }
