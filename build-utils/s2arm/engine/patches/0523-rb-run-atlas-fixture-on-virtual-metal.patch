@@ -1,0 +1,52 @@
+diff --git a/graphics/nvn/tests/t_nvn_feedback_snapshot.m b/graphics/nvn/tests/t_nvn_feedback_snapshot.m
+index 950099a..ab44602 100644
+--- a/graphics/nvn/tests/t_nvn_feedback_snapshot.m
++++ b/graphics/nvn/tests/t_nvn_feedback_snapshot.m
+@@ -5,8 +5,39 @@
+ #ifndef NVN_FEEDBACK_SOURCE
+ #define NVN_FEEDBACK_SOURCE "../gfx/nvn/nvn_mtl.m"
+ #endif
++static int feedback_tracked;
++static void feedback_track(void);
++#define S2A_NO_RESIDENCY_SET() (feedback_tracked = 1)
++#define S2A_REC_EXEC_HOOK(r) feedback_track()
+ #include NVN_FEEDBACK_SOURCE
+ 
++// The Mac runner GPU has no residency sets. Use the existing replay fixture's
++// approach: declare the engine's real allocations on each render/compute encoder.
++static void feedback_track(void) {
++    static __unsafe_unretained id last;
++    if (!feedback_tracked) return;
++    if (!g_rx_enc) { last = nil; return; }
++    if (g_rx_enc == last) return;
++    last = g_rx_enc;
++    pthread_mutex_lock(&g_res_mu);
++    NSArray *allocations = g_res_objects.allObjects;
++    pthread_mutex_unlock(&g_res_mu);
++    const NSUInteger count = allocations.count;
++    if (!count) return;
++    __unsafe_unretained id<MTLResource> *resources = calloc(count, sizeof(*resources));
++    if (!resources) abort();
++    NSUInteger used = 0;
++    for (id allocation in allocations)
++        if ([allocation conformsToProtocol:@protocol(MTLResource)]) resources[used++] = allocation;
++    const MTLResourceUsage usage = MTLResourceUsageRead | MTLResourceUsageWrite;
++    if (used && [g_rx_enc conformsToProtocol:@protocol(MTLRenderCommandEncoder)])
++        [(id<MTLRenderCommandEncoder>)g_rx_enc useResources:resources count:used usage:usage
++                                                     stages:MTLRenderStageVertex | MTLRenderStageFragment];
++    else if (used && [g_rx_enc conformsToProtocol:@protocol(MTLComputeCommandEncoder)])
++        [(id<MTLComputeCommandEncoder>)g_rx_enc useResources:resources count:used usage:usage];
++    free(resources);
++}
++
+ static unsigned checks, failures;
+ #define REQUIRE(c) do { if (!(c)) { fprintf(stderr, "SETUP FAIL %s:%d %s\n", __FILE__, __LINE__, #c); exit(2); } } while (0)
+ #define CHECK(c, ...) do { checks++; int ok = !!(c); failures += !ok; printf("%s ", ok ? "PASS" : "FAIL"); printf(__VA_ARGS__); putchar('\n'); fflush(stdout); } while (0)
+@@ -286,6 +317,7 @@ int main(int argc, char **argv) {
+         else unsetenv("DM_NVN_FB_SNAP");
+         setenv("DM_PSO_ARCHIVE","0",1); // no shared /tmp pipeline cache; real PSOs still compile
+         mtl_init(); printf("BACKEND %s\n",g_m3?"Metal3":"Metal4");
++        if (feedback_tracked) printf("Explicit Metal resource declarations: GPU has no residency set\n");
+         // Replay's first entry initializes its state. Do so before installing
+         // the bindings used by these direct production draw calls.
+         const op_hdr empty={OP_END,sizeof(op_hdr)}; nvn_be_exec((const uint8_t *)&empty);

@@ -6,6 +6,16 @@ Base RewindBox `dda1622f`, moteur amont `6b6a571553f7a687af46e03e2cdbf8ef4d77f33
 
 Dans [le profil IPA 824 de Mario Kart World](../s2arm-pass-traffic-824.md), quatre passes de deux dessins écrivent sur l’atlas 6144² et ses niveaux jusqu’à 768². Le compteur historique donne 191 Mio chargés et 191 Mio stockés. Les passes de ce grand atlas coûtent quelques dizaines de microsecondes chacune sur cette capture. Trois passes D16 de 2048² représentent 24 Mio de stockage logique corrigé au lieu de 48. Le profil comptait aussi quatre à six copies de profondeur par image. Ces copies incluent la profondeur relue par l’éclairage de la scène. Le type de cible seul ne permet pas de les attribuer toutes aux ombres. [Fréquence et limitation de puissance sur A18 Pro](../s2arm-power-wall.md).
 
+Une contre-mesure des exports historiques indépendants recoupe les lignes `[gpuprof]`. Sur Mario Kart World, 141 lignes pour la cible 6144² donnent 137 enregistrements uniques après déduplication par session, image et index d’encodeur. Les 137 ont deux dessins, un attachement couleur, zéro profondeur et une médiane de **89 µs**. Les journaux de création et de cibles donnent `NVN_FORMAT_RGBA8SN` et Metal 72 (`RGBA8Snorm`). La capture ne démontre pas l’usage de la texture par un shader d’ombres. Les passes depth-only sont mesurées séparément par union de leurs intervalles GPU.
+
+| Jeu | Sessions / images profilées | Passes depth-only | Images avec ces passes | p50 de l’union depth-only |
+| --- | ---: | ---: | ---: | ---: |
+| Mario Kart World | 15 / 137 | 651 | 133 | 0,653 ms |
+| Fire Emblem | 3 / 20 | 231 | 18 | 2,882 ms |
+| Zelda | 0 / 0 dans cet export | — | — | — |
+
+Les sessions profilées ont été déclenchées par le diagnostic. Les durées couvrent aussi les prépasses et ne décrivent pas la campagne de jeu courante. [Reproduction sur un export](history.py).
+
 ## Producteurs, consommateurs et vérification
 
 | Étape | Source | Observations et conditions |
@@ -25,6 +35,14 @@ Une rotation d’atlas fondée sur la seule caméra, des `DontCare` globaux apr�
 - **0520** corrige la sortie prématurée de la protection de lecture lorsqu’un fragment lit la profondeur de sa passe et que le jeu n’a attaché aucune couleur. Cette correction peut ajouter une copie requise. La scène de contrôle utilise un fragment pouvant éliminer un pixel.
 - **0521** étend le banc de cohérence à 9 450 cas mip/couche et deux contrôles d’identité par cas. Linux avec ASan et UBSan réussit. La scène Metal vérifie le nombre de copies pour 16 clears disjoints, une écriture chevauchante, la séparation du binding et relit les deux plans de l’atlas et du snapshot. Les mesures de cette scène sont rattachées au run Apple.
 - **0522** rétablit l’invalidation entière avant vidange si la file porte un clear différé, une barrière, une passe multicouche ou un producteur pouvant écrire en mémoire. Les lectures de vérification respectent un pas de ligne de 256 octets pour chaque plan.
+
+### Coût de la décision sur Linux
+
+Neuf paires alternées de 2 097 152 opérations donnent une médiane de 9,516 ns en invalidation entière et 10,773 ns avec la comparaison de sous-ressource. Les deux bras remettent la même structure à deux entrées avant chaque opération. Sur 4 194 304 entrées examinées par bras, 1 048 576 restent valides dans le témoin et 2 621 440 avec le candidat. La différence concerne le niveau disjoint du même objet. Tous les alias qui recouvrent l’écriture sont invalidés dans les deux bras. Cette mesure isole le calcul C et exclut le temps de profilage, la lecture de propriétés Metal et la bande passante GPU. [Source](cache-cost.c) · [Neuf paires](cache-cost.csv).
+
+### Exécution des bancs Apple
+
+Les premiers hôtes Metal 3 refusent les ensembles de résidence dont le banc historique dépend au démarrage. Le rendu est testé avec les ressources réelles déclarées auprès de chaque encodeur, comme dans le banc de rejeu NVN2 existant. Cette adaptation est limitée à la fixture et la preuve de compilation du moteur iPhoneOS reste distincte.
 
 ## Campagne sur iPhone
 
