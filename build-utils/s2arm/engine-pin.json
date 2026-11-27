@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "c71baa90dcad1be741749f3229b5297db477e102ea51716c0eb474810af28347",
+  "packagedFingerprint": "169fca94731d46225e40ac15448dc8244b80fef61421bcbdab7bebadcf7e3d9a",
   "producers": {
     "engine": {
-      "run": 45801153266,
+      "run": 45933674709,
       "attempt": 1,
-      "artifact": 15107708113,
-      "name": "s2arm-engine-framework-4e36e88cf8d611dde0333b5969bccb0bbfa83d69",
-      "bytes": 25671739,
-      "sha256": "137a518d204fb9e1de962061bb6628c4202ecd42e8d69fe6c57baf0b474cd32d",
-      "headSha": "4e36e88cf8d611dde0333b5969bccb0bbfa83d69",
+      "artifact": 15169468594,
+      "name": "s2arm-engine-framework-3d78a7149d752913983d29727825dbe811d417e4",
+      "bytes": 25708844,
+      "sha256": "0de835fdd0e01788735407e90baca79ad6020a36c186d3e58998c3794a5f0871",
+      "headSha": "3d78a7149d752913983d29727825dbe811d417e4",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-26T10:41:51Z",
+      "expiresAt": "2026-12-27T03:35:10Z",
       "members": {
-        "S2ArmEngine.framework.zip": "0aa609684ac006019bab18881f3c87a001d5098139241333ea2a7cddb4234c60",
-        "NS2Pro.framework.zip": "f8de710fc58cf084e94123f10c52122f2a207090836efdd4b322a4dbefa53711"
+        "S2ArmEngine.framework.zip": "887ebbde13822afb91e40681bcd34170ec13bafe5eea2ecc46ea8ec1eb70ffff",
+        "NS2Pro.framework.zip": "d0e25a283d5b34efec3e241b233fac10fe696ded036ed88d859400d4efb73cfc"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "137a518d204fb9e1de962061bb6628c4202ecd42e8d69fe6c57baf0b474cd32d",
+    "engine": "0de835fdd0e01788735407e90baca79ad6020a36c186d3e58998c3794a5f0871",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -106,12 +106,12 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "8a4a66bfc47812d68aea333f5bc48107a8c750a019b50bef008255786b530821",
-      "bytes": 116635096,
-      "fingerprint": "c71baa90dcad1be741749f3229b5297db477e102ea51716c0eb474810af28347"
+      "sha256": "8e89ab144fb2c9c4c6390c95203046d3d7a4f6fb5294c7b637833aed0c9a13df",
+      "bytes": 116789760,
+      "fingerprint": "169fca94731d46225e40ac15448dc8244b80fef61421bcbdab7bebadcf7e3d9a"
     },
     "S2ArmEngine.framework/S2ArmShaderXfp.txt": {
-      "sha256": "ba0ccfce318cebdca849cc9071acd8e77f1b968d12855f2ffc7e117a37f37549",
+      "sha256": "ff5f5df131ccd1862388dbb9917eb93beb4ba2b30cd45dd3b2a5e95cb895d75d",
       "bytes": 17
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
@@ -145,9 +145,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 45801153266,
+      "run": 45933674709,
       "attempt": 1,
-      "head_sha": "4e36e88cf8d611dde0333b5969bccb0bbfa83d69",
+      "head_sha": "3d78a7149d752913983d29727825dbe811d417e4",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1838,11 +1838,159 @@
         {
           "name": "0426-oprog-per-stage-pending-and-owner-checked-args-reuse.patch",
           "sha256": "e7bcafcfa8fa5cbdc4113cf012bfd58e7d01af107d8e91fe4d655c87f26d4ba0"
+        },
+        {
+          "name": "0427-batch-gpu-write-ledger-clears.patch",
+          "sha256": "7ae7854187caa6c1d389f30f63fcdb0bb153df41eb6893cd8e93ad609fb8ac2d"
+        },
+        {
+          "name": "0428-compact-pending-pipeline-occupancy.patch",
+          "sha256": "a190e249433d92a8ccdf2150b646527c2b4e154dc03e89678bc37a117098d33d"
+        },
+        {
+          "name": "0429-skip-covered-uniform-words.patch",
+          "sha256": "835df73806288163cb2bf1f6d776ed393ad2fa5878ef22b4ef9fa263b68d6d6b"
+        },
+        {
+          "name": "0430-index-dense-pending-pipeline-keys.patch",
+          "sha256": "1208294efebe6a33d8830332329fa63a1516a9e37b67d2a69d84078b5dd9d2ab"
+        },
+        {
+          "name": "0431-fluid-pso-unified-cap-and-skippable-inversion-fix.patch",
+          "sha256": "af876f78f6b7b451c0f0134044096dd01b099ea6a0ce1c3c1437b4a8373a4e2a"
+        },
+        {
+          "name": "0432-fi-bound-overload-priming-link-hysteresis-and-fp16-mv.patch",
+          "sha256": "6be5cdf9ef5fc2e86b2876dc2f9082fdebfb35ab1c940098a192ef4b4919e3c9"
+        },
+        {
+          "name": "0433-treg-cand-bitset-sub-ahead-and-pool-gpu-fast-path.patch",
+          "sha256": "69220ab2118726d15d7bcc4aff5186ccadb0f8648d2fc3226f1afdb5a5e848ad"
+        },
+        {
+          "name": "0434-fidelity-args-coherence-lockfree-rmu-and-view-buckets.patch",
+          "sha256": "9664252633dbe6825f51814ceb1f6c9b130d5b1c6c24c66540107694a3db4d2f"
+        },
+        {
+          "name": "0435-cold-warm-shader-disk-fair-burst-xlate-and-pso-persist.patch",
+          "sha256": "45321c95c7d106fd4f3eaebf78dbc993c488513ab075556e569e80780c9439f6"
+        },
+        {
+          "name": "0436-dsnap-two-slot-lru-cache-and-non-destructive-set-rt.patch",
+          "sha256": "fdb4073b254b65cc329c2791598f331f5878d4762e1019907fcfab107b025536"
+        },
+        {
+          "name": "0437-copy-complete-texture-gobs.patch",
+          "sha256": "ad3feafd0ee4951e609e645b0788f6ff4596e004944fae31e88e6b3094ab145a"
+        },
+        {
+          "name": "0438-ubo-frame-metadata.patch",
+          "sha256": "c4246b31e31e041264a1b40438ff80cf897aa206830975e6f666808e196093b8"
+        },
+        {
+          "name": "0439-dirty-handle-single-stripe.patch",
+          "sha256": "f267cbb0f1921253c8552f5178a112adea3d346f21ecb8d64cf5d6ce6f3e14a6"
+        },
+        {
+          "name": "0440-share-mip-geometry-across-upload.patch",
+          "sha256": "6d222727565cc845540156e173159ba04708c76847575fda67bce83fe2e5507f"
+        },
+        {
+          "name": "0441-preserve-frame-interpolation-motion-precision.patch",
+          "sha256": "38c71aa2f7fa1a3339f8a21b1b87e5c124b5c05d502d1c183ddec0c969bd2aca"
+        },
+        {
+          "name": "0442-reuse-arena-addresses-for-bounds.patch",
+          "sha256": "28b911f7618e367e78b526b69765d738a8877550fb613699069ccb8cef95a35b"
+        },
+        {
+          "name": "0443-update-feedback-substitutions-in-place.patch",
+          "sha256": "ffa76c595ea47c0f6d6dabebab4e257ece5ff36ae305445d041b69e4bf4b4f37"
+        },
+        {
+          "name": "0444-skip-duplicate-vertex-key-normalization.patch",
+          "sha256": "f6688b4c43a6c183e709607738dd8b5f50289a5efcbfb4f492ce464e05b74b6a"
+        },
+        {
+          "name": "0445-complete-presentation-after-both-readers.patch",
+          "sha256": "6a847e05edce9ff3933e448a6172512cba0a356dcbaaf474ca985e0476615a9c"
+        },
+        {
+          "name": "0446-detach-layer-from-its-present-queue.patch",
+          "sha256": "3accfe3ab54b4905dea9a1c1d0e496ed7c22c3e263dae8f1ac07d8e68720613a"
+        },
+        {
+          "name": "0447-use-mac-metal-headroom-for-stencil-planes.patch",
+          "sha256": "c8c5b3a4ce4e26175171ed9ccba383f200ca33dd66bce08b0dc5f34ac3a1213a"
+        },
+        {
+          "name": "0448-classify-confirmed-frame-interpolation-drawables.patch",
+          "sha256": "2c5a1a2c2771d26dd0ac6fa53a4f801e3fbd6127747aca87da07680cd4cfbee5"
+        },
+        {
+          "name": "0449-recognize-projection-matrices-without-redundant-transposes.patch",
+          "sha256": "be6feec501865e1cd8658a01f2a5aeb8ae1f21635f0f209afe01d69b346e3145"
+        },
+        {
+          "name": "0450-honor-linear-layout-for-render-target-writes.patch",
+          "sha256": "8167e872c9b4d59ef04c782977d57ede233e43cc757727e0f89af8c685f8b39c"
+        },
+        {
+          "name": "0451-bound-partial-linear-cpu-writes.patch",
+          "sha256": "51df72d0984b0cf8bf50a3d355e68f1c9fa97634008f87c2b102b4fd1b410020"
+        },
+        {
+          "name": "0452-linear-dirty-page-rects-and-tight-partial-staging.patch",
+          "sha256": "a7df5819d207d6afabf23ef01f84dece28f100c02052b8381409c9909443017a"
+        },
+        {
+          "name": "0453-nvn-hmap-hash8-and-wide-key-ilp4.patch",
+          "sha256": "3c159258581acf0d8db89b3fc378b080911e4568c2021b9c72916029edfe501f"
+        },
+        {
+          "name": "0454-span-hash-intra-page-ilp4.patch",
+          "sha256": "402e3e2853414a02038d00d52e66b61de43ca98ce0e181936404d94b2dc79d1e"
+        },
+        {
+          "name": "0455-draw-pass-state-dynamic-dirty-mask.patch",
+          "sha256": "8dd34e86df168735c55ef83ddfe30d4cdef01c6b3a2214c6e6125c18649fe60e"
+        },
+        {
+          "name": "0456-dsh-regex-cache-linear-rewrites-and-single-pass-spv.patch",
+          "sha256": "b83d7f930c1c0585b539da8e29afa7700c78da252883ab98b7f885ec6f97eb15"
+        },
+        {
+          "name": "0457-hle-nvn-lockfree-dpool-sh-overwrite-gap-and-gfx-leave.patch",
+          "sha256": "1fddfa56b6c60d562028dc9ecc8f75de9162ec1c7d1886d557a858eca91f90cb"
+        },
+        {
+          "name": "0458-nvn-rec-burst-drain-and-waiter-gated-idle-broadcast.patch",
+          "sha256": "9bb4fb4487d8e214f1ad5d5f04571487215b5a430203db88d08452c8336c5d0f"
+        },
+        {
+          "name": "0459-nvn-mtl-optin-diag-barriers-draw-emit-hmap-and-dispatch-dirty.patch",
+          "sha256": "1c4179da385f37df10695050f3c7cb5e912d3c7dd76730d33cf7e5f2a686aa23"
+        },
+        {
+          "name": "0460-nvn-geometry-task-mesh-pso-cache-and-state-preservation.patch",
+          "sha256": "d55d33c11e3db217048054b4f4c9943ba1a7c2cb1d68b794e9a1f497e6ef306f"
+        },
+        {
+          "name": "0461-runtime-thread-wait-unlink-yield-event-out-of-G-and-mkw-cache.patch",
+          "sha256": "b88f6b249d51dbda1b3d3087849439ac93e0cfb9920b573d660888a56d1921c2"
+        },
+        {
+          "name": "0462-runtime-svc-mem-coalesced-unmap-and-word-query-scan.patch",
+          "sha256": "9818748984da7a6f227e0da10dc2249de73c73eb94296ffd9967c140f6a7ce3d"
+        },
+        {
+          "name": "0463-services-romfs-cursor-and-zero-alloc-lazy-handle-lru.patch",
+          "sha256": "8f204b160340c4ad6e0a848694bdb3a6a0830d8d6a5878b8826b5efbe9dacaa6"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "0aa609684ac006019bab18881f3c87a001d5098139241333ea2a7cddb4234c60",
-        "NS2Pro.framework.zip": "f8de710fc58cf084e94123f10c52122f2a207090836efdd4b322a4dbefa53711"
+        "S2ArmEngine.framework.zip": "887ebbde13822afb91e40681bcd34170ec13bafe5eea2ecc46ea8ec1eb70ffff",
+        "NS2Pro.framework.zip": "d0e25a283d5b34efec3e241b233fac10fe696ded036ed88d859400d4efb73cfc"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
