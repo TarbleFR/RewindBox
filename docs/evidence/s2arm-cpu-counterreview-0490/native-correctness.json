@@ -1,0 +1,56 @@
+[
+  {
+    "variant": "reference0479",
+    "results": [
+      {
+        "test": "trace",
+        "ops": 102500,
+        "objects": 28186,
+        "digest": "ff0c3dcacbd556bc",
+        "capacity": 4096
+      },
+      {
+        "test": "concurrent",
+        "workers": 8,
+        "operations": 128000,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "variant": "0493_flag0",
+    "results": [
+      {
+        "test": "trace",
+        "ops": 102500,
+        "objects": 28186,
+        "digest": "ff0c3dcacbd556bc",
+        "capacity": 4096
+      },
+      {
+        "test": "concurrent",
+        "workers": 8,
+        "operations": 128000,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "variant": "0493_flag1",
+    "results": [
+      {
+        "test": "trace",
+        "ops": 102500,
+        "objects": 28186,
+        "digest": "ff0c3dcacbd556bc",
+        "capacity": 4096
+      },
+      {
+        "test": "concurrent",
+        "workers": 8,
+        "operations": 128000,
+        "errors": 0
+      }
+    ]
+  }
+]

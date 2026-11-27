@@ -1,0 +1,35 @@
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -3170,14 +3170,29 @@
+               if (n >= LIM_THREADS) { static int said; if (!said++) LOG("线程数到 Switch 上限 %d，CreateThread 回 ResLimitExceeded（同 Switch；只打第一次）", LIM_THREADS); regs[0] = 0x10801; return 1; } } }
+         if (hstk_reap(0)) { regs[0] = R_OUT_OF_RES; return 1; }
+         thr_t *t = calloc(1, sizeof *t);
+-        pthread_cond_init(&t->cv, NULL);
++        if (!t) { regs[0] = 0xCE01; return 1; }
++        if (pthread_cond_init(&t->cv, NULL)) { free(t); regs[0] = 0xCE01; return 1; }
+         // 还没进游戏代码：算在系统调用里（调度计数不把「已启动、未到 thread_main 取核」的空窗记成不持核在跑），游戏入口线程进门 svc_exit 取核时清
+         atomic_store(&t->in_svc, 1);
+         t->entry = regs[1]; t->arg = regs[2]; t->stack_top = regs[3] & ~0xFull;
+         t->prio = (int)regs[4]; t->core = (int)regs[5]; t->mask = t->core >= 0 ? 1ull << t->core : 7;
+         if (hz_core() && t->core == -2) { t->core = g_def_core; t->mask = 1ull << g_def_core; }
+         t->base_prio = t->prio;
+-        glock(); t->handle = h_new(S2A_OBJ_THREAD, t, 0); if (t->handle) { t->id = g_next_id++; t->all = g_all; g_all = t; } pthread_mutex_unlock(&G);
++        // The early quota check releases G before allocation. Publish the
++        // new thread only after rechecking under the same lock as insertion.
++        glock();
++        int quota_full = 0;
++        if (lim_on()) {
++            int count = 0;
++            for (thr_t *o = g_all; o; o = o->all) count += !o->exited;
++            quota_full = count >= LIM_THREADS;
++        }
++        if (!quota_full) {
++            t->handle = h_new(S2A_OBJ_THREAD, t, 0);
++            if (t->handle) { t->id = g_next_id++; t->all = g_all; g_all = t; }
++        }
++        pthread_mutex_unlock(&G);
++        if (quota_full) { pthread_cond_destroy(&t->cv); free(t); regs[0] = 0x10801; return 1; }
+         if (!t->handle) { pthread_cond_destroy(&t->cv); free(t); regs[0] = R_OUT_OF_RES; return 1; }
+         // 宿主栈 1 MB：门与 C# 跑在这上面（接口约定 ≥ 512 KB）。原 8 MB：Mac 暗黑3 100 秒 36 条游戏线程宿主栈单条最大只用到 48 KB，
+         // 却合计占 288 MB 地址；iPhone 上窗口占满（VAMM）时窗口外只剩约 1.7 GB 空洞，C# 初始化后最大一块 380–473 MB，

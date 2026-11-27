@@ -1,0 +1,14 @@
+[
+  {
+    "flag": "0",
+    "tests": 1941,
+    "digest": "374107a08eb53937",
+    "guard0480Identical": true
+  },
+  {
+    "flag": "1",
+    "tests": 1941,
+    "digest": "374107a08eb53937",
+    "guard0480Identical": true
+  }
+]

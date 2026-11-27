@@ -1,0 +1,43 @@
+diff --git a/runtime/src/svc_mem.c b/runtime/src/svc_mem.c
+--- a/runtime/src/svc_mem.c
++++ b/runtime/src/svc_mem.c
+@@ -2221,7 +2221,12 @@
+             // 4 GB 机型的内存区（Ryujinx KSystemControl / KernelInit）：应用 3285 MiB、小程序 507 MiB、系统服务约 251 MiB（上游注释量级，取决于内核保留区，近似）、
+             //   nv 服务 (0x2238 + 0x710 + 0x80) × 4 KB。只有应用区按实际记账算空闲；其余三区游戏碰不到，空闲按总量报
+             static const uint64_t total[4] = {3285ull << 20, 507ull << 20, 251ull << 20, (0x2238ull + 0x710 + 0x80) << 12};
+-            v = id == 0 ? total[sub] : sub == 0 ? (APP_POOL > mem_used() ? APP_POOL - mem_used() : 0) : total[sub];
++            if (id == 1 && sub == 0) {
++                GMU_LOCK();
++                uint64_t used = mem_used();
++                v = APP_POOL > used ? APP_POOL - used : 0;
++                GMU_UNLOCK();
++            } else v = total[sub];
+         } else {
+             if ((uint64_t)sub > 1) { regs[0] = 0xE801; regs[1] = 0; return 1; }
+             v = sub == 0 ? 1 : 8;   // 特权进程号范围：Ryujinx KernelContext.PrivilegedProcessLowestId / HighestId
+@@ -2266,12 +2271,22 @@
+         case I_TotalMem: v = APP_POOL; break;
+         case I_TotalNonSys: v = APP_POOL - (phys_limit_on() ? L.sys_resource_size : 0); break;
+         case I_UsedMem: case I_UsedNonSys:
+-            if (phys_limit_on()) { v = g_heap_cur + pool_fixed() - (id == I_UsedNonSys ? L.sys_resource_size : 0); break; }
+-            { size_t ib = image_bytes(); v = g_heap_cur + (ib > 0x4000000 ? ib : 0x4000000); break; }
++            GMU_LOCK();
++            if (phys_limit_on()) v = mem_used() - (id == I_UsedNonSys ? L.sys_resource_size : 0);
++            else { size_t ib = image_bytes(); v = g_heap_cur + (ib > 0x4000000 ? ib : 0x4000000); }
++            GMU_UNLOCK();
++            break;
+         case I_SysResTotal: v = L.sys_resource_size; break;
+         // 系统资源装的是本进程的页表（Ryujinx 按内存块个数记）。宿主没有这份页表，按已映射字节（堆 + 代码 + 主线程栈 + 物理映射，同 UsedNonSys 口径）
+         //   估末级页表：每 2 MB 一张 4 KB 表（稠密下界），不超过总量；没有系统资源回 0（Ryujinx：PersonalMmHeapPagesCount 为 0 回 0）。原先恒 0
+-        case I_SysResUsed: if (L.sys_resource_size) { uint64_t pt = ((g_heap_cur + code_bytes() + g_mstack + g_phys + (2ull << 20) - 1) >> 21) << 12; v = pt < L.sys_resource_size ? pt : L.sys_resource_size; } break;
++        case I_SysResUsed:
++            if (L.sys_resource_size) {
++                GMU_LOCK();
++                uint64_t pt = ((g_heap_cur + code_bytes() + g_mstack + g_phys + (2ull << 20) - 1) >> 21) << 12;
++                v = pt < L.sys_resource_size ? pt : L.sys_resource_size;
++                GMU_UNLOCK();
++            }
++            break;
+         case I_DebuggerAttached: v = 0; break;
+         case I_ResourceLimit: {   // 本进程的资源上限对象：每次发一个新句柄（同 Ryujinx GenerateHandle）；句柄表满回 HandleTableFull
+             uint32_t h = s2a_native_handle_new(1, &g_rl); if (!h) { regs[0] = 0xD201; regs[1] = 0; return 1; } v = h; break; }

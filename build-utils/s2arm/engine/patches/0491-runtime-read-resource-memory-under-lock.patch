@@ -1,0 +1,21 @@
+diff --git a/runtime/src/svc_mem.c b/runtime/src/svc_mem.c
+--- a/runtime/src/svc_mem.c
++++ b/runtime/src/svc_mem.c
+@@ -1009,7 +1009,16 @@
+     if (which >= 5) return 0xF001;   // InvalidEnumValue
+     reslimit_t *r = s2a_native_handle_obj(h, 1); if (!r) return 0xE401;
+     if (!r->proc) { *v = what == 0 ? r->lim[which] : what == 1 ? r->cur[which] : r->peak[which]; return 0; }
+-    if (which == 0) { *v = what == 0 ? (int64_t)APP_POOL : what == 1 ? (int64_t)mem_used() : (int64_t)(g_mem_peak > mem_used() ? g_mem_peak : mem_used()); return 0; }
++    if (which == 0) {
++        if (what == 0) { *v = (int64_t)APP_POOL; return 0; }
++        // Writers change the heap, physical-page count and peak under g_mu.
++        // Read one coherent snapshot after the handle lookup has released G.
++        GMU_LOCK();
++        uint64_t used = mem_used();
++        *v = (int64_t)(what == 1 || used > g_mem_peak ? used : g_mem_peak);
++        GMU_UNLOCK();
++        return 0;
++    }
+     if (what == 0) { *v = r->lim[which]; return 0; }
+     static const uint32_t kind[5] = {0, S2A_OBJ_THREAD, S2A_OBJ_EVENT_R, S2A_OBJ_TMEM, S2A_OBJ_SESSION};
+     int c, pk; s2a_handle_kind_count(kind[which], &c, &pk); *v = what == 1 ? c : pk; return 0;

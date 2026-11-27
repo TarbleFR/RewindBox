@@ -1,0 +1,45 @@
+{
+  "host": "Linux x86-64",
+  "compiler": "GCC 14",
+  "sanitizers": [
+    "ASan",
+    "UBSan"
+  ],
+  "leaks_checked": false,
+  "thread_creation": {
+    "reference_races": 100,
+    "reference_end_count": 609,
+    "candidate_races": 100,
+    "candidate_end_count": 608,
+    "candidate_mismatches": 0,
+    "initial_live": 607,
+    "allocation_failure": {
+      "result": "0xCE01",
+      "live": 0,
+      "handles": 0
+    },
+    "condition_init_failure": {
+      "result": "0xCE01",
+      "live": 0,
+      "handles": 0
+    },
+    "scope": "Extracted CreateThread prefix through guest thread insertion; host guest-stack/pthread creation omitted"
+  },
+  "resource_memory": {
+    "reference_partial_snapshots": 10,
+    "candidate_partial_snapshots": 0,
+    "cases": 10,
+    "api_checks": 33,
+    "reference_value": 32768,
+    "candidate_value": 65536,
+    "scope": "Real rl_value and mem_used; synthetic writer holds same mutex while counters update"
+  },
+  "memory_info": {
+    "api_checks": 657,
+    "concurrent_cases": 20,
+    "reference_partial_snapshots": 20,
+    "candidate_partial_snapshots": 0,
+    "candidate_final_snapshots": 20,
+    "scope": "GetSystemInfo/GetInfo source branches; synthetic counters and mapping, pthread writer/reader"
+  }
+}

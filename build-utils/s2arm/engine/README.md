@@ -824,7 +824,7 @@ Série `0468–0470` compilée ensemble sur `macos-15` et `macos-26` (run [`4598
 
 ### 0474–0475 — mise à jour des pages et allocation de handles
 
-- **0474** (`runtime/src/svc_mem.c`) — `MapPhysicalMemory` traite d’un bloc les groupes de 16 Kio intégralement libres ou déjà mappés. Les sous-pages partielles et les passages pouvant modifier le pic restent sur le chemin existant. `S2A_RB_PHYS_MARK_BULK=0` rétablit le parcours par sous-page.
+- **0474** (`runtime/src/svc_mem.c`) — `MapPhysicalMemory` traite d’un bloc les groupes de 16 Kio intégralement libres ou déjà mappés. Les sous-pages partielles gardent leur traitement individuel ; 0484 actualise le pic total en fin de marquage. `S2A_RB_PHYS_MARK_BULK=0` rétablit le parcours par sous-page.
 - **0475** (`runtime/src/thread.c`) — un bitmap de 1 Kio permet de trouver le premier handle libre par mot. Les codes de retour, générations et partitions déterministes restent identiques. `S2A_RB_HANDLE_BITMAP=0` rétablit la recherche linéaire.
 
 [Bancs CPU, parité et limites](../../../docs/evidence/s2arm-runtime-0474-0475.md).
@@ -871,3 +871,13 @@ Le pic des ressources mémoire est actualisé une seule fois à la fin du marqua
 ### 0485 — mises à jour partielles des mipmaps et tableaux 2D
 
 Une plage sale entièrement contenue dans un niveau et une couche peut utiliser le staging serré de 0481. L’admission demande des colonnes GOB entières, une géométrie sans remplissage et au plus un quart du niveau. Les mises à jour mixtes reprennent le traitement par niveau et couche. `S2A_RB_GOB_SUBRESOURCE=0` restitue 0481. [Mesures et conditions](../../../docs/evidence/s2arm-gpu-0481/README.md).
+
+### 0490–0494 — contre-expertise des créations et relevés concurrents
+
+- **0490** (`runtime/src/thread.c`) — vérifie la limite de threads sous le verrou de l’insertion ; en cas de refus, détruit la condition et libère l’objet non publié. Les échecs d’allocation et d’initialisation renvoient `OutOfResource` sans créer de handle.
+- **0491** (`runtime/src/svc_mem.c`) — lit l’usage et le pic mémoire du processus dans un même instantané sous le verrou mémoire.
+- **0492** (`runtime/src/thread.c`) — `S2A_RB_TMEM_COUNT=0` rétablit le comptage linéaire de 0476. Le quota et le recontrôle concurrent de 0480 restent actifs.
+- **0493** (`services/S2A.Services/Dispatcher.cs`) — `S2A_RB_SESSION_SCAN=0` rétablit le parcours modulo précédant 0479, avec les mêmes cookies, verrou et redimensionnement.
+- **0494** (`runtime/src/svc_mem.c`) — les relevés mémoire de `GetSystemInfo` et `GetInfo` lisent les compteurs sous le même verrou ; la mémoire libre utilise une seule lecture.
+
+[Reproductions synthétiques et limites](../../../docs/evidence/s2arm-cpu-counterreview-0490/README.md). Les corrections de sûreté restent actives dans les deux modes de comparaison. Aucun gain sur iPhone revendiqué.

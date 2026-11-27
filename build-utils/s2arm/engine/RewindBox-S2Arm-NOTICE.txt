@@ -144,3 +144,9 @@ is provided under Apache-2.0.
 
 RewindBox patch 0485 extends partial tiled texture uploads to eligible mip
 levels and 2D array layers. This change is provided under Apache-2.0.
+
+RewindBox patches 0490 through 0494 enforce thread admission under the insertion
+lock, handle allocation and condition-initialization failures, read process-memory
+statistics under their writer lock, and restore comparison switches for the
+transfer-handle count and service-session search optimizations. These changes
+are provided under Apache-2.0; existing third-party notices are retained.

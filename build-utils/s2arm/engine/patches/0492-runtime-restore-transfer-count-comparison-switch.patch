@@ -1,0 +1,19 @@
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -3527,7 +3527,14 @@
+           if (pm > 3 || pm == 2) { regs[0] = 0xD801; return 1; }          // InvalidPermission
+           if (lim_on()) {
+               glock();
+-              int count = g_kcnt[S2A_OBJ_TMEM];
++              static int cached_count = -1; // Read and initialized under G.
++              if (cached_count < 0) {
++                  const char *e = getenv("S2A_RB_TMEM_COUNT");
++                  cached_count = !(e && !strcmp(e, "0"));
++              }
++              int count = 0;
++              if (cached_count) count = g_kcnt[S2A_OBJ_TMEM];
++              else for (int i = 1; i < MAX_H; i++) count += g_h[i].kind == S2A_OBJ_TMEM;
+               pthread_mutex_unlock(&G);
+               if (count >= LIM_TMEM) { regs[0] = 0x10801; return 1; }    // ResLimitExceeded
+           } }

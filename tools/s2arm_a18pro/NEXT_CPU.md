@@ -10,3 +10,5 @@
 - RomFS, double curseur écarté sur banc d’indexation. Deux flux alternés gagnent, les accès aléatoires et quatre flux ralentissent. Mesurer les appels fichier et les copies séparément ensuite.
 - 0484 corrige le pic mémoire déclaré au jeu, actualisé en fin de marquage. 26 432 plages par mode vérifiées. [CI iPhoneOS macOS 15/26 verte](https://github.com/TarbleFR/RewindBox/actions/runs/46012990218). À la prochaine reprise, mesurer les appels complets et les cas courts. Relire la tête distante et la numérotation avant écriture ou publication. Périmètre runtime et services. Aucune IPA.
 - [0472–0473](../../docs/evidence/s2arm-runtime-0472-0473.md) · [0474–0475](../../docs/evidence/s2arm-runtime-0474-0475.md) · [0476](../../docs/evidence/s2arm-runtime-0476.md) · [0479](../../docs/evidence/s2arm-runtime-0479.md). Appareil non mesuré.
+
+- Contre-expertise complémentaire 0490–0494 : quota CreateThread à l’insertion, échecs d’allocation/condition, instantanés mémoire sous verrou et replis 0476/0479. Reproductions hôte vérifiées, compilation à suivre. [Preuves](../../docs/evidence/s2arm-cpu-counterreview-0490/README.md). Aucun gain iPhone revendiqué.

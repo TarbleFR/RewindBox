@@ -1,0 +1,36 @@
+diff --git a/services/S2A.Services/Dispatcher.cs b/services/S2A.Services/Dispatcher.cs
+--- a/services/S2A.Services/Dispatcher.cs
++++ b/services/S2A.Services/Dispatcher.cs
+@@ -120,6 +120,7 @@
+         public GuestMemory Memory { get; }
+         internal SmDirect Sm { get; }
+
++        private static readonly bool RbSessionScan = Environment.GetEnvironmentVariable("S2A_RB_SESSION_SCAN") != "0";
+         private readonly object _sessionLock = new();
+         private SessionTarget[] _sessions = new SessionTarget[1024];
+         private int _sessionCount;
+@@ -220,6 +221,24 @@
+         {
+             lock (_sessionLock)
+             {
++                if (!RbSessionScan)
++                {
++                    // Comparison path: preserve the original circular order.
++                    for (int n = 0; n < _sessions.Length; n++)
++                    {
++                        int slot = (_freeHint + n) % _sessions.Length;
++                        if (_sessions[slot] == null)
++                        {
++                            _sessions[slot] = target;
++                            _sessionCount++;
++                            _freeHint = slot + 1;
++                            return (ulong)slot + 1;
++                        }
++                    }
++                    Array.Resize(ref _sessions, _sessions.Length * 2);
++                    return AddSession(target);
++                }
++
+                 SessionTarget[] sessions = _sessions;
+                 int length = sessions.Length;
+                 int first = _freeHint == length ? 0 : _freeHint;

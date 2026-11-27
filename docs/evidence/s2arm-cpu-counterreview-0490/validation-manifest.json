@@ -1,0 +1,24 @@
+{
+  "host": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "architecture": "x86_64",
+  "dotnet_sdk": "10.0.404",
+  "dotnet_runtime": "10.0.15",
+  "timing": "synthetic Linux x64; complete extracted AddSession/RemoveSession cycle, 6 alternating pairs per filling; excludes IPC request/game",
+  "tmem": "initial quota/validation source block extracted; table+lock scaffolding; suffix including 0480 unchanged by exact comparison",
+  "source_generation_after_cli_parameterization": "byte-for-byte identical to measured JIT generated C#",
+  "sha256": {
+    "check.py": "5130d5e0d33e46d810f75101afd5b3e43085d4038318724cf46a273201d2a82a",
+    "native.py": "b992cdd47a968b944bb6f70aa7cdfa7a181ef5c0b6d12b3fdef36c5ddd4d0fba",
+    "tmem.py": "62690a04f71971aa48dacc17b5f155e65de4ff4ca367f86e32cd7fe52ccc00a6",
+    "before/Program.cs": "c2c4003edeaf8d063c077ccff71ffded194bdbeb1f4c9793632ae6dda5c81627",
+    "after/Program.cs": "a7ccb57db8b5f102158cb0185d6eea74466ba0870ddca2d854bf473535d8b001",
+    "before-native/Program.cs": "d2e1031ec5b90c50a4ba9cd576a655349260354184a41708c38c3af03695edff",
+    "after-native/Program.cs": "dec0c419233b7ed16d82bbc584bbfc2db65dc4b960ef934c6bb5cc097ad4e924",
+    "tmem.c": "d93dd690c87eaa3d9704d8e36961b54b0e665a447085d8b48a74cc776a8945c5",
+    "correctness.json": "d1ff10bd586118e48623b3a948fae558026d5a0304f48a6cd5c0194b54111ec1",
+    "timing.json": "c0f79252704bc5f128eed2b15b51b0bbd9f8edd463cbae6ed389bce61a7d83f8",
+    "native-correctness.json": "d1ff10bd586118e48623b3a948fae558026d5a0304f48a6cd5c0194b54111ec1",
+    "native-timing.json": "da214f6a4d72be02ba25c32eb775207a1434806170511c31cb1aea32b74df69f",
+    "tmem.json": "20c3eb6c83f5407ba108c24c0ebf0daf347fe47039832a8de6e6f11adcc64d9e"
+  }
+}

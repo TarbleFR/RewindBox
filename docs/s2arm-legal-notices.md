@@ -408,3 +408,13 @@ To ship in the app with the engine, together with the licence texts in its `lice
 - The xcframework's identity file (`S2ArmPrepare-identity.json`, produced by
   `.github/workflows/s2arm-core.yml`) records the S2Arm commit, both archive hashes and the
   binary hashes for the pin.
+
+## Runtime counter-review, 27 November 2026
+
+Patches 0490–0494 modify `runtime/src/thread.c`, `runtime/src/svc_mem.c` and
+`services/S2A.Services/Dispatcher.cs` in the pinned S2Arm sources. They enforce
+thread admission atomically, handle allocation failures, synchronize memory
+statistics with writers and restore comparison switches for two optimizations.
+These RewindBox changes are provided under Apache-2.0. No third-party dependency
+or game content is added; existing notices and the embedded modification notice
+are retained. [Evidence and scope](evidence/s2arm-cpu-counterreview-0490/README.md).

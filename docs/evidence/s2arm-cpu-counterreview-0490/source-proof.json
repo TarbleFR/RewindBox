@@ -1,0 +1,191 @@
+{
+  "engine": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+  "basis": "5ed52e8d92a56e3099297ffef338b287075724e7",
+  "patches": [
+    {
+      "name": "0038-guest-mapped-region-anonymous-under-file-backing-and-upstream-recording-interning.patch",
+      "sha256": "a1b676b3aecf06c711c85b7c0febb1d4240cca7625058977e020ebb197110022"
+    },
+    {
+      "name": "0042-upstream-core3-game-threads-tier-and-guest-memory-in-files.patch",
+      "sha256": "fa8982b93a98f9f8e7bd654772c9d4934795c0f2a74599fe76a490404404facc"
+    },
+    {
+      "name": "0062-guest-game-threads-user-interactive.patch",
+      "sha256": "ea06879f60f577c2192df8abb34747a3a8f01d3f59fb5b2192659a41f09f61b7"
+    },
+    {
+      "name": "0073-guest-encoding-cost-and-gpu-work.patch",
+      "sha256": "a587e31292ec5306f73a8556e21bc61fdc8ec59e3a16a0f6bbf981d04ba88541"
+    },
+    {
+      "name": "0074-guest-waits-after-the-global-lock-yields-dirty-ranges-and-sampler.patch",
+      "sha256": "3990cc396fa576d6c7a0fa1e866fc95cc2bd6b0d1632fe2d8ae98eb271d5a481"
+    },
+    {
+      "name": "0087-guest-under-heat-resolution-steps-down-and-yields-back-off-sooner.patch",
+      "sha256": "fdd72d82806c05b61d70784033b9562d465fb8859eaaf04198d0fafb54d515f9"
+    },
+    {
+      "name": "0088-guest-texture-pool-as-before-workgroup-rests-under-heat-audio-lines-journaled.patch",
+      "sha256": "404373fa0f62701ff7d7039c3ae3d50db6af5e419e4d1d1619f7314158b9e8b1"
+    },
+    {
+      "name": "0093-guest-frame-workgroup-rests-when-cadence-is-stable.patch",
+      "sha256": "5138fc85f2c7687a15b2a90a948ed8ea058f65635ae70426c97013b142ea2566"
+    },
+    {
+      "name": "0095-guest-back-off-repeated-worker-polls-before-heating.patch",
+      "sha256": "f3cddefee344f42fd94dd97403848fbeec58a9d5448bac73dd7b8ee8c5e0c6b1"
+    },
+    {
+      "name": "0113-guest-space-out-unsuccessful-worker-spin-probes.patch",
+      "sha256": "ec8e03c24586c0a9364111a433a4f0fa0d1a1a404c6533583bcabd1ea548a743"
+    },
+    {
+      "name": "0148-guest-measure-complete-cup-frame-intervals.patch",
+      "sha256": "59c324d5b886dd96544a118d59b42bdb3c08af8bcd7c46a498c90911d67be730"
+    },
+    {
+      "name": "0155-stalls-texture-upload-and-preparation.patch",
+      "sha256": "0c1c8716bf35be762aef241631aade9d798864a7070ffff5f6777513d136d45a"
+    },
+    {
+      "name": "0157-thermal-targeted-wakes-and-copy-parking.patch",
+      "sha256": "cb5cec74a515f075f82bd79e99fcc89449ed3471ece9322d157d4094b0edf3c4"
+    },
+    {
+      "name": "0168-guest-wait-producer-and-resume-timeline.patch",
+      "sha256": "c9df92e69499a4cac5d6ba8fedf68d1fbdcb7af280bcb4b9039dd634655ba7fc"
+    },
+    {
+      "name": "0171-generic-benchmark-and-post-window-memory-attribution.patch",
+      "sha256": "34f6887cbd40a8a75087c916b2abcba39486b4b8b41cf727ba2146c55363360b"
+    },
+    {
+      "name": "0198-time-exclusive-presenter-phases-on-long-frames.patch",
+      "sha256": "ff9ceb12c4b78ccb5f2f9390b70a2a3676d729afc645b7f9c2633f9301e39ca9"
+    },
+    {
+      "name": "0240-lower-secondary-guest-qos-on-warm-devices.patch",
+      "sha256": "a7448bb4cdf9c02746825844d1dce13401b4a344847a546417a5a80f603083f5"
+    },
+    {
+      "name": "0261-report-verified-guest-qos-transitions-per-session.patch",
+      "sha256": "c765e0da254a81dae77b276f898f032a66d51a6cb0ff9f8706684e47d31e0fc3"
+    },
+    {
+      "name": "0264-apply-thermal-qos-on-owner-resume.patch",
+      "sha256": "74f4a4a6d351f46e534d08ca3aa73cb1dd40cd48be1c6156784b48a51a8849b8"
+    },
+    {
+      "name": "0270-enable-session-caches-and-thermal-guest-workers-on-NVN2.patch",
+      "sha256": "4efa7340cbf4673b2eadc4cf22b5ac647907a46f378fefdffcb737074c8b91a8"
+    },
+    {
+      "name": "0282-bound-sustained-secondary-polling-in-Serious.patch",
+      "sha256": "e2311c55746cf0e72ab60a799d39555362d229ce464cf4a7b5875b2310481d11"
+    },
+    {
+      "name": "0317-take-upstream-runtime-and-session-stability-fixes.patch",
+      "sha256": "c4306de946742bf337a5989482aeaaaea55ecbd2fa0036e88630d78b37aca86a"
+    },
+    {
+      "name": "0318-take-upstream-camera-audio-font-quarantine-and-submit-fixes.patch",
+      "sha256": "78bb19be159eb383713d5431582436d367ef2d4d77c50b1a7b4df2fe5be91840"
+    },
+    {
+      "name": "0335-thermal-guest-qos-and-idle-heuristics-run-only-when-asked-for.patch",
+      "sha256": "743e835ceacc16045b8dd20cca3829a2ed13fae7f35fa3d50e484b6446a38232"
+    },
+    {
+      "name": "0368-wake-site-diagnostics.patch",
+      "sha256": "0bf8283ef75dafaf105f889bdced66f0d4adca8c2d1ad60f15bbdc7d62fba931"
+    },
+    {
+      "name": "0377-wake-syscall-result-semantics.patch",
+      "sha256": "39e917a6e3409de87059b7f01ad992a7ed3ae31011593a49760e1e246c026d49"
+    },
+    {
+      "name": "0385-sample-guest-resume-latency-without-changing-deadlines.patch",
+      "sha256": "2ca6ca5e389534335ea78a97692ac9c57ca404d7b9a58bc77d06dd66e71738d1"
+    },
+    {
+      "name": "0403-add-bounded-progress-wakes-for-idle-yields.patch",
+      "sha256": "7603634fd0a384c75237e6f0f20d7ad8c6d8a7f8440017fa2fe060d2d99d49a1"
+    },
+    {
+      "name": "0407-park-sustained-idle-polls-and-protect-frame-owners.patch",
+      "sha256": "9657e331d94042a1f0c05d2c917fb392cf4cd099c172e47cee7a27f00f89dccf"
+    },
+    {
+      "name": "0424-zelda-mkw-ubo-args-masks-txr-reuse-virtual-views-and-yield.patch",
+      "sha256": "363a1e76750e33b35426e544da2fb2b47908f6b1c4df64f6e9b6f2a1ae5c39a8"
+    },
+    {
+      "name": "0461-runtime-thread-wait-unlink-yield-event-out-of-G-and-mkw-cache.patch",
+      "sha256": "b88f6b249d51dbda1b3d3087849439ac93e0cfb9920b573d660888a56d1921c2"
+    },
+    {
+      "name": "0462-runtime-svc-mem-coalesced-unmap-and-word-query-scan.patch",
+      "sha256": "9818748984da7a6f227e0da10dc2249de73c73eb94296ffd9967c140f6a7ce3d"
+    },
+    {
+      "name": "0467-rb-svc-mem-amask-probe-count.patch",
+      "sha256": "ca82061e8c4bfaeb3bb5c64962b81ab026b09102a2908e0d32350e053280cdc2"
+    },
+    {
+      "name": "0472-runtime-count-new-physical-pages-with-bitmap-words.patch",
+      "sha256": "d10077800aeb59ea1dce2875f901b0ed4cfdb9843c0906cb2a1e6e0bcb357860"
+    },
+    {
+      "name": "0474-runtime-record-uniform-mapped-page-groups.patch",
+      "sha256": "8d18f707e4ada36b2f04404e6496d5637ba2b9320f2fcbbba76af20d7b93b2cd"
+    },
+    {
+      "name": "0475-runtime-find-first-free-handle-with-bitmap.patch",
+      "sha256": "ee2555796fd0ce1751b89663df7af10cad78ffc5846a57e0d41ed58b3e1b2b6f"
+    },
+    {
+      "name": "0476-runtime-reuse-transfer-memory-handle-count.patch",
+      "sha256": "c7501043b115ea48320900f42d87f9e3b11a3979a141dc277d081fa94c981a24"
+    },
+    {
+      "name": "0479-services-scan-session-slots-without-modulo.patch",
+      "sha256": "b22c7644a1d6865a6c82720373a1fbf3c96a6ec6f5cf8e62f547fff916746b78"
+    },
+    {
+      "name": "0480-runtime-transfer-memory-quota-under-handle-lock.patch",
+      "sha256": "2fdeace6db933ecf3f285f483275428b0656f57a505501c5e5a7cba720b42c9d"
+    },
+    {
+      "name": "0484-runtime-record-total-memory-peak-after-physical-mapping.patch",
+      "sha256": "db75844cc9fed180ef8082ad431ec81e5a9bbdb5c2b02132857cf067137e8c55"
+    },
+    {
+      "name": "0490-runtime-enforce-thread-quota-at-insertion.patch",
+      "sha256": "9f1a9dd2fe1e23d75a87345e9c89cf84a4e6c9be4af6d4ad09308f0a25b58265"
+    },
+    {
+      "name": "0491-runtime-read-resource-memory-under-lock.patch",
+      "sha256": "f13de3d812fb696511e0fec8b226adb85c9dba5f080c0ebb827b857af6e39824"
+    },
+    {
+      "name": "0492-runtime-restore-transfer-count-comparison-switch.patch",
+      "sha256": "51fa55c63dadef4eaf6b92cef798635475a046ec727cc2accfe5a92cd9c1fa5d"
+    },
+    {
+      "name": "0493-services-restore-session-scan-comparison-switch.patch",
+      "sha256": "6384a8aa0332d04cc7d061805f4147f39f7296cefc5a93c19d0429b961f69035"
+    },
+    {
+      "name": "0494-runtime-read-memory-info-from-locked-snapshots.patch",
+      "sha256": "2ff12b8645970274de6e01c27bcdb9a52cf396af45740fe6981cca2e3a02cd75"
+    }
+  ],
+  "files": {
+    "runtime/src/thread.c": "14c1051523b2e70b31eb1225743423d888a3a0f6abb6330443eb10be0d65e5f7",
+    "runtime/src/svc_mem.c": "37135f20a464d67fc0e49845ac91d01d4b6a13e92f4bfb1cb8d70e53de7c4847",
+    "services/S2A.Services/Dispatcher.cs": "b87391890d5f5f554acb8cfab122cc2741b97b7f94826f8ec65cb23e4370384e"
+  }
+}
