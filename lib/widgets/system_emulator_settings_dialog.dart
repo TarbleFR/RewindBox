@@ -76,6 +76,7 @@ class _SystemEmulatorSettingsDialogState
   bool _isLoading = true;
   String? _errorMessage;
   int _selectedIndex = 0;
+  bool _wiimmfiBusy = false;
   late GamepadNavigation _gamepadNav; // Now includes keyboard on desktop
   late CenteredScrollController _centeredScrollController;
   late ScrollController _generalScrollController;
@@ -432,8 +433,7 @@ class _SystemEmulatorSettingsDialogState
       }
       return;
     }
-    _cleanupGamepad();
-    Navigator.of(context).pop();
+    Navigator.of(context).maybePop();
   }
 
   Future<void> _loadCores() async {

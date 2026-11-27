@@ -171,6 +171,12 @@ class GameService {
   static Future<GameLaunchResult> launchGame(
     BuildContext context,
     SystemModel system,
-    GameModel game,
-  ) => GameLaunchService.launchGame(context, system, game);
+    GameModel game, {
+    bool? dolphinWiimmfi,
+  }) => GameLaunchService.launchGame(
+    context,
+    system,
+    game,
+    dolphinWiimmfi: dolphinWiimmfi,
+  );
 }

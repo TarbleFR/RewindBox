@@ -37,12 +37,15 @@ class GameLaunchResult {
 class GameService {
   static bool pending = false;
   static int calls = 0;
+  static bool? requestedWiimmfi;
   static String? launchedEmulatorExe;
   static late Completer<GameLaunchResult> result;
   static void beginLaunchPending() { pending = true; }
   static void clearLaunchPending() { pending = false; }
-  static Future<GameLaunchResult> launchGame(BuildContext c, SystemModel s, GameModel g) {
+  static Future<GameLaunchResult> launchGame(BuildContext c, SystemModel s, GameModel g,
+      {bool? dolphinWiimmfi}) {
     calls++;
+    requestedWiimmfi = dolphinWiimmfi;
     return result.future;
   }
 }
@@ -85,6 +88,7 @@ void main() {
   Future<void> mount(WidgetTester tester) async {
     navigator = GlobalKey<NavigatorState>(); closed = 0; error = null;
     GameService.pending = false; GameService.calls = 0;
+    GameService.requestedWiimmfi = null;
     GameService.result = Completer<GameLaunchResult>();
     GameLaunchManager().phase = null; GameLaunchManager().starts = 0;
     GameLaunchManager().closeRouteImmediately = false;
@@ -94,8 +98,9 @@ void main() {
         return const Scaffold(body: Text('library'));
       })));
   }
-  Future<void> start(WidgetTester tester) async {
-    launchFuture = launchGameWithDialog(context: launcherContext, game: GameModel(),
+  Future<void> start(WidgetTester tester, {BuildContext? context, bool? online}) async {
+    launchFuture = launchGameWithDialog(context: context ?? launcherContext, game: GameModel(),
+      dolphinWiimmfi: online,
       system: SystemModel(), fileProvider: FileProvider(), onGameClosed: () { closed++; },
       onLaunchFailed: (context, result) async { error = result.message; });
     await tester.pump();
@@ -103,20 +108,57 @@ void main() {
     expect(GameService.calls, 1);
   }
   testWidgets('rapid touches and back keep the native launch session alive', (tester) async {
-    await mount(tester); await start(tester);
-    for (int i = 0; i < 4; i++) {
-      await tester.tapAt(const Offset(10, 10));
-      await tester.tap(find.text('launch-pending'));
+    // The same route owns ordinary, online and explicitly offline launches.
+    for (final online in <bool?>[null, true, false]) {
+      await mount(tester);
+      late BuildContext settingsContext;
+      final busy = ValueNotifier<bool>(true);
+      showDialog<void>(context: launcherContext, builder: (context) {
+        settingsContext = context;
+        return ValueListenableBuilder<bool>(valueListenable: busy,
+          builder: (_, value, _) => PopScope(canPop: !value,
+            child: const Text('settings')));
+      });
+      await tester.pumpAndSettle();
       await navigator.currentState!.maybePop();
+      await tester.pumpAndSettle();
+      expect(find.text('settings'), findsOneWidget);
+      await start(tester, context: settingsContext, online: online);
+      expect(GameService.requestedWiimmfi, online);
+      for (int i = 0; i < 4; i++) {
+        await tester.tapAt(const Offset(10, 10));
+        await tester.tap(find.text('launch-pending'));
+        await navigator.currentState!.maybePop();
+        await tester.pump();
+      }
+      expect(find.text('launch-pending'), findsOneWidget);
+      expect(closed, 0); expect(GameService.pending, isTrue);
+      expect(GameLaunchManager().phase, 'launching'); expect(GameService.calls, 1);
+      GameService.result.complete(GameLaunchResult(true));
+      await tester.pump(); await launchFuture;
+      expect(GameLaunchManager().starts, 1);
+      expect(closed, 0);
+      expect(find.text('launch-pending'), findsOneWidget);
+
+      // Native teardown removes its owned launch route even while the settings
+      // action is still busy; user dismissal of that parent remains blocked.
+      GameLaunchManager().closeRouteImmediately = true;
+      tester.state<_DialogState>(find.byType(GameLaunchDialog))._closeDialog();
+      await tester.pumpAndSettle();
+      expect(closed, 1); expect(GameLaunchManager().phase, isNull);
+      expect(find.text('settings'), findsOneWidget);
+      await navigator.currentState!.maybePop();
+      await tester.pumpAndSettle();
+      expect(find.text('settings'), findsOneWidget);
+      busy.value = false;
       await tester.pump();
+      await navigator.currentState!.maybePop();
+      await tester.pumpAndSettle();
+      expect(find.text('settings'), findsNothing);
+      expect(find.text('library'), findsOneWidget);
+      busy.dispose();
+      await tester.pumpWidget(const SizedBox());
     }
-    expect(find.text('launch-pending'), findsOneWidget);
-    expect(closed, 0); expect(GameService.pending, isTrue);
-    expect(GameLaunchManager().phase, 'launching'); expect(GameService.calls, 1);
-    GameService.result.complete(GameLaunchResult(true));
-    await tester.pump(); await launchFuture;
-    expect(GameLaunchManager().starts, 1);
-    await tester.pumpWidget(const SizedBox());
   });
   testWidgets('every system waits the same two-second presentation', (tester) async {
     // The short Ports hand-off left with Dusklight and the Ports playlist

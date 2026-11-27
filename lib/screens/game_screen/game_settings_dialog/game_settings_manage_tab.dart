@@ -1,5 +1,6 @@
 import 'package:neostation/repositories/system_repository.dart';
-import 'package:neostation/services/game/game_launch_service.dart';
+import 'package:neostation/services/gamepad/gamepad_navigation_manager.dart';
+import 'package:neostation/utils/game_launch_utils.dart';
 import 'package:neostation/l10n/wiimmfi_locale.dart';
 import '../../../../l10n/melonx_transfer_locale.dart';
 
@@ -400,13 +401,35 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
             WiimmfiPanel(
               gamePath: widget.game.romPath,
               onLaunch: (online) async {
-                final system = await SystemRepository.getSystemByFolderName(_targetSystemFolder);
-                if (!context.mounted) return null;
-                if (system == null) return WiimmfiLocale.text(context, 'gameUnknown');
-                final result = await GameLaunchService.launchGame(
-                  context, system, widget.game, dolphinWiimmfi: online,
+                final system = await SystemRepository.getSystemByFolderName(
+                  _targetSystemFolder,
                 );
-                return result.success || result.cancelled ? null : result.errorMessage;
+                if (!context.mounted) return null;
+                if (system == null) {
+                  return WiimmfiLocale.text(context, 'gameUnknown');
+                }
+                String? error;
+                GamepadNavigationManager.deactivateAll();
+                try {
+                  await launchGameWithDialog(
+                    context: context,
+                    system: system,
+                    game: widget.game,
+                    fileProvider: widget.fileProvider,
+                    dolphinWiimmfi: online,
+                    onGameClosed: () {
+                      GamepadNavigationManager.reactivate();
+                      if (mounted) widget.onGameUpdated?.call();
+                    },
+                    onLaunchFailed: (_, result) async {
+                      if (!result.cancelled) error = result.errorMessage;
+                    },
+                  );
+                } catch (_) {
+                  GamepadNavigationManager.reactivate();
+                  rethrow;
+                }
+                return error;
               },
             ),
           if (_nextendoVersion != null) ...[

@@ -238,6 +238,42 @@ void main() {
         'current profile',
       );
       expect(await Directory('${current.path}.incoming').exists(), false);
+
+      // Opening a game can create empty save folders before the first save.
+      // Empty folders and Finder-only folders must not erase imported data.
+      for (final metadataOnly in [false, true]) {
+        final name = metadataOnly ? 'metadata-only' : 'empty';
+        final emptyCurrent = Directory(p.join(root.path, name, 'Wii'));
+        for (final folder in [p.dirname(save), p.dirname(miis)]) {
+          await Directory(
+            p.join(emptyCurrent.path, folder),
+          ).create(recursive: true);
+          if (metadataOnly) {
+            for (final metadata in [
+              '.DS_Store',
+              '._profile',
+              '__MACOSX/note',
+            ]) {
+              await write('$name/Wii/$folder/$metadata', 'Finder metadata');
+            }
+          }
+        }
+        await DolphinSystemFiles.replaceSnapshot(emptyCurrent, (stage) async {
+          for (final relative in [save, miis]) {
+            final file = File(p.join(stage.path, relative));
+            await file.parent.create(recursive: true);
+            await file.writeAsString('imported $relative');
+          }
+          await preserveWiiSaveData(emptyCurrent, stage);
+          return 1;
+        });
+        for (final relative in [save, miis]) {
+          expect(
+            await File(p.join(emptyCurrent.path, relative)).readAsString(),
+            'imported $relative',
+          );
+        }
+      }
     },
   );
 
@@ -262,6 +298,37 @@ void main() {
         ).readAsString(),
         'keep',
       );
+
+      // Refuse even metadata-named or dangling links in otherwise empty trees.
+      for (final folder in [
+        'title/00010004/524d4350/data',
+        'shared2/menu/FaceLib',
+      ]) {
+        for (final dangling in [false, true]) {
+          final base = await Directory.systemTemp.createTemp('wiimmfi-link-');
+          try {
+            final live = Directory(p.join(base.path, 'Wii'));
+            final link = Link(
+              p.join(live.path, folder, '__MACOSX', '.DS_Store'),
+            );
+            await Directory(p.dirname(link.path)).create(recursive: true);
+            await link.create(
+              dangling ? p.join(base.path, 'missing') : root.path,
+            );
+            await expectLater(
+              DolphinSystemFiles.replaceSnapshot(live, (stage) async {
+                await preserveWiiSaveData(live, stage);
+                return 1;
+              }),
+              throwsA(isA<DolphinSystemFilesException>()),
+            );
+            expect(await link.exists(), true);
+            expect(await Directory('${live.path}.incoming').exists(), false);
+          } finally {
+            await base.delete(recursive: true);
+          }
+        }
+      }
     },
   );
 

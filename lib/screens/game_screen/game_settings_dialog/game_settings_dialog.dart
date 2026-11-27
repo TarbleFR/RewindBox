@@ -174,7 +174,7 @@ class _GameSettingsDialogState extends State<GameSettingsDialog> {
       return;
     }
     SfxService().playBackSound();
-    Navigator.of(context).pop();
+    Navigator.of(context).maybePop();
   }
 
   void _handleGameDeleted(String romname) {
@@ -297,7 +297,7 @@ class _GameSettingsDialogState extends State<GameSettingsDialog> {
               borderRadius: BorderRadius.circular(8.r),
               onTap: () {
                 SfxService().playBackSound();
-                Navigator.of(context).pop();
+                Navigator.of(context).maybePop();
               },
               child: Container(
                 padding: EdgeInsets.all(6.r),
@@ -430,7 +430,7 @@ class _GameSettingsDialogState extends State<GameSettingsDialog> {
             textColor: theme.colorScheme.onError,
             onTap: () {
               SfxService().playBackSound();
-              Navigator.of(context).pop();
+              Navigator.of(context).maybePop();
             },
           ),
         ],

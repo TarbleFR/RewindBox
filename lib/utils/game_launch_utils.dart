@@ -28,6 +28,7 @@ Future<void> launchGameWithDialog({
   required SystemModel system,
   required FileProvider fileProvider,
   required VoidCallback onGameClosed,
+  bool? dolphinWiimmfi,
   Future<void> Function(BuildContext context, GameLaunchResult result)?
   onLaunchFailed,
 }) async {
@@ -84,7 +85,12 @@ Future<void> launchGameWithDialog({
       return;
     }
 
-    final result = await GameService.launchGame(context, system, game);
+    final result = await GameService.launchGame(
+      context,
+      system,
+      game,
+      dolphinWiimmfi: dolphinWiimmfi,
+    );
     // A late result cannot close another route or update a replacement session.
     if (!dialogRoute.isActive) return;
 

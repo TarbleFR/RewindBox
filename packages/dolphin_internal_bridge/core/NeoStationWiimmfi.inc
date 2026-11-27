@@ -40,7 +40,7 @@ bool DOLWiimmfiNANDReady(const std::string& root)
 }
 
 extern "C" __attribute__((visibility("default")))
-int32_t neostation_dolphin_wiimmfi_abi() { return 3; }
+int32_t neostation_dolphin_wiimmfi_abi() { return 4; }
 
 extern "C" bool neostation_dolphin_wiimmfi_network_allowed()
 {
@@ -58,6 +58,14 @@ int32_t neostation_dolphin_wiimmfi_import_progress() { return g_wiimmfi_progress
 
 extern "C" __attribute__((visibility("default")))
 void neostation_dolphin_wiimmfi_cancel_import() { g_wiimmfi_cancel = true; }
+
+// May be called by the foreground observer while the runtime queue is booting.
+// Never change the network/log policy or touch Core services from that thread.
+extern "C" __attribute__((visibility("default")))
+void neostation_dolphin_wiimmfi_interrupt_boot()
+{
+  g_wiimmfi_boot_interrupted = true;
+}
 
 extern "C" __attribute__((visibility("default")))
 int32_t neostation_dolphin_wiimmfi_import(const char* image, const char* keys, const char* stage)
@@ -87,6 +95,7 @@ int32_t neostation_dolphin_wiimmfi_configure(int32_t enabled)
 {
   if (g_running || g_cleanup_started || !Core::IsUninitialized(Core::System::GetInstance())) return 0;
   if (enabled && (!g_initialized || !DOLWiimmfiNANDReady(g_user_directory + "/Wii"))) return 0;
+  g_wiimmfi_boot_interrupted = false;
   g_wiimmfi_session = enabled != 0;
   g_wiimmfi_network_allowed = enabled != 0;
   return 1;

@@ -108,6 +108,7 @@ std::atomic<int> g_boot_language{-1};
 std::optional<int> g_capture_previous_scale;
 bool g_wiimmfi_session = false;
 std::atomic<bool> g_wiimmfi_network_allowed{false};
+std::atomic<bool> g_wiimmfi_boot_interrupted{false};
 
 void Log(const std::string& stage, const std::string& message)
 {
@@ -168,6 +169,7 @@ void ResetSessionFlags()
   g_capture_previous_scale.reset();
   g_wiimmfi_session = false;
   g_wiimmfi_network_allowed = false;
+  g_wiimmfi_boot_interrupted = false;
 }
 
 void ShutdownRuntime(const char* reason)
@@ -623,9 +625,17 @@ static int32_t DOLLaunch(const char* game_path, const char* expected_system,
   });
   if (!booted || !WaitForCoreToLeaveStarting(std::chrono::seconds(120)))
   {
-    Log("core.boot_failed", "BootManager did not start the selected image.");
-    ShutdownRuntime("boot_failed");
-    return 0;
+    const bool interrupted = g_wiimmfi_session && g_wiimmfi_boot_interrupted.load();
+    Log(interrupted ? "wiimmfi.interrupted" : "core.boot_failed",
+        interrupted ? "Online launch interrupted before guest execution."
+                    : "BootManager did not start the selected image.");
+    ShutdownRuntime(interrupted ? "wiimmfi_interrupted" : "boot_failed");
+    return interrupted ? 0x8 : 0;
+  }
+  if (g_wiimmfi_session && g_wiimmfi_boot_interrupted.load())
+  {
+    ShutdownRuntime("wiimmfi_interrupted");
+    return 0x8;
   }
   int32_t flags = 0;
   if (Core::IsRunning(Core::System::GetInstance()) &&
@@ -646,11 +656,26 @@ static int32_t DOLLaunch(const char* game_path, const char* expected_system,
   else Log("metal.initialize_failed", "Dolphin did not create a Metal presenter.");
   if ((flags & 0x3) == 0x3 && Core::IsRunning(Core::System::GetInstance()))
   {
-    flags |= 0x4;
     g_boot_language = system_name == "wii" ? static_cast<int>(Config::Get(Config::SYSCONF_LANGUAGE)) : Config::Get(Config::MAIN_GC_LANGUAGE);
     g_running = true;
+    __block bool interrupted = false;
+    DOLHostQueueRunSync(^{
+      // The main-thread notification can arrive while this host block waits.
+      // Keep the guest paused; only the runtime queue performs shutdown/join.
+      if (g_wiimmfi_session && g_wiimmfi_boot_interrupted.load())
+      {
+        interrupted = true;
+        return;
+      }
+      Core::SetState(Core::System::GetInstance(), Core::State::Running);
+    });
+    if (interrupted)
+    {
+      ShutdownRuntime("wiimmfi_interrupted");
+      return 0x8;
+    }
+    flags |= 0x4;
     Log("game.submitted", "Validated game submitted to the embedded core.");
-    DOLHostQueueRunSync(^{ Core::SetState(Core::System::GetInstance(), Core::State::Running); });
     Log("launch.authorized", "JITARM64 and Metal validated while paused; CPU execution now released.");
   }
   else ShutdownRuntime("strict_launch_gate_failed");

@@ -1,5 +1,7 @@
 # Wiimmfi dans Dolphin — 27 novembre 2026
 
+[Confirmation et défauts supplémentaires](evidence/wiimmfi-followup-audit-2026-11-27.md) : fusion des dossiers vides, cycle complet de lancement, fermetures et interruption pendant le boot corrigés en source ; ABI 4, compilation à suivre. La navigation manette du panneau reste à implémenter. Les builds ABI 2/3 décrits ci-dessous sont des candidats antérieurs.
+
 [Contre-expertise et correctifs ABI 3](evidence/wiimmfi-counteraudit-2026-11-27.md) : source finale `a660c337`, identité/Mii, TMD, protections réseau/journaux et circuit de lancement revus. [Core final compilé et vérifié](https://github.com/TarbleFR/RewindBox/actions/runs/45977483996), SHA-256 `e4811001…3346250` ; [identité complète](evidence/wiimmfi-counteraudit-2026-11-27.json). Les preuves ABI 2 ci-dessous décrivent le premier candidat, remplacé avant toute livraison.
 
 ## Périmètre et identité

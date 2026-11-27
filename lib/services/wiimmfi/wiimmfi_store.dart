@@ -58,6 +58,39 @@ class WiimmfiStore {
   }
 }
 
+/// Dolphin creates save folders before the player has saved anything. Only
+/// actual files take priority over an imported save; Finder metadata does not.
+Future<bool> _hasCurrentSaveData(Directory directory) async {
+  final type = await FileSystemEntity.type(directory.path, followLinks: false);
+  if (type == FileSystemEntityType.notFound) return false;
+  if (type != FileSystemEntityType.directory) {
+    throw const DolphinSystemFilesException('unsafePath');
+  }
+  var hasData = false;
+  // Inspect the whole tree even after finding data, and also inspect ignored
+  // metadata folders: an apparently empty folder must not conceal a link.
+  await for (final entry in directory.list(
+    recursive: true,
+    followLinks: false,
+  )) {
+    final type = await FileSystemEntity.type(entry.path, followLinks: false);
+    if (type != FileSystemEntityType.file &&
+        type != FileSystemEntityType.directory) {
+      throw const DolphinSystemFilesException('unsafePath');
+    }
+    final metadata = p
+        .split(p.relative(entry.path, from: directory.path))
+        .any(
+          (name) =>
+              name == '.DS_Store' ||
+              name.startsWith('._') ||
+              name == '__MACOSX',
+        );
+    if (type == FileSystemEntityType.file && !metadata) hasData = true;
+  }
+  return hasData;
+}
+
 /// Merge only existing save-data directories after native extraction. The
 /// user's current profiles win over the console backup; the old NAND is also
 /// retained by replaceSnapshot in a separate backup.
@@ -76,7 +109,7 @@ Future<void> preserveWiiSaveData(Directory current, Directory stage) async {
       throw const WiimmfiException('unsafePath');
     }
   }
-  if (miiExists) {
+  if (miiExists && await _hasCurrentSaveData(mii)) {
     final destination = Directory(
       p.join(stage.path, 'shared2', 'menu', 'FaceLib'),
     );
@@ -101,7 +134,7 @@ Future<void> preserveWiiSaveData(Directory current, Directory stage) async {
       if (!hex.hasMatch(p.basename(low.path))) continue;
       if (low is! Directory) throw const WiimmfiException('unsafePath');
       final data = Directory(p.join(low.path, 'data'));
-      if (!await data.exists()) continue;
+      if (!await _hasCurrentSaveData(data)) continue;
       final destination = Directory(
         p.join(
           stage.path,

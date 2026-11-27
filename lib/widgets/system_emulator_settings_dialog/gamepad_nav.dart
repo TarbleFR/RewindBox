@@ -169,6 +169,7 @@ extension _GamepadNav on _SystemEmulatorSettingsDialogState {
   }
 
   void _previousTab() {
+    if (_wiimmfiBusy) return;
     List<int> availableTabs = [0, 2, 3];
     if (widget.system.folderName != 'all' &&
         widget.system.folderName != 'android') {
@@ -185,6 +186,7 @@ extension _GamepadNav on _SystemEmulatorSettingsDialogState {
   }
 
   void _nextTab() {
+    if (_wiimmfiBusy) return;
     List<int> availableTabs = [0, 2, 3];
     if (widget.system.folderName != 'all' &&
         widget.system.folderName != 'android') {

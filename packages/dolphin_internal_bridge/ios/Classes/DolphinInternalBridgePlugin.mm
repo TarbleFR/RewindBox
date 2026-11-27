@@ -1103,13 +1103,14 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
 // Build 442: 10 Hz frame-time sub-sampler on the runtime queue (trace only).
 @property(atomic, strong, nullable) dispatch_source_t frameSampler;
 @property(nonatomic, copy, nullable) NSString* activeLogPath;
-@property(nonatomic, assign) BOOL launchInProgress;
+@property(atomic, assign) BOOL launchInProgress;
 @property(atomic, assign) BOOL stopInProgress;
 @property(nonatomic, assign) BOOL monitorPollInProgress;
 @property(nonatomic, strong, nullable) UINavigationController* sessionMenu;
 @property(nonatomic, assign) BOOL menuOpening;
 @property(nonatomic, assign) BOOL wiiSession;
 @property(atomic, assign) BOOL wiimmfiSession;
+@property(atomic, assign) BOOL wiimmfiInterrupted;
 @property(atomic, assign) BOOL wiimmfiImportActive;
 @property(nonatomic, strong) nw_path_monitor_t wiimmfiNetworkMonitor;
 @property(nonatomic, strong) UILabel* wiimmfiSpeedLabel;
@@ -1301,8 +1302,12 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
 
 - (void)recordingDidEnterBackground {
   DOLDolphinViewController* owner = self.dolphinController;
-  if (self.wiimmfiSession && owner) {
-    dispatch_async(_runtimeQueue, ^{
+  if (self.wiimmfiSession && (self.launchInProgress || owner)) {
+    // The runtime queue can be blocked in boot/shader preparation. Publish the
+    // interruption now so that it cannot release the paused online guest later.
+    self.wiimmfiInterrupted = YES;
+    DOLWiimmfiInterruptBoot();
+    if (owner) dispatch_async(_runtimeQueue, ^{
       if (self.wiimmfiSession && self.dolphinController == owner && !self.stopInProgress)
         [self stopRuntimeWithReason:@"wiimmfi_background"];
     });
@@ -1456,6 +1461,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
   NSString* bootKind = [arguments[@"bootKind"] isKindOfClass:NSString.class] ? arguments[@"bootKind"] : @"game";
   const BOOL wiiMenu = [bootKind isEqualToString:@"wiiSystemMenu"];
   self.systemMenuSession = wiiMenu;
+  self.wiimmfiInterrupted = NO;
   self.wiimmfiSession = [arguments[@"wiimmfi"] boolValue] && [system isEqual:@"wii"] && !wiiMenu;
   self.activeGameTitle = [arguments[@"gameTitle"] isKindOfClass:NSString.class] ? arguments[@"gameTitle"] : @"";
   self.activeGameTitle = [self.activeGameTitle stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
@@ -1755,7 +1761,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
     if (self.wiimmfiSession) dispatch_sync(dispatch_get_main_queue(), ^{
       applicationActive = UIApplication.sharedApplication.applicationState == UIApplicationStateActive;
     });
-    if (!applicationActive) {
+    if (!applicationActive || (self.wiimmfiSession && self.wiimmfiInterrupted)) {
       fail(@"wiimmfi.interrupted", @"Return to RewindBox before starting an online session.");
       return [self finishFailedLaunch:state];
     }
@@ -1763,6 +1769,14 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
         ? neostation_dolphin_launch_wii_menu((__bridge void*)layer, metalScale, logPath.fileSystemRepresentation)
         : neostation_dolphin_launch(gamePath.fileSystemRepresentation, system.UTF8String,
                                     (__bridge void*)layer, metalScale, logPath.fileSystemRepresentation);
+    if (self.wiimmfiSession) dispatch_sync(dispatch_get_main_queue(), ^{
+      applicationActive = UIApplication.sharedApplication.applicationState == UIApplicationStateActive;
+    });
+    if ((launchFlags & 0x8) != 0 ||
+        (self.wiimmfiSession && (self.wiimmfiInterrupted || !applicationActive))) {
+      fail(@"wiimmfi.interrupted", @"The online launch was interrupted; return to RewindBox and try again.");
+      return [self finishFailedLaunch:state];
+    }
     if ((launchFlags & 0x1) != 0) state[@"jitArm64Initialized"] = @YES;
     if ((launchFlags & 0x2) != 0) state[@"metalInitialized"] = @YES;
     if ((launchFlags & 0x4) != 0) state[@"gameSubmitted"] = @YES;

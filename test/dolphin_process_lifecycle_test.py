@@ -55,6 +55,7 @@ uint16_t g_game_revision=0;
 bool g_validated_wii_menu=false;
 bool g_wiimmfi_session=false;
 std::atomic<bool> g_wiimmfi_network_allowed{false};
+std::atomic<bool> g_wiimmfi_boot_interrupted{false};
 void* g_metal_surface=nullptr;
 double g_metal_scale=1;
 std::optional<int> g_devices_callback;
@@ -117,10 +118,13 @@ template<class F> void DOLHostQueueRunSync(F block) { ++host_depth; block(); --h
 '''
         for signature in ('void ResetSessionFlags()', 'void ShutdownRuntime(',
                           'int32_t neostation_dolphin_initialize(',
-                          'int32_t neostation_dolphin_stop('):
+                          'int32_t neostation_dolphin_stop(',
+                          'void neostation_dolphin_wiimmfi_interrupt_boot()'):
             harness += '\n' + function(source, signature)
         harness += r'''
 int main() {
+ neostation_dolphin_wiimmfi_interrupt_boot();
+ assert(g_wiimmfi_boot_interrupted && !g_wiimmfi_network_allowed);
  assert(neostation_dolphin_initialize(nullptr,"Sys","bad")==0);
  assert(ui_init==0);
  for (int cycle=0; cycle<20; ++cycle) {
@@ -129,6 +133,7 @@ int main() {
    assert(g_log_path==logfile);
    assert(ui_init==1 && controllers_init==1);
    assert(!g_running && !g_jit_handshake && !g_executable_probe);
+   assert(!g_wiimmfi_boot_interrupted);
    assert(g_validated_game.empty() && g_validated_system.empty() && !g_validated_wii_menu);
    assert(g_game_id.empty() && g_gametdb_id.empty() && g_game_revision==0);
    assert(g_metal_surface==nullptr && g_boot_language==-1);
@@ -139,6 +144,8 @@ int main() {
    g_running=true; uninitialized=false;
    g_wiimmfi_session=cycle%2==0;
    g_wiimmfi_network_allowed=g_wiimmfi_session;
+   neostation_dolphin_wiimmfi_interrupt_boot();
+   assert(g_wiimmfi_boot_interrupted && g_wiimmfi_network_allowed==g_wiimmfi_session);
    achievement_configuration_active=true;
    g_jit_handshake=true; g_executable_probe=true;
    g_metal_surface=reinterpret_cast<void*>(uintptr_t{42});
@@ -150,6 +157,7 @@ int main() {
    assert(uninitialized && !g_running && !g_cleanup_started);
    assert(!g_wiimmfi_session);
    assert(!g_wiimmfi_network_allowed);
+   assert(!g_wiimmfi_boot_interrupted);
    assert(g_initialized && process_shutdown==0);
    assert(g_metal_surface==nullptr && g_validated_game.empty());
    assert(current_scale==0 && !g_capture_previous_scale);

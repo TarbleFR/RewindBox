@@ -12,9 +12,15 @@ import '../services/wiimmfi/wiimmfi_catalog.dart';
 import 'glass/glass_surface.dart';
 
 class WiimmfiPanel extends StatefulWidget {
-  const WiimmfiPanel({super.key, this.gamePath, this.onLaunch});
+  const WiimmfiPanel({
+    super.key,
+    this.gamePath,
+    this.onLaunch,
+    this.onBusyChanged,
+  });
   final String? gamePath;
   final Future<String?> Function(bool online)? onLaunch;
+  final ValueChanged<bool>? onBusyChanged;
   @override
   State<WiimmfiPanel> createState() => _WiimmfiPanelState();
 }
@@ -85,13 +91,17 @@ class _WiimmfiPanelState extends State<WiimmfiPanel> {
       _busy = true;
       _message = null;
     });
+    widget.onBusyChanged?.call(true);
     try {
       await action();
     } catch (error) {
       if (mounted) setState(() => _message = _error(error));
     } finally {
       await _load();
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() => _busy = false);
+        widget.onBusyChanged?.call(false);
+      }
     }
   }
 
@@ -211,166 +221,164 @@ class _WiimmfiPanelState extends State<WiimmfiPanel> {
         ? null
         : p.normalize(p.absolute(widget.gamePath!));
     final declared = images is Map && images[imageKey] is Map;
-    final panel = PopScope(
-      canPop: !_busy,
-      child: GlassSurface(
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Wiimmfi', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(t('intro')),
-            if (_status != null && !supported)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(t('engineUnavailable')),
+    final panel = GlassSurface(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Wiimmfi', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(t('intro')),
+          if (_status != null && !supported)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(t('engineUnavailable')),
+            ),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: Text(t('enabled')),
+            value: enabled,
+            onChanged: !_busy && (supported || enabled)
+                ? (value) => _run(() => WiimmfiService.setEnabled(value))
+                : null,
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.memory),
+            title: Text(t('nand')),
+            subtitle: Text(
+              t(
+                _status?['nandRecognized'] == true
+                    ? 'recognized'
+                    : 'nandMissing',
               ),
-            SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              title: Text(t('enabled')),
-              value: enabled,
-              onChanged: !_busy && (supported || enabled)
-                  ? (value) => _run(() => WiimmfiService.setEnabled(value))
+            ),
+          ),
+          _button('importNand', Icons.file_open, supported ? _import : null),
+          if (_importing) ...[
+            LinearProgressIndicator(
+              value: _progress?['percent'] == null
+                  ? null
+                  : ((_progress!['percent'] as num?)?.toDouble() ?? 0) / 100,
+            ),
+            Text(
+              '${t(_progress?['phase']?.toString() ?? 'importNand')}${_progress?['percent'] == null ? '' : ' · ${_progress!['percent']}%'}',
+            ),
+            ValueListenableBuilder<String>(
+              valueListenable: WiimmfiService.importPhase,
+              builder: (context, phase, _) => TextButton(
+                onPressed: phase == 'committing' || phase == 'idle'
+                    ? null
+                    : WiimmfiService.cancelImport,
+                child: Text(t('cancel')),
+              ),
+            ),
+          ],
+          if (widget.gamePath != null) ...[
+            if (_identity != null)
+              Text(
+                '${_identity!['gameId']} · ${_identity!['region']} · r${_identity!['revision']}',
+              ),
+            if (declared) Text(t('declared')),
+            _button(
+              'patch',
+              Icons.verified_user_outlined,
+              supported
+                  ? () async {
+                      if (await _confirm('patchHelp') && mounted) {
+                        await _run(
+                          () => WiimmfiService.registerPatchedImage(
+                            widget.gamePath!,
+                          ),
+                        );
+                      }
+                    }
                   : null,
             ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.memory),
-              title: Text(t('nand')),
-              subtitle: Text(
-                t(
-                  _status?['nandRecognized'] == true
-                      ? 'recognized'
-                      : 'nandMissing',
-                ),
-              ),
-            ),
-            _button('importNand', Icons.file_open, supported ? _import : null),
-            if (_importing) ...[
-              LinearProgressIndicator(
-                value: _progress?['percent'] == null
-                    ? null
-                    : ((_progress!['percent'] as num?)?.toDouble() ?? 0) / 100,
-              ),
-              Text(
-                '${t(_progress?['phase']?.toString() ?? 'importNand')}${_progress?['percent'] == null ? '' : ' · ${_progress!['percent']}%'}',
-              ),
-              ValueListenableBuilder<String>(
-                valueListenable: WiimmfiService.importPhase,
-                builder: (context, phase, _) => TextButton(
-                  onPressed: phase == 'committing' || phase == 'idle'
-                      ? null
-                      : WiimmfiService.cancelImport,
-                  child: Text(t('cancel')),
-                ),
-              ),
-            ],
-            if (widget.gamePath != null) ...[
-              if (_identity != null)
-                Text(
-                  '${_identity!['gameId']} · ${_identity!['region']} · r${_identity!['revision']}',
-                ),
-              if (declared) Text(t('declared')),
-              _button(
-                'patch',
-                Icons.verified_user_outlined,
-                supported
-                    ? () async {
-                        if (await _confirm('patchHelp') && mounted) {
-                          await _run(
-                            () => WiimmfiService.registerPatchedImage(
-                              widget.gamePath!,
-                            ),
-                          );
-                        }
-                      }
-                    : null,
-              ),
-              _button(
-                'launch',
-                Icons.public,
-                supported &&
-                        enabled &&
-                        declared &&
-                        _status?['nandRecognized'] == true &&
-                        widget.onLaunch != null
-                    ? () => _launch(true)
-                    : null,
-              ),
-              _button(
-                'offline',
-                Icons.videogame_asset,
-                supported && widget.onLaunch != null
-                    ? () => _launch(false)
-                    : null,
-              ),
-            ],
             _button(
-              'diagnose',
-              Icons.network_check,
-              enabled ? _diagnose : null,
-            ),
-            ExpansionTile(
-              title: Text(t('games')),
-              children: [
-                Text(t('catalogHelp')),
-                for (final game in WiimmfiCatalog.candidates)
-                  ListTile(
-                    title: Text(game.name),
-                    subtitle: Text(t('notTested')),
-                  ),
-              ],
+              'launch',
+              Icons.public,
+              supported &&
+                      enabled &&
+                      declared &&
+                      _status?['nandRecognized'] == true &&
+                      widget.onLaunch != null
+                  ? () => _launch(true)
+                  : null,
             ),
             _button(
-              'officialStats',
-              Icons.query_stats,
-              () => _open('https://wiimmfi.de/stat'),
+              'offline',
+              Icons.videogame_asset,
+              supported && widget.onLaunch != null
+                  ? () => _launch(false)
+                  : null,
             ),
-            _button(
-              'documentation',
-              Icons.help_outline,
-              () => _open('https://wiimmfi.de/patcher'),
-            ),
-            TextField(
-              controller: _code,
-              decoration: InputDecoration(labelText: t('code')),
-              keyboardType: TextInputType.number,
-              maxLength: 5,
-            ),
-            TextButton(
-              onPressed: _busy
-                  ? null
-                  : () async {
-                      final code = _code.text.trim();
-                      if (!RegExp(r'^\d{5}$').hasMatch(code)) return;
-                      setState(
-                        () => _message =
-                            '$code: ${t(WiimmfiLocale.errorKey(code))}',
-                      );
-                      await _open('https://wiimmfi.de/error?e=$code');
-                    },
-              child: Text(t('lookup')),
-            ),
-            _button('clear', Icons.settings_backup_restore, () async {
-              if (await _confirm('clearHelp') && mounted) {
-                await _run(WiimmfiService.clear);
-              }
-            }),
-            if (_busy && !_importing) const LinearProgressIndicator(),
-            if (_message != null)
-              Padding(padding: const EdgeInsets.all(8), child: Text(_message!)),
           ],
-        ),
+          _button('diagnose', Icons.network_check, enabled ? _diagnose : null),
+          ExpansionTile(
+            title: Text(t('games')),
+            children: [
+              Text(t('catalogHelp')),
+              for (final game in WiimmfiCatalog.candidates)
+                ListTile(
+                  title: Text(game.name),
+                  subtitle: Text(t('notTested')),
+                ),
+            ],
+          ),
+          _button(
+            'officialStats',
+            Icons.query_stats,
+            () => _open('https://wiimmfi.de/stat'),
+          ),
+          _button(
+            'documentation',
+            Icons.help_outline,
+            () => _open('https://wiimmfi.de/patcher'),
+          ),
+          TextField(
+            controller: _code,
+            decoration: InputDecoration(labelText: t('code')),
+            keyboardType: TextInputType.number,
+            maxLength: 5,
+          ),
+          TextButton(
+            onPressed: _busy
+                ? null
+                : () async {
+                    final code = _code.text.trim();
+                    if (!RegExp(r'^\d{5}$').hasMatch(code)) return;
+                    setState(
+                      () => _message =
+                          '$code: ${t(WiimmfiLocale.errorKey(code))}',
+                    );
+                    await _open('https://wiimmfi.de/error?e=$code');
+                  },
+            child: Text(t('lookup')),
+          ),
+          _button('clear', Icons.settings_backup_restore, () async {
+            if (await _confirm('clearHelp') && mounted) {
+              await _run(WiimmfiService.clear);
+            }
+          }),
+          if (_busy && !_importing) const LinearProgressIndicator(),
+          if (_message != null)
+            Padding(padding: const EdgeInsets.all(8), child: Text(_message!)),
+        ],
       ),
     );
-    if (widget.gamePath == null) return panel;
-    return ExpansionTile(
-      leading: const Icon(Icons.public),
-      title: const Text('Wiimmfi'),
-      subtitle: Text(t(declared ? 'declared' : 'notTested')),
-      children: [panel],
+    // Keep the route guard mounted even when the expansion is collapsed.
+    return PopScope(
+      canPop: !_busy,
+      child: widget.gamePath == null
+          ? panel
+          : ExpansionTile(
+              leading: const Icon(Icons.public),
+              title: const Text('Wiimmfi'),
+              subtitle: Text(t(declared ? 'declared' : 'notTested')),
+              children: [panel],
+            ),
     );
   }
 }

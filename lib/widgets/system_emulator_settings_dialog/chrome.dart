@@ -118,7 +118,7 @@ extension _Chrome on _SystemEmulatorSettingsDialogState {
               focusNode: _headerCloseButtonFocusNode,
               onTap: () {
                 SfxService().playBackSound();
-                Navigator.of(context).pop();
+                Navigator.of(context).maybePop();
               },
               child: Container(
                 padding: EdgeInsets.all(6.r),
@@ -195,6 +195,7 @@ extension _Chrome on _SystemEmulatorSettingsDialogState {
       highlightColor: Colors.transparent,
       splashColor: Colors.transparent,
       onTap: () {
+        if (_wiimmfiBusy) return;
         SfxService().playNavSound();
         rebuild(() => _currentTab = index);
       },
@@ -256,7 +257,7 @@ extension _Chrome on _SystemEmulatorSettingsDialogState {
             textColor: theme.colorScheme.onError,
             onTap: () {
               SfxService().playBackSound();
-              Navigator.of(context).pop();
+              Navigator.of(context).maybePop();
             },
           ),
         ],
