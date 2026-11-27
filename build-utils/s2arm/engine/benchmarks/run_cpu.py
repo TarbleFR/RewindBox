@@ -11,6 +11,11 @@ def run(args, name=None, env=None):
     if p.returncode: print(p.stdout,p.stderr);raise SystemExit(p.returncode)
     return p.stdout
 (out/"cpu-environment.json").write_text(json.dumps({"platform":platform.platform(),"machine":platform.machine(),"cc":run(["cc","--version"]),"physicalIPhone":False,"input":"controlled ordinary resident address and push-byte patterns; not session801 replay"},indent=2))
+if "--rec-only" in sys.argv:
+    exe=out/"rec_bench"
+    run(["cc","-O3","-std=gnu11","-Wall","-Wextra","-Werror","-DNDEBUG","-fobjc-arc","-framework","Foundation",root/"rec_bench.m","-o",exe])
+    run([exe],"rec-dispatch.csv")
+    raise SystemExit(0)
 if "--rid-only" in sys.argv:
     exe=out/"rid_bench"
     run(["cc","-O3","-std=gnu11","-Wall","-Wextra","-DNDEBUG","-fobjc-arc","-framework","Foundation","-framework","Metal",root/"rid_bench.m","-o",exe])
