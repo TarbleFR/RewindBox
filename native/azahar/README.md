@@ -282,8 +282,15 @@ Vérifié pour la deuxième série (27 novembre 2026, hôte Linux x86-64, 2 cœu
   tranche de temps sur une boucle de sauts indirects. Le cas « ASIMD Decoder » (ordre des tables), très long sous
   qemu, n'a pas été relancé. Ni le temps sous qemu ni ce décompte ne mesurent le gain sur l'A18 Pro.
 
+Compilation iOS de la deuxième série : run
+[46032835264](https://github.com/TarbleFR/RewindBox/actions/runs/46032835264) (commit `d2838526`, Xcode 26.3), réussi ;
+artefact `LibretroCores-d2838526a76a4a9770e36e7558002d768dae0ae4` (id 15216436265, 56 456 825 octets,
+`sha256:2ba5b65e…218f`). `azahar_libretro` : `ce23b6b1356cf87b77d434e3c5fe63fd1bb25b8438201bbe0f51708c058324e9`,
+17 072 016 octets (16 408 de plus que `edd641bd`), arm64 iOS 14.0, interface JIT 1, contrôles d'exports, de chaînes
+et d'imports interdits du script passés ; aucun avertissement de compilation dans les fichiers changés. DeSmuME
+`9adc00f2…` identique à la collection `57b47ff2` ; les deux Beetle PSX recompilés depuis les mêmes sources.
+
 Pas encore vérifié :
-- la compilation iOS de la deuxième série (job `source-cores`) ;
 - sur iPhone : `folded` proche de `deferred`, `created` proche de 0 en course, `retained` non nul, image identique
   (effacements, HUD, ombres de jeux qui en ont, effets lisant la profondeur), FPS et `frame_ms_p95` à 9× et 10×,
   `dispatch_per_s` et `full` dans `[rb-jit] azahar cpu` ; la compression sans perte elle-même n'est pas observable
