@@ -1,5 +1,5 @@
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index 384814a..b1a504f 100644
+index 384814a..dcd1177 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
 @@ -599,11 +599,15 @@ static void big_tex_res(id<MTLAllocation> r, int line) {   // RewindBox (patch 0
@@ -40,6 +40,15 @@ index 384814a..b1a504f 100644
          g_fence3 = [g_dev newFence];
          NSError *te = nil;   // the argument tables as DmTable3 (#279 D3-3; tab_new)
          g_vt = tab_new(31, 1, 0, &te); g_ft = tab_new(31, 1, 0, &te); g_ct = tab_new(31, 1, 0, &te); g_up_ct = tab_new(31, 1, 0, &te); g_ot = tab_new(31, 1, 0, &te); g_present_args = tab_new(1, 1, 1, &te);
+@@ -7867,7 +7874,7 @@ static const struct { int f; const char *name; } k_rb_sp_fmt[] = {
+ };
+ static void rb_sp_device_line(void) { @autoreleasepool {
+     long sps = -1;
+-    if ([g_dev respondsToSelector:NSSelectorFromString(@"supportsPlacementSparse")]) sps = [[(id)g_dev valueForKey:@"supportsPlacementSparse"] boolValue];
++    if ([g_dev respondsToSelector:NSSelectorFromString(@"supportsPlacementSparse")]) { @try { sps = [[(id)g_dev valueForKey:@"supportsPlacementSparse"] boolValue]; } @catch (NSException *x) { sps = -1; } }   // RewindBox (patch 0469): a device class that answers the selector but throws (the Mac runner's paravirtual GPU) reads as no such property
+     int fam = 0; const MTLGPUFamily fams[] = {MTLGPUFamilyApple6, MTLGPUFamilyApple7, MTLGPUFamilyApple8, MTLGPUFamilyApple9};   // sparse textures: Apple6 on; placement sparse: Apple8 on, some Apple7
+     for (int i = 0; i < 4; i++) if ([g_dev supportsFamily:fams[i]]) fam = 6 + i;
+     if (@available(macOS 26.0, iOS 26.0, *)) { if ([g_dev supportsFamily:MTLGPUFamilyApple10]) fam = 10; }
 @@ -14784,8 +14791,12 @@ static void arena_seg_done(uint64_t sf) {
  }
  // RewindBox (upstream S2Arm 9ca83e5b1): buf is __strong. An unqualified id * out-parameter is __autoreleasing under ARC, which put the arena buffer in the autorelease
@@ -88,3 +97,16 @@ index 362d394..f9ab3d5 100644
      if (g_rlane) { int k = g_rlane; rec_blk *b = g_lane_tail[k];
          if (!b || b->n == REC_BLK) { rec_blk *nb = rec_blk_get(); if (b) b->next = nb; else g_lane_head[k] = nb; g_lane_tail[k] = b = nb; }
          rec_t *r = &b->r[b->n++]; r->op = op; r->nobj = nobj; return r; }
+diff --git a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+index 5442ca4..6fbc2ec 100644
+--- a/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
++++ b/graphics/nvn/gfx/nvn/nvn_sparse_tiles.inc
+@@ -285,7 +285,7 @@ static MTLTextureDescriptor *sp_check(const tex_t *t, int gpu, sp_geo *g, char *
+     if (!t->pool || !nvn_sparse_pool(t->pool) || !t->mem) return nil;
+     static int on = -1; if (on < 0) { const char *e = getenv("DM_NVN_SPARSE_TILES"); on = !e || atoi(e); }
+     static int sps = -2;   // S2Arm: supportsPlacementSparse (iOS / macOS 26.4) by name, as patch 0023's device line; -1 on an OS without it: Metal is asked all the same, as upstream does
+-    if (sps == -2) sps = [g_dev respondsToSelector:NSSelectorFromString(@"supportsPlacementSparse")] ? [[(id)g_dev valueForKey:@"supportsPlacementSparse"] boolValue] : -1;
++    if (sps == -2) { sps = -1; if ([g_dev respondsToSelector:NSSelectorFromString(@"supportsPlacementSparse")]) { @try { sps = [[(id)g_dev valueForKey:@"supportsPlacementSparse"] boolValue]; } @catch (NSException *x) { sps = -1; } } }   // RewindBox (patch 0469): as nvn_mtl.m
+     uint32_t upf = 0, tw = 0, th = 0, td = 0; int ubpp = 0;
+     if (!on) { snprintf(why, nwhy, "DM_NVN_SPARSE_TILES=0"); return nil; }
+     if (g_m3 || !g_q4) { snprintf(why, nwhy, "the Metal 3 backend (a placement sparse texture's tiles are mapped by a Metal 4 command queue)"); return nil; }
