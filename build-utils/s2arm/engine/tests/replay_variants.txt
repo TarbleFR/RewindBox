@@ -9,5 +9,6 @@ noload_off             DM_NVN_NOLOAD=0
 cover_const_off        S2A_RB_COVER_CONST=0
 cover_load_off         S2A_RB_COVER_LOAD=0
 rt_cont_off            S2A_RB_RT_CONT=0
+m3_arg_hint_off        S2A_RB_M3_ARG_HINT=0
 draw_barriers_full     S2A_RB_DRAW_BARRIERS=full
 producer_cover_on      DM_NVN_PRODUCER_COVER=1

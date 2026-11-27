@@ -832,3 +832,8 @@ Série `0468–0470` compilée ensemble sur `macos-15` et `macos-26` (run [`4598
 ### 0476 — contrôle du quota des handles de mémoire de transfert
 
 `CreateTransferMemory` lit le compteur natif de handles du type demandé sous le même verrou. Le parcours des 8 191 entrées disparaît. Le seuil, les codes de retour et l’ordre de libération du verrou sont conservés. [Mesures et portée](../../../docs/evidence/s2arm-runtime-0476.md).
+
+### 0477 — Metal 3 : bloc d’arguments lié sans recherche d’adresse
+
+- **0477 (`nvn_mtl.m`)** : sur Metal 3 (chemin d’iOS 26), chaque liaison d’un bloc d’arguments (`bind_args`, environ deux par dessin) repassait par `tab_addr` → `m3_buf_at` : verrou de résidence `g_res_mu` (partagé avec les ajouts et retraits des autres fils) puis recherche binaire dans la table des tampons résidents, pour retrouver un tampon et un décalage que l’appelant détient déjà (le bloc vient de l’arène de l’image, résidente et jamais retirée). `bind_args` passe désormais ce tampon et ce décalage à `tab_addr` (indice local au fil, posé et effacé autour de l’appel, utilisé seulement si l’adresse est identique) ; le résultat est exactement celui de `m3_buf_at`. Metal 4 inchangé. `S2A_RB_M3_ARG_HINT=0` revient à la recherche.
+- **Preuves** : compteur `m3_arg_hints` du rejeu NVN synthétique (recherches supprimées par image) et variante `m3_arg_hint_off` (pixels et état aux dessins identiques attendus). Temps non mesuré ; non mesuré sur iPhone.

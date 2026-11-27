@@ -1,0 +1,34 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 703436a..a3d901d 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -653,8 +653,15 @@ static inline void tab_buf(id t, id<MTLBuffer> b, NSUInteger off, NSUInteger i)
+     if (!g_m3) { [(id<MTL4ArgumentTable>)t setAddress:b.gpuAddress + off atIndex:i]; return; }
+     DmTable3 *x = t; if (i >= M3T_BUF) return; x->buf[i] = b; x->off[i] = off; for (int k = 0; k < 5; k++) x->dbuf[k] |= 1u << i;
+ }
++// RewindBox (patch 0477): the argument block bind_args is binding, as buffer + offset (the arena block it came from). Arena blocks are resident and never leave the residency set,
++//   so m3_buf_at would find exactly this buffer and offset: tab_addr takes them without the residency lock and binary search. Submit thread, set and cleared around one bind_args.
++//   S2A_RB_M3_ARG_HINT=0 looks every address up as before
++static _Thread_local __unsafe_unretained id<MTLBuffer> t_rb_m3_hb; static _Thread_local uint64_t t_rb_m3_hg; static _Thread_local NSUInteger t_rb_m3_ho;
++static uint64_t g_rb_m3_hint_hits;
++static int rb_m3_hint_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_M3_ARG_HINT"); v = !(e && !strcmp(e, "0")); } return v; }
+ static inline void tab_addr(id t, uint64_t gpu, NSUInteger i) {   // an address only (the main path's bindings): Metal 3 looks the buffer up
+     if (!g_m3) { [(id<MTL4ArgumentTable>)t setAddress:gpu atIndex:i]; return; }
++    if (t_rb_m3_hb && gpu == t_rb_m3_hg) { g_rb_m3_hint_hits++; tab_buf(t, t_rb_m3_hb, t_rb_m3_ho, i); return; }   // RewindBox (patch 0477)
+     id<MTLBuffer> b; NSUInteger o = 0;
+     if (!m3_buf_at(gpu, &b, &o)) { DmTable3 *x = t; if (i < M3T_BUF) { x->buf[i] = nil; for (int k = 0; k < 5; k++) x->dbuf[k] &= ~(1u << i); } return; }   // reported red there; the slot is left unbound
+     tab_buf(t, b, o, i);
+@@ -19289,9 +19296,11 @@ static inline void args_sync_dirty(void) {
+ static inline void enc_o_args(uint64_t gpu, NSUInteger i) { if (rec_on() && !g_m3) rec_table_op(RO_T_ADDR, g_ot, gpu, i); else tab_addr(g_ot, gpu, i); }
+ static int g_args_object;   // nonzero while a task / mesh draw binds its task shader (nvn_geometry.inc mtk_encode): stage 3 is the object stage, not the hull kernel
+ static void bind_args(id<MTLCommandEncoder> en, int nvn_stage, int metal_vertex, id<MTLBuffer> ab, uint64_t gpu, size_t off, NSUInteger ai) {
+-    if (nvn_stage == 3 && g_args_object) { enc_o_args(gpu, ai); return; }
+-    if (nvn_stage == 5 || nvn_stage == 2 || nvn_stage == 3) enc_c_args((id<MTLComputeCommandEncoder>)en, gpu, ai);   // compute, the geometry kernel (geo_draw), the hull kernel (tess_draw ②)
++    if (g_m3 && ab && rb_m3_hint_on()) { t_rb_m3_hb = ab; t_rb_m3_hg = gpu; t_rb_m3_ho = (NSUInteger)off; }   // RewindBox (patch 0477): tab_addr's arena hint
++    if (nvn_stage == 3 && g_args_object) enc_o_args(gpu, ai);
++    else if (nvn_stage == 5 || nvn_stage == 2 || nvn_stage == 3) enc_c_args((id<MTLComputeCommandEncoder>)en, gpu, ai);   // compute, the geometry kernel (geo_draw), the hull kernel (tess_draw ②)
+     else enc_r_args((id<MTLRenderCommandEncoder>)en, metal_vertex ? MTLRenderStageVertex : MTLRenderStageFragment, gpu, ai);
++    t_rb_m3_hb = nil;
+ }
+ // Static constant buffers of route B: the Ryujinx support_buffer (layout in Ryujinx.Graphics.Shader/SupportBuffer.cs: alpha_test u32 x4 (op, ref), is_bgra u32[8],
+ // viewport_inverse f4, viewport_size f4, frag_scale_count i32, render_scale f32[73]..., each field aligned to 16 bytes) and the all-0 driver constant segment (64 KB = the upper bound declared by shaders)
