@@ -243,3 +243,12 @@ Run [`45965382114`](https://github.com/TarbleFR/RewindBox/actions/runs/459653821
 - `0395` (tampons liés) ne change rien de mesurable dans ces trois dispositions, sans régression.
 - Aucun changement moteur dans ce lot.
 - Les chiffres « Zelda 16,3 → 12,6 ms » et « 29,24 → 24,80 ms » restent non vérifiés.
+
+### Coût de la recherche dans la table des pools (run [`45966622489`](https://github.com/TarbleFR/RewindBox/actions/runs/45966622489), [CSV](gpu-ab/45966622489/))
+
+- **Le gain de `0394` se répète** : `−28,07 %` (p25 `−29,59` ; p75 `−26,50`). Il reste neutre quand les voies sont entrelacées (`+1,35 %`).
+- **La recherche n’est pas un point chaud.** Avec une lecture brute par thread (4 M threads), la recherche binaire en 13 étapes coûte autant que l’indice de bloc de 2 Mio : `29,57` contre `29,49 ms` en scalaire. Les voies lisent les mêmes mots de table.
+- **Écarté sans patch : partager la recherche dans un groupe SIMD** (`simd_broadcast_first`). Le gain maximal mesuré est nul.
+- **Tampons liés (`0395`)** : `+0,14 %`, `+1,20 %`, `+1,80 %`, sans écart significatif.
+
+Conclusion de l’axe GPU sur ce runner : les accès mémoire traduits sont efficaces. Ce qui reste, l’encodage Metal 4 (barrières, tables d’arguments, résidence), demande un appareil Metal 4. Le banc reste disponible pour détecter les régressions.

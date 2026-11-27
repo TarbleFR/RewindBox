@@ -1,0 +1,26 @@
+case,pair,variant,gpu_ms
+contiguous_bind_plus4,0,A,32.5380
+contiguous_bind_plus4,0,B,33.2537
+contiguous_bind_plus4,1,A,31.2755
+contiguous_bind_plus4,1,B,31.0304
+contiguous_bind_plus4,2,A,31.9090
+contiguous_bind_plus4,2,B,31.8773
+contiguous_bind_plus4,3,A,31.3537
+contiguous_bind_plus4,3,B,31.2702
+contiguous_bind_plus4,4,A,31.8773
+contiguous_bind_plus4,4,B,31.0294
+contiguous_bind_plus4,5,A,32.1961
+contiguous_bind_plus4,5,B,33.4140
+contiguous_bind_plus4,6,A,31.3258
+contiguous_bind_plus4,6,B,30.7919
+contiguous_bind_plus4,7,A,30.6108
+contiguous_bind_plus4,7,B,30.8757
+contiguous_bind_plus4,8,A,30.9616
+contiguous_bind_plus4,8,B,31.4343
+contiguous_bind_plus4,9,A,31.0469
+contiguous_bind_plus4,9,B,31.9715
+contiguous_bind_plus4,10,A,31.0801
+contiguous_bind_plus4,10,B,31.6338
+contiguous_bind_plus4,11,A,30.9339
+contiguous_bind_plus4,11,B,32.0764
+SUMMARY contiguous_bind_plus4 device="Apple Paravirtual device" n=2097152 dispatches=20 A_median_ms=31.3006 B_median_ms=31.5340 paired_median_pct=1.20 p25=-0.53 p75=2.59 parity=ok
