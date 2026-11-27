@@ -4,7 +4,7 @@ namespace
 bool DOLStateSessionReady()
 {
   auto& system = Core::System::GetInstance();
-  return g_initialized && g_running && !g_cleanup_started &&
+  return g_initialized && g_running && !g_cleanup_started && !g_wiimmfi_session &&
       Core::GetState(system) == Core::State::Paused;
 }
 

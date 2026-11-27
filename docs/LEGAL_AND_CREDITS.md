@@ -83,6 +83,14 @@ physical memory or circumvent Apple's resource enforcement.
 | **StikJIT** | StikDebug / StikJIT contributors | MPL-2.0. Recipients of executable form must be informed how to obtain the covered source. |
 | **Dawn, SDL, Aurora, Borealis** (earlier builds only) | Their respective projects and contributors | Runtime dependencies of the removed Dusklight and KartPad ports; their individual license files and notices apply to the earlier builds that embedded them. |
 
+Wiimmfi integration (27 November 2026): the BootMii reader remains Dolphin's
+`DiscIO/NANDImporter` at DolphiniOS `7cac54161659421ed95c2cd1c0b0746539a4cd38`,
+with RewindBox bounds, cancellation, staging and session policy under
+GPL-2.0-or-later. Dolphin/OatmealDome notices remain intact. No Wiimmfi patcher,
+third-party patch payload, console NAND, credential or game is bundled. The
+player supplies an image prepared with the official tool. Wiimmfi is an
+independent service; no endorsement or multiplayer certification is claimed.
+
 ### Historical source identities used by the 0.0.1 binary
 
 See [RELEASE_0.0.1_SOURCE_MANIFEST.md](RELEASE_0.0.1_SOURCE_MANIFEST.md). That

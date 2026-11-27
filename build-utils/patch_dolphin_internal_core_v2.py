@@ -106,6 +106,7 @@ void DOLSetAchievementNotifications(bool enabled);
 std::atomic<int> g_boot_language{-1};
 // Runtime-only capture budget. Never persist this cap to the user's GFX.ini.
 std::optional<int> g_capture_previous_scale;
+bool g_wiimmfi_session = false;
 
 void Log(const std::string& stage, const std::string& message)
 {
@@ -164,6 +165,7 @@ void ResetSessionFlags()
   g_metal_scale = 1.0;
   g_boot_language = -1;
   g_capture_previous_scale.reset();
+  g_wiimmfi_session = false;
 }
 
 void ShutdownRuntime(const char* reason)
@@ -327,6 +329,8 @@ bool RunExecutableProbe()
 }
 } // namespace
 
+// NEOSTATION_WIIMMFI_HELPERS
+
 // NEOSTATION_ACHIEVEMENT_SESSION
 
 // DiscIO metadata works before core/JIT initialization, including RVZ/WBFS/WAD.
@@ -352,6 +356,7 @@ char* neostation_dolphin_save_identity(const char* game_path, const char* expect
     NSMutableDictionary* identity = [@{
       @"system": [NSString stringWithUTF8String:expected_system],
       @"gameId": [NSString stringWithUTF8String:volume->GetGameID().c_str()] ?: @"",
+      @"revision": @(volume->GetRevision().value_or(0)),
       @"region": region
     } mutableCopy];
     if (const auto title_id = volume->GetTitleID())
@@ -908,7 +913,7 @@ char* neostation_dolphin_cheats_snapshot(void)
 extern "C" __attribute__((visibility("default")))
 int32_t neostation_dolphin_set_cheats_enabled(int32_t enabled)
 {
-  if (!g_running) return 0;
+  if (!g_running || g_wiimmfi_session) return 0;
   const bool requested = enabled != 0;
   __block bool identified = false;
   DOLHostQueueRunSync(^{
@@ -953,7 +958,7 @@ int32_t neostation_dolphin_set_cheats_enabled(int32_t enabled)
 extern "C" __attribute__((visibility("default")))
 int32_t neostation_dolphin_set_cheat_enabled(const char* type, int32_t index, int32_t enabled)
 {
-  if (!g_running || !type || index < 0) return 0;
+  if (!g_running || g_wiimmfi_session || !type || index < 0) return 0;
   __block bool success = false;
   const bool requested = enabled != 0;
   const std::string kind(type);
@@ -1013,7 +1018,7 @@ int32_t neostation_dolphin_set_cheat_enabled(const char* type, int32_t index, in
 extern "C" __attribute__((visibility("default")))
 char* neostation_dolphin_download_gecko_codes(void)
 {
-  if (!g_running) return nullptr;
+  if (!g_running || g_wiimmfi_session) return nullptr;
 
   __block std::string download_id;
   DOLHostQueueRunSync(^{
@@ -1165,7 +1170,7 @@ char* neostation_dolphin_menu_snapshot(int32_t wii, int32_t slot)
 extern "C" __attribute__((visibility("default")))
 int32_t neostation_dolphin_menu_apply(const char* request_json)
 {
-  if (!g_running || !request_json) return 0;
+  if (!g_running || g_wiimmfi_session || !request_json) return 0;
   NSData* data = [[NSString stringWithUTF8String:request_json] dataUsingEncoding:NSUTF8StringEncoding];
   NSDictionary* request = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
   if (![request isKindOfClass:NSDictionary.class]) return 0;
@@ -1438,6 +1443,8 @@ int32_t neostation_dolphin_stop(const char* log_path)
 '''
 
 
+BRIDGE_SOURCE = BRIDGE_SOURCE.replace('// NEOSTATION_WIIMMFI_HELPERS',
+    (Path(__file__).resolve().parents[1] / 'packages/dolphin_internal_bridge/core/NeoStationWiimmfi.inc').read_text())
 BRIDGE_SOURCE = BRIDGE_SOURCE.replace('// NEOSTATION_ACHIEVEMENT_SESSION',
     (Path(__file__).resolve().parents[1] / 'packages/dolphin_internal_bridge/core/NeoStationAchievementSession.inc').read_text())
 
@@ -1730,6 +1737,17 @@ def main() -> None:
     patch_cheat_ini_resolution(root)
     patch_achievement_session_storage(root)
     patch_achievement_presentation(root)
+    from dolphin_wiimmfi import patch_nand_importer
+    patch_nand_importer(root)
+    boot_manager = root / 'Source/Core/Core/BootManager.cpp'
+    if 'neostation_dolphin_wiimmfi_boot_policy' not in boot_manager.read_text():
+        replace_once(boot_manager, 'namespace BootManager\n{',
+                     '#ifdef IPHONEOS\nextern "C" void neostation_dolphin_wiimmfi_boot_policy();\n#endif\n\nnamespace BootManager\n{',
+                     'Wiimmfi boot policy declaration')
+        replace_once(boot_manager,
+                     '  if (!StartUp.SetPathsAndGameMetadata(system, *boot))\n    return false;',
+                     '  if (!StartUp.SetPathsAndGameMetadata(system, *boot))\n    return false;\n\n#ifdef IPHONEOS\n  neostation_dolphin_wiimmfi_boot_policy();\n#endif',
+                     'Wiimmfi per-session settings after game INIs')
     bridge.write_text(BRIDGE_SOURCE, encoding='utf-8')
     updated = memory.read_text()
     required = ('brk #0x69', '"mov x0, %0\\n"', '"mov x1, %1\\n"', 'if (rx_ptr == MAP_FAILED)')

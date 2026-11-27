@@ -7,6 +7,9 @@
 #import "DolphinSessionMenu.h"
 #import "DolphinRetroAchievementsAccount.h"
 #include "DOLCheatCatalogue.h"
+#include "DOLWiimmfi.h"
+#include <cmath>
+#import <Network/Network.h>
 #include "NeoUnifiedNativeImport.h"
 #import "DolphinFramePacing.h"
 #include "DolphinDisplayTrial.h"
@@ -1106,6 +1109,10 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
 @property(nonatomic, strong, nullable) UINavigationController* sessionMenu;
 @property(nonatomic, assign) BOOL menuOpening;
 @property(nonatomic, assign) BOOL wiiSession;
+@property(atomic, assign) BOOL wiimmfiSession;
+@property(atomic, assign) BOOL wiimmfiImportActive;
+@property(nonatomic, strong) nw_path_monitor_t wiimmfiNetworkMonitor;
+@property(nonatomic, strong) UILabel* wiimmfiSpeedLabel;
 @property(nonatomic, assign) BOOL systemMenuSession;
 @property(nonatomic, copy, nullable) NSString* saveSessionToken;
 @property(nonatomic, copy) NSDictionary<NSString*, NSString*>* menuLabels;
@@ -1293,6 +1300,13 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
 }
 
 - (void)recordingDidEnterBackground {
+  DOLDolphinViewController* owner = self.dolphinController;
+  if (self.wiimmfiSession && owner) {
+    dispatch_async(_runtimeQueue, ^{
+      if (self.wiimmfiSession && self.dolphinController == owner && !self.stopInProgress)
+        [self stopRuntimeWithReason:@"wiimmfi_background"];
+    });
+  }
   // The permission sheet resigns active too; only a real background transition
   // ends capture. Finalization stays asynchronous and never waits on the core.
   if (self.recorder.active && !self.recordingOperation)
@@ -1300,6 +1314,55 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
 }
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+  if ([call.method isEqualToString:@"wiimmfiCancelImport"]) {
+    auto cancel = reinterpret_cast<void (*)()>(dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_cancel_import"));
+    if (self.wiimmfiImportActive && cancel) cancel();
+    result(nil); return;
+  }
+  if ([call.method isEqualToString:@"wiimmfiImportProgress"]) {
+    auto progress = reinterpret_cast<int32_t (*)()>(dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_import_progress"));
+    const int32_t raw = progress ? progress() : 0;
+    result(@{@"phase": raw >= 1000 ? @"extracting" : @"reading", @"percent": @(raw >= 1000 ? raw - 1000 : raw)});
+    return;
+  }
+  if ([call.method isEqualToString:@"wiimmfiStatus"] ||
+      [call.method isEqualToString:@"wiimmfiImport"] ||
+      [call.method isEqualToString:@"wiimmfiProtectNand"]) {
+    NSDictionary* args = [call.arguments isKindOfClass:NSDictionary.class] ? call.arguments : @{};
+    dispatch_async(_runtimeQueue, ^{
+      const BOOL supported = DOLWiimmfiSupported();
+      if ([call.method isEqualToString:@"wiimmfiStatus"]) {
+        NSString* nand = [args[@"nandDirectory"] isKindOfClass:NSString.class] ? args[@"nandDirectory"] : @"";
+        auto ready = reinterpret_cast<int32_t (*)(const char*)>(dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_nand_ready"));
+        const BOOL recognized = supported && DOLWiimmfiPrivateDirectory(nand, false) && ready && ready(nand.fileSystemRepresentation) == 1;
+        dispatch_async(dispatch_get_main_queue(), ^{ result(@{@"supported": @(supported), @"nandRecognized": @(recognized)}); });
+        return;
+      }
+      if (self.launchInProgress || self.stopInProgress || self.dolphinController || !supported) {
+        dispatch_async(dispatch_get_main_queue(), ^{ result([FlutterError errorWithCode:@"wiimmfi_busy_or_unsupported" message:nil details:nil]); });
+        return;
+      }
+      if ([call.method isEqualToString:@"wiimmfiProtectNand"]) {
+        NSString* directory = [args[@"directory"] isKindOfClass:NSString.class] ? args[@"directory"] : @"";
+        const BOOL success = DOLWiimmfiProtectDirectory(directory);
+        dispatch_async(dispatch_get_main_queue(), ^{ result(success ? nil : [FlutterError errorWithCode:@"wiimmfi_protection_failed" message:nil details:nil]); });
+        return;
+      }
+      NSString* stage = [args[@"stageDirectory"] isKindOfClass:NSString.class] ? args[@"stageDirectory"] : @"";
+      NSString* image = [args[@"imagePath"] isKindOfClass:NSString.class] ? args[@"imagePath"] : @"";
+      NSString* keys = [args[@"keysPath"] isKindOfClass:NSString.class] ? args[@"keysPath"] : @"";
+      int32_t outcome = 3;
+      if ([stage.lastPathComponent isEqual:@"Wii.incoming"] && DOLWiimmfiPrivateDirectory(stage, true) &&
+          DOLWiimmfiProtectDirectory(stage)) {
+        self.wiimmfiImportActive = YES;
+        auto importNand = reinterpret_cast<int32_t (*)(const char*, const char*, const char*)>(dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_import"));
+        outcome = importNand(image.fileSystemRepresentation, keys.fileSystemRepresentation, stage.fileSystemRepresentation);
+        self.wiimmfiImportActive = NO;
+      }
+      dispatch_async(dispatch_get_main_queue(), ^{ result(@(outcome)); });
+    });
+    return;
+  }
   if ([call.method isEqualToString:@"saveIdentity"]) {
     NSDictionary* args = [call.arguments isKindOfClass:NSDictionary.class] ? call.arguments : @{};
     NSString* gamePath = [args[@"gamePath"] isKindOfClass:NSString.class] ? args[@"gamePath"] : @"";
@@ -1393,6 +1456,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
   NSString* bootKind = [arguments[@"bootKind"] isKindOfClass:NSString.class] ? arguments[@"bootKind"] : @"game";
   const BOOL wiiMenu = [bootKind isEqualToString:@"wiiSystemMenu"];
   self.systemMenuSession = wiiMenu;
+  self.wiimmfiSession = [arguments[@"wiimmfi"] boolValue] && [system isEqual:@"wii"] && !wiiMenu;
   self.activeGameTitle = [arguments[@"gameTitle"] isKindOfClass:NSString.class] ? arguments[@"gameTitle"] : @"";
   self.activeGameTitle = [self.activeGameTitle stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
   if (!self.activeGameTitle.length) self.activeGameTitle = gamePath.lastPathComponent.stringByDeletingPathExtension;
@@ -1411,7 +1475,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
   self.lastAchievementState = nil;
   self.achievementIdlePolls = 0;
   const BOOL raEnabled = [raConfiguration[@"enabled"] boolValue] &&
-      [raConfiguration[@"supported"] boolValue] && !wiiMenu;
+      [raConfiguration[@"supported"] boolValue] && !wiiMenu && !self.wiimmfiSession;
   NSString* raUsername = raEnabled && [raConfiguration[@"username"] isKindOfClass:NSString.class]
       ? raConfiguration[@"username"] : @"";
   NSString* raApiToken = raEnabled && [raConfiguration[@"token"] isKindOfClass:NSString.class]
@@ -1427,6 +1491,10 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
   };
 
   @try {
+    if (self.wiimmfiSession && !DOLWiimmfiSupported()) {
+      fail(@"wiimmfi.engine_unsupported", @"The retained Dolphin Core does not expose Wiimmfi session protection.");
+      return [self finishFailedLaunch:state];
+    }
     if (![system isEqualToString:@"gc"] && ![system isEqualToString:@"wii"]) {
       fail(@"route.rejected", @"The internal Dolphin engine is restricted to GameCube and Wii.");
       return [self finishFailedLaunch:state];
@@ -1490,6 +1558,10 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       return [self finishFailedLaunch:state];
     }
     // The core receives explicit policy before boot. Its native token login,
+    if (DOLWiimmfiConfigure(self.wiimmfiSession) != 1) {
+      fail(@"wiimmfi.configuration_failed", @"Wiimmfi requires a recognized console NAND and an idle compatible Core.");
+      return [self finishFailedLaunch:state];
+    }
     // Wii/GameCube hash selection and award callbacks remain the authority.
     const BOOL raConfigured = neostation_dolphin_configure_achievements_session(
         raEnabled ? 1 : 0, raEnabled && [raConfiguration[@"hardcore"] boolValue] ? 1 : 0,
@@ -1679,6 +1751,14 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
     // Controller skins (docs/dolphin-skins.md): the core reads the render
     // surface now; from here on a skin moves it by a transform only.
     dispatch_sync(dispatch_get_main_queue(), ^{ [controller lockRenderSurface]; });
+    __block BOOL applicationActive = YES;
+    if (self.wiimmfiSession) dispatch_sync(dispatch_get_main_queue(), ^{
+      applicationActive = UIApplication.sharedApplication.applicationState == UIApplicationStateActive;
+    });
+    if (!applicationActive) {
+      fail(@"wiimmfi.interrupted", @"Return to RewindBox before starting an online session.");
+      return [self finishFailedLaunch:state];
+    }
     int32_t launchFlags = wiiMenu
         ? neostation_dolphin_launch_wii_menu((__bridge void*)layer, metalScale, logPath.fileSystemRepresentation)
         : neostation_dolphin_launch(gamePath.fileSystemRepresentation, system.UTF8String,
@@ -1744,6 +1824,22 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
 - (void)presentSessionMenu {
   if (self.launchInProgress || self.stopInProgress || self.menuOpening || self.sessionMenu || !self.dolphinController) return;
   if (self.dolphinController.touchEditing) return;
+  if (self.wiimmfiSession) {
+    // Do not pause an online guest or expose cheats/states/clock controls.
+    DOLDolphinViewController* owner = self.dolphinController;
+    UIAlertController* online = [UIAlertController alertControllerWithTitle:@"Wiimmfi"
+        message:self.menuLabels[@"wiimmfiMenuHelp"] preferredStyle:UIAlertControllerStyleAlert];
+    [online addAction:[UIAlertAction actionWithTitle:self.menuLabels[@"resume"] ?: @"Resume"
+        style:UIAlertActionStyleCancel handler:nil]];
+    [online addAction:[UIAlertAction actionWithTitle:self.menuLabels[@"quit"] ?: @"Quit"
+        style:UIAlertActionStyleDestructive handler:^(UIAlertAction* action) {
+      dispatch_async(self->_runtimeQueue, ^{
+        if (self.dolphinController == owner && !self.stopInProgress) [self stopRuntimeWithReason:@"wiimmfi_user_quit"];
+      });
+    }]];
+    [owner presentViewController:online animated:YES completion:nil];
+    return;
+  }
   self.menuOpening = YES;
   neostation_dolphin_release_touches();
   self.dolphinController.touchOverlay.userInteractionEnabled = NO;
@@ -1968,7 +2064,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       };
       menu.readCheats = ^(void (^completion)(NSDictionary*)) {
         DolphinInternalBridgePlugin* bridge = weakSelf;
-        if (!bridge || bridge.stopInProgress || bridge.dolphinController != owner) {
+        if (!bridge || bridge.stopInProgress || bridge.wiimmfiSession || bridge.dolphinController != owner) {
           completion(nil);
           return;
         }
@@ -1992,7 +2088,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       menu.performCheatCommand = ^(NSDictionary* request,
                                    void (^completion)(BOOL success, NSDictionary* result)) {
         DolphinInternalBridgePlugin* bridge = weakSelf;
-        if (!bridge || bridge.stopInProgress || bridge.dolphinController != owner) {
+        if (!bridge || bridge.stopInProgress || bridge.wiimmfiSession || bridge.dolphinController != owner) {
           completion(NO, nil);
           return;
         }
@@ -2216,6 +2312,41 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
 
 - (void)startRunningMonitor {
   dispatch_async(dispatch_get_main_queue(), ^{
+    if (self.wiimmfiSession) {
+      DOLDolphinViewController* owner = self.dolphinController;
+      UILabel* label = [UILabel new];
+      label.text = @"Wiimmfi · ?";
+      label.font = [UIFont monospacedDigitSystemFontOfSize:12 weight:UIFontWeightSemibold];
+      label.textColor = UIColor.whiteColor;
+      label.backgroundColor = [UIColor.blackColor colorWithAlphaComponent:0.6];
+      label.layer.cornerRadius = 6;
+      label.clipsToBounds = YES;
+      label.translatesAutoresizingMaskIntoConstraints = NO;
+      [owner.view addSubview:label];
+      [NSLayoutConstraint activateConstraints:@[
+        [label.topAnchor constraintEqualToAnchor:owner.view.safeAreaLayoutGuide.topAnchor constant:6],
+        [label.centerXAnchor constraintEqualToAnchor:owner.view.centerXAnchor],
+      ]];
+      self.wiimmfiSpeedLabel = label;
+      nw_path_monitor_t network = nw_path_monitor_create();
+      self.wiimmfiNetworkMonitor = network;
+      __weak DolphinInternalBridgePlugin* weakNetworkOwner = self;
+      __block int previousRoute = -1;
+      nw_path_monitor_set_queue(network, self->_runtimeQueue);
+      nw_path_monitor_set_update_handler(network, ^(nw_path_t path) {
+        DolphinInternalBridgePlugin* bridge = weakNetworkOwner;
+        if (!bridge || !bridge.wiimmfiSession || bridge.dolphinController != owner || bridge.stopInProgress) return;
+        const int route = nw_path_get_status(path) == nw_path_status_satisfied ?
+            1 + (nw_path_uses_interface_type(path, nw_interface_type_wifi) ? 2 : 0) +
+            (nw_path_uses_interface_type(path, nw_interface_type_cellular) ? 4 : 0) : 0;
+        if (route == 0 || (previousRoute >= 0 && previousRoute != route)) {
+          [bridge stopRuntimeWithReason:@"wiimmfi_network_changed"];
+          return;
+        }
+        previousRoute = route;
+      });
+      nw_path_monitor_start(network);
+    }
     if (self.runningTimer != nil) {
       dispatch_source_cancel(self.runningTimer);
       self.runningTimer = nil;
@@ -2237,7 +2368,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       strongSelf.monitorPollInProgress = YES;
       DOLDolphinViewController* owner = strongSelf.dolphinController;
       const NSUInteger performanceGeneration = owner.performanceGeneration;
-      const BOOL samplePerformance = (owner.showingPerformance || owner.framePacing.traceEnabled) && !strongSelf.sessionMenu && !strongSelf.menuOpening;
+      const BOOL samplePerformance = (strongSelf.wiimmfiSession || owner.showingPerformance || owner.framePacing.traceEnabled) && !strongSelf.sessionMenu && !strongSelf.menuOpening;
       // The upstream input scanner already signals hotplug. Avoid taking the
       // host/input locks every 500 ms when no controller/configuration changed.
       const BOOL controllersChanged = strongSelf.lastControllerGeneration != owner.controllerGeneration;
@@ -2276,6 +2407,12 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
           if (strongSelf.dolphinController != owner) return;
           strongSelf.monitorPollInProgress = NO;
           if (strongSelf.stopInProgress) return;
+          if (strongSelf.wiimmfiSession && performance) {
+            const double speed = [performance[@"speedPercent"] respondsToSelector:@selector(doubleValue)] ? [performance[@"speedPercent"] doubleValue] : NAN;
+            NSString* observed = std::isfinite(speed) ? [NSString stringWithFormat:@"%.0f%%", speed] : @"?";
+            strongSelf.wiimmfiSpeedLabel.text = [NSString stringWithFormat:@"Wiimmfi · %@%@", observed,
+                std::isfinite(speed) && speed < 98 ? [@" · " stringByAppendingString:(strongSelf.menuLabels[@"wiimmfiSlow"] ?: @"Slow emulation")] : @""];
+          }
           if (layout && strongSelf.wiiSession) {
             [owner.touchOverlay updateExtension:layout == 2 ? @"Classic" : @"Nunchuk"];
             // Legacy pacing polls every 500 ms. Only the controller-change
@@ -2416,6 +2553,11 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       self.runningTimer = nil;
     }
     [self stopFrameSampler];
+    if (self.wiimmfiNetworkMonitor) nw_path_monitor_cancel(self.wiimmfiNetworkMonitor);
+    self.wiimmfiNetworkMonitor = nil;
+    self.wiimmfiSession = NO;
+    [self.wiimmfiSpeedLabel removeFromSuperview];
+    self.wiimmfiSpeedLabel = nil;
     DOLDolphinViewController* controller = self.dolphinController;
     [controller.externalDisplay stop];
     controller.externalDisplay = nil;

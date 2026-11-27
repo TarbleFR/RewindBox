@@ -53,6 +53,7 @@ std::string g_user_directory, g_system_directory, g_log_path, g_validated_game, 
 std::string g_game_id, g_gametdb_id;
 uint16_t g_game_revision=0;
 bool g_validated_wii_menu=false;
+bool g_wiimmfi_session=false;
 void* g_metal_surface=nullptr;
 double g_metal_scale=1;
 std::optional<int> g_devices_callback;
@@ -135,6 +136,7 @@ int main() {
    g_validated_system=cycle%2 ? "gc" : "wii";
    g_validated_game="game";
    g_running=true; uninitialized=false;
+   g_wiimmfi_session=cycle%2==0;
    achievement_configuration_active=true;
    g_jit_handshake=true; g_executable_probe=true;
    g_metal_surface=reinterpret_cast<void*>(uintptr_t{42});
@@ -144,6 +146,7 @@ int main() {
    assert(g_log_path==logfile);
    assert(neostation_dolphin_stop(logfile.c_str())==1);
    assert(uninitialized && !g_running && !g_cleanup_started);
+   assert(!g_wiimmfi_session);
    assert(g_initialized && process_shutdown==0);
    assert(g_metal_surface==nullptr && g_validated_game.empty());
    assert(current_scale==0 && !g_capture_previous_scale);
