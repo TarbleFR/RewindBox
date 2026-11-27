@@ -7048,6 +7048,20 @@
       "patches": "0470",
       "basis": "Store lookahead walk (sdx_walk): a draw whose program is not loaded yet (prog_peek nil) scanned all 6 x 288 g_pp_slot entries; each stage now keeps an ascending list of its non-zero slots, rebuilt only after a bind of that stage (one OR per bind op). Same events, same order; S2A_RB_SDX_LIVE=0 restores the full scan. Linux -O2 synthetic bench (docs/evidence/s2arm-0437-review/dispatch/bench_0470_sdx_slots.c, 2000 draws per submission, 200 submissions, 12 alternated pairs, two series on cores 0 and 1, event hashes identical every pair, ASan+UBSan verify): nil 10% -3.37% / -3.56% (p75 -2.56% / -3.21%), nil 100% -9.92% / -10.28% (p75 -9.38% / -8.18%); steady nil 0% -0.24% / -1.00% and nil 2% -0.48% / -0.30%, IQR crossing zero (no measured degradation). Reference 0426 and best intermediate 0468 share the baseline code on this path. Gain limited to phases where shaders are still loading; frame time and iPhone not measured.",
       "status": "compiled: engine CI run 45958486174 (commit d451b0074), macos-15 and macos-26 green, patch 0470 applied (sha256 e837089d...), 153 exports, S2ArmDirectChain 0be3f28548fd, thermal_gpu_checks green (t_svc_mem 213/213, t_far 111/111, t_nvn_xqueue 14/14, t_crash, t_tdump_stress 300/300); iOS frame time not measured"
+    },
+    {
+      "patches": "0471",
+      "axis": "(a) bandwidth/TBDR",
+      "basis": "Covering-first-draw load elision (0343) extended to vertex shaders without inputs: S2A.Dsh evaluates gl_Position for vertex indices 0..5 at build time (SpirvPosSlice.EvalPosition) and writes pos_const; the host proves coverage with the same rule. Generic, hosted-safe (no reader proof needed), switch S2A_RB_COVER_CONST=0.",
+      "evidence": {
+        "run": 46001412062,
+        "test_pos_const": "3/3 (full-screen triangle exact table; constant-dependent x or y: no table)",
+        "replay": "synthetic NVN frame, Metal 3 runner, 12 runs per variant, pixels and state at draws identical: attachment load bytes per frame 81 920 -> 0 (two full-screen downsample passes open DontCare instead of Load); cover_const_off and cover_load_off restore 81 920",
+        "engine": "macOS 15/26 build green in the same run"
+      },
+      "class": "structural saving proven on Mac (exact counter); A18 Pro gain not measured",
+      "risk": "xfp changes (Dsh.cs and widen/shader are hashed): one cold retranslation of cached shader results after update (startup cost, not sustained). Table used only for non-indexed, non-indirect single-instance draws from base 0 with the widescreen push inactive.",
+      "bench_fix": "replay shaders now set rb_explicit_bindings as the engine loader does: the same-target continuation (0342) then merges the split UI pass in the default hosted path (262 144 B load + store removed), so the TBDR modes no longer differ from the default in this frame"
     }
   ],
   "rejected_optimizations": [
@@ -7077,7 +7091,7 @@
     "Presentation queue scheduling, native frame pacing and physical iPhone 16 Pro Max 1x 60 FPS / thermal validation (unmeasured)",
     "In-pass cut (upstream sub_cut_pass, DM_NVN_CUT=64 by default, only when the GPU is idle): bytes bounded on the synthetic frame (one store + one reload of the open pass's attachments per cut, run 45991888494); its time balance against GPU idle is below the runner's noise and stays unmeasured on A18 Pro"
   ],
-  "next_axis": "Performance loop (a) bandwidth/TBDR: the synthetic NVN2 frame shows DM_NVN_TBDR=1 removing 76.2% of attachment load bytes and 13.7% of store bytes with identical pixels, but hosted NVN2 titles force the tile policy off (rb_current_tile_policy: guest-memory bindless handles). Quantify, per frame, which attachments the selective-bindless mode (3) could prove dead in replays with bindless readers, and whether a generic proof exists for hosted titles; then (c) per-draw argument block allocations (677 arena allocations, 173 KB/frame for 372 draws in the replay) and prog_peek_jobs keys only if steady-state.",
+  "next_axis": "(a) continued: remaining attachment traffic in the synthetic frame is stores (1 654 784 B/frame), including depth targets never read later; store elision needs reader proofs that hosted titles keep off (0296). Evaluate a hosted-safe proof for depth/stencil planes cleared at their next use within the same submission (no reader can observe), with exact counters; coordinate with the parallel M3 binding work (0477/0478) and runtime work (0472-0476) to avoid duplicate runs.",
   "legacy_note": "First 21 entries are original host summaries. Their draft patch numbers describe historical experiments; numbers may differ from integrated engine patches. Cachegrind counters are on x86. The uncalibrated projections were withdrawn. No legacy entry establishes fidelity, A18 Pro frametime, GPU time, energy, RAM or FPS.",
   "initial_reference": "0426",
   "intermediate_reference": "0436 (8be902ac0)",
