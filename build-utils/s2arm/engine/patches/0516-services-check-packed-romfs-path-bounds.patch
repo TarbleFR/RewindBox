@@ -1,0 +1,17 @@
+diff --git a/services/S2A.Services/RomFsIndex.cs b/services/S2A.Services/RomFsIndex.cs
+--- a/services/S2A.Services/RomFsIndex.cs
++++ b/services/S2A.Services/RomFsIndex.cs
+@@ -985,8 +985,11 @@
+                     if (b >= ns || (a < nf && off < BitConverter.ToInt64(idx, segment)))
+                     {
+                         (_start[i], _len[i], _ref[i]) = (off, BitConverter.ToInt64(idx, file + 8), a);
+-                        _pathRanges[a] = (uint)BitConverter.ToInt32(idx, file + 16) |
+-                            (ulong)(uint)BitConverter.ToInt32(idx, file + 20) << 32;
++                        uint pathOffset = BitConverter.ToUInt32(idx, file + 16);
++                        uint pathLength = BitConverter.ToUInt32(idx, file + 20);
++                        if (pathOffset > (uint)pathBytes || pathLength > (uint)pathBytes - pathOffset)
++                            throw new InvalidDataException($"RomFS file path is outside the path table: {where}");
++                        _pathRanges[a] = pathOffset | (ulong)pathLength << 32;
+                         a++;
+                     }
+                     else

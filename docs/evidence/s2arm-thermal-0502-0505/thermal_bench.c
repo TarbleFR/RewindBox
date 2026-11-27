@@ -167,7 +167,8 @@ static void wake_test(void) {
     assert(!gate.active && gate.energy_one==0);
 }
 static int sample(rb_energy_guard *s,uint64_t secs,unsigned us,int busy,int nominal){
-    return rb_energy_update(s,secs*NS,secs*NS,(uint64_t)us*1000,busy,nominal);
+    return rb_energy_update(s,secs*NS,secs*NS,(uint64_t)us*1000,
+                            busy ? RB_ENERGY_WORK_BUSY : RB_ENERGY_WORK_UNKNOWN,nominal);
 }
 static void energy_test(void) {
     for (int rep=0;rep<3000;rep++) {
@@ -177,17 +178,16 @@ static void energy_test(void) {
         assert(!sample(&s,4,245,1,1) && s.baseline_ns==242500);
         assert(!sample(&s,6,820,0,1));  // a slow probe in a light or unknown scene
         assert(!sample(&s,8,408,1,1) && s.over==1);
-        assert(!rb_energy_update(&s,9*NS,8*NS,408000,1,1) && s.over==1);  // repeated sample
+        assert(!rb_energy_update(&s,9*NS,8*NS,408000,RB_ENERGY_WORK_BUSY,1) && s.over==1);  // repeated sample
         assert(!sample(&s,10,260,1,1)); // noise did not enter the tier
         assert(!sample(&s,14,540,1,1));
         assert(sample(&s,19,822,1,1));  // Nominal throughout
-        assert(sample(&s,20,420,1,0));  // existing hot/low power reasons are separate
         assert(sample(&s,21,240,1,1));
         assert(sample(&s,22,246,1,1));  // min hold not yet elapsed
         assert(!sample(&s,24,245,1,1));
         assert(!sample(&s,26,810,1,1));
         assert(sample(&s,28,822,1,1));
-        assert(!rb_energy_update(&s,54*NS,28*NS,822000,1,1)); // stale
+        assert(!rb_energy_update(&s,54*NS,28*NS,822000,RB_ENERGY_WORK_BUSY,1)); // stale
         assert(!sample(&s,61,9000,1,1));   // invalid probe
         assert(!sample(&s,63,780,1,1));  // cannot instantly re-enter
         memset(&s,0,sizeof s); // reload clears calibration
@@ -225,6 +225,39 @@ static void energy_test(void) {
     printf("simulated 60 intervals cap_at=%d os_hold_at=43 optional=%u->%u foreground=%u/%u scenarios=3000\n",
            first_cap,optional[0],optional[1],essential[0],essential[1]);
 }
+static rb_energy_guard capped_at_ten(void) {
+    rb_energy_guard guard = {0};
+    assert(!sample(&guard, 2, 240, 1, 1));
+    assert(!sample(&guard, 4, 245, 1, 1));
+    assert(!sample(&guard, 8, 800, 1, 1));
+    assert(sample(&guard, 10, 820, 1, 1));
+    return guard;
+}
+
+static void check_scope_transitions(void) {
+    for (unsigned run = 0; run < 3000; run++) {
+        rb_energy_guard guard = capped_at_ten();
+        assert(rb_energy_update(&guard, 12 * NS, 12 * NS, 810000, RB_ENERGY_WORK_LIGHT, 1));
+        assert(rb_energy_update(&guard, 16 * NS, 12 * NS, 810000, RB_ENERGY_WORK_LIGHT, 1));
+        assert(!rb_energy_update(&guard, 17 * NS, 17 * NS, 810000, RB_ENERGY_WORK_LIGHT, 1));
+        assert(guard.baseline_ns == 242500);
+        assert(!sample(&guard, 19, 800, 1, 1));
+        assert(!rb_energy_update(&guard, 20 * NS, 19 * NS, 800000, RB_ENERGY_WORK_BUSY, 0));
+        assert(!sample(&guard, 21, 800, 1, 1));
+        assert(sample(&guard, 22, 820, 1, 1));
+        assert(!rb_energy_update(&guard, 23 * NS, 22 * NS, 820000, RB_ENERGY_WORK_BUSY, 0));
+        assert(!rb_energy_update(&guard, 24 * NS, 22 * NS, 820000, RB_ENERGY_WORK_BUSY, 1));
+        assert(!rb_energy_update(&guard, 80 * NS, 24 * NS, 820000, RB_ENERGY_WORK_BUSY, 1));
+
+        guard = capped_at_ten();
+        assert(rb_energy_update(&guard, 13 * NS, 13 * NS, 810000, RB_ENERGY_WORK_LIGHT, 1));
+        assert(rb_energy_update(&guard, 14 * NS, 14 * NS, 810000, RB_ENERGY_WORK_UNKNOWN, 1));
+        assert(rb_energy_update(&guard, 15 * NS, 15 * NS, 810000, RB_ENERGY_WORK_LIGHT, 1));
+        assert(!rb_energy_update(&guard, 16 * NS, 16 * NS, 810000, RB_ENERGY_WORK_LIGHT, 1));
+    }
+    puts("Scope changes, repeated data and stale probes: 3000 cycles verified");
+}
+
 static uint32_t random_state = UINT32_C(0x45dc02a1);
 static uint32_t next_word(void) {
     random_state ^= random_state << 13;
@@ -251,7 +284,8 @@ static void bad_probe_sequences(void) {
             int was_capped = guard.capped_since_ns != 0;
             unsigned previous_slow = guard.over;
             uint64_t prior_baseline = guard.baseline_ns;
-            int capped = rb_energy_update(&guard, now, observed, probe, busy, nominal);
+            int capped = rb_energy_update(&guard, now, observed, probe,
+                busy ? RB_ENERGY_WORK_BUSY : RB_ENERGY_WORK_UNKNOWN, nominal);
             if (capped && !was_capped)
                 assert(fresh && busy && nominal && rb_energy_probe_valid(probe) &&
                        previous_slow && prior_baseline && probe * 5 >= prior_baseline * 8);
@@ -350,6 +384,7 @@ int main(int argc,char **argv) {
     snapshot_test();
     wake_test();
     energy_test();
+    check_scope_transitions();
     bad_probe_sequences();
     if (argc == 2) {
         snapshot_bench();

@@ -166,3 +166,7 @@ energy guard. These changes are provided under Apache-2.0.
 RewindBox patches 0506 through 0512 modify the NVN encode queue, replay guard,
 native display slot selection, Metal 3 refusal handling and optional per-command
 timing, and add a bounded optional 30-minute native cadence observer. These changes to the S2Arm sources are provided under Apache-2.0.
+
+RewindBox patches 0513 through 0516 modify the optional thermal governor,
+Metal 4 presentation admission and packed RomFS path bounds. These changes
+are provided under Apache-2.0.

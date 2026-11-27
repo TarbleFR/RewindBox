@@ -1,0 +1,54 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -7527,7 +7527,7 @@
+ static rb_energy_guard g_rb_energy_guard;
+ static int g_rb_energy_last_applied;  // g_rb_energy_mu
+ static struct {
+-    uint64_t generation, completed_ns, frame, duration_ns;
++    uint64_t generation, submitted_ns, frame, duration_ns;
+ } g_rb_energy_sample;  // g_rb_energy_mu
+ enum { RB_ENERGY_CAP = 1, RB_ENERGY_DIAG = 2 };
+ 
+@@ -7545,18 +7545,19 @@
+     return 0;
+ #endif
+ }
+-static void rb_energy_observe(uint64_t generation, uint64_t frame, uint64_t duration) {
+-    if (atomic_load_explicit(&g_rb_energy_mode, memory_order_relaxed) <= 0) return;
++static void rb_energy_observe(uint64_t generation, uint64_t frame, uint64_t duration, uint64_t submitted) {
++    if (!submitted) return;
+     pthread_mutex_lock(&g_rb_energy_mu);
+     if (generation == atomic_load(&g_rb_probe_generation))
+-        g_rb_energy_sample = (typeof(g_rb_energy_sample)){generation, bp_now(), frame, duration};
++        g_rb_energy_sample = (typeof(g_rb_energy_sample)){generation, submitted, frame, duration};
+     pthread_mutex_unlock(&g_rb_energy_mu);
+ }
+ static int rb_energy_optional_plan(uint64_t now, int nominal, int eligible, int mode) {
+     pthread_mutex_lock(&g_rb_energy_mu);
+-    uint64_t observed = g_rb_energy_sample.generation == atomic_load(&g_rb_probe_generation) ? g_rb_energy_sample.completed_ns : 0;
++    uint64_t observed = g_rb_energy_sample.generation == atomic_load(&g_rb_probe_generation) ? g_rb_energy_sample.submitted_ns : 0;
+     uint64_t frame = g_rb_energy_sample.frame, duration = g_rb_energy_sample.duration_ns;
+-    if (observed > now) observed = 0;  // completion raced this sample
++    if (observed > now || (observed && now - observed > RB_ENERGY_SAMPLE_AGE_NS))
++        observed = 0;  // A delayed callback cannot freshen old workload.
+     uint64_t before = g_rb_energy_guard.observed_ns;
+     int was = g_rb_energy_guard.capped_since_ns != 0, workload = RB_ENERGY_WORK_UNKNOWN;
+     if (observed > before && frame >= 8) {
+@@ -30713,6 +30714,7 @@
+         });
+     } else if (st == 2 && !mtl_gpu_halted() && dm_focus_now() == 1 && !atomic_load(&g_present_discard) && !atomic_exchange(&g_probe_busy, 1)) @autoreleasepool {   // the game's present thread never drains its implicit pool (see g_sub_pool): the command buffer, encoder and handler go with this one
+         uint64_t generation=atomic_load(&g_rb_probe_generation), scheduled=now_ns();
++        uint64_t energy_submitted = atomic_load_explicit(&g_rb_energy_mode, memory_order_relaxed) > 0 ? bp_now() : 0;
+         id<MTLCommandBuffer> cb = [g_probe_q commandBuffer]; id<MTLComputeCommandEncoder> e = [cb computeCommandEncoder];
+         [e setComputePipelineState:g_probe_pso]; [e setBuffer:g_probe_buf offset:0 atIndex:0];
+         [e dispatchThreadgroups:MTLSizeMake(256, 1, 1) threadsPerThreadgroup:MTLSizeMake(64, 1, 1)]; [e endEncoding];
+@@ -30720,7 +30722,7 @@
+             if (c.status == MTLCommandBufferStatusCompleted && c.GPUEndTime > c.GPUStartTime && generation==atomic_load(&g_rb_probe_generation)) {
+                 uint64_t elapsed=(uint64_t)((c.GPUEndTime-c.GPUStartTime)*1e9);
+                 atomic_store(&g_probe_ns,elapsed);
+-                rb_energy_observe(generation, frame, elapsed);
++                rb_energy_observe(generation, frame, elapsed, energy_submitted);
+                 if (rb_probe_every()>0) MLOG("[rb-gpu-probe] frame=%llu scheduled_ns=%llu completed_ns=%llu gpu_ns=%llu every=%d fixed_work=16384x4096-fma units=duration-not-MHz",
+                     (unsigned long long)frame,(unsigned long long)scheduled,(unsigned long long)now_ns(),(unsigned long long)elapsed,rb_probe_every());
+             }

@@ -1,0 +1,105 @@
+diff --git a/graphics/nvn/gfx/nvn/rb_energy_guard.h b/graphics/nvn/gfx/nvn/rb_energy_guard.h
+--- a/graphics/nvn/gfx/nvn/rb_energy_guard.h
++++ b/graphics/nvn/gfx/nvn/rb_energy_guard.h
+@@ -8,6 +8,7 @@
+ #define RB_ENERGY_PROBE_MIN_NS UINT64_C(50000)
+ #define RB_ENERGY_PROBE_MAX_NS UINT64_C(8000000)
+ 
++enum { RB_ENERGY_WORK_UNKNOWN, RB_ENERGY_WORK_LIGHT, RB_ENERGY_WORK_BUSY };
+ typedef struct {
+     uint64_t observed_ns;
+     uint64_t first_ns;
+@@ -15,6 +16,7 @@
+     uint64_t capped_since_ns;
+     unsigned over;
+     unsigned recovered;
++    unsigned light;
+ } rb_energy_guard;
+ 
+ static inline int rb_energy_probe_valid(uint64_t duration) {
+@@ -24,9 +26,9 @@
+ // The probe has a fixed workload. Game GPU time only corroborates that
+ // optional work could compete with rendering. Neither value is a clock rate.
+ static inline int rb_energy_update(rb_energy_guard *s, uint64_t now, uint64_t observed,
+-                                   uint64_t gpu_probe, int busy, int nominal) {
+-    if (s->observed_ns && (now < s->observed_ns || now - s->observed_ns > RB_ENERGY_SAMPLE_AGE_NS)) {
+-        s->over = s->recovered = 0;
++                                   uint64_t gpu_probe, int workload, int eligible) {
++    if (!eligible || (s->observed_ns && (now < s->observed_ns || now - s->observed_ns > RB_ENERGY_SAMPLE_AGE_NS))) {
++        s->over = s->recovered = s->light = 0;
+         s->capped_since_ns = 0;
+         if (!s->baseline_ns) s->first_ns = 0;
+     }
+@@ -34,17 +36,24 @@
+         !rb_energy_probe_valid(gpu_probe))
+         return s->capped_since_ns != 0;
+     s->observed_ns = observed;
++    if (!eligible) return 0;
++    int busy = workload == RB_ENERGY_WORK_BUSY;
+     if (!s->baseline_ns) {
+-        if (!nominal || !busy) { s->first_ns = 0; return 0; }
++        if (!busy) { s->first_ns = 0; return 0; }
+         uint64_t smaller = s->first_ns < gpu_probe ? s->first_ns : gpu_probe;
+         uint64_t larger = s->first_ns > gpu_probe ? s->first_ns : gpu_probe;
+         if (smaller && larger * 4 <= smaller * 5) s->baseline_ns = (smaller + larger) / 2;
+         else s->first_ns = gpu_probe;
+         return 0;
+     }
+-    if (!nominal) {
++    if (workload == RB_ENERGY_WORK_LIGHT) {
++        // A lightly loaded menu may run at a lower clock indefinitely.
++        // After two such observations, let its optional preparation run.
++        if (s->light < 2) s->light++;
++    } else s->light = 0;
++    if (s->light == 2 && s->capped_since_ns && now - s->capped_since_ns >= RB_ENERGY_HOLD_NS) {
+         s->over = s->recovered = 0;
+-        return s->capped_since_ns != 0;
++        s->capped_since_ns = 0;
+     }
+     if (gpu_probe * 4 <= s->baseline_ns * 5) {
+         s->over = 0;
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -7558,15 +7558,20 @@
+     uint64_t frame = g_rb_energy_sample.frame, duration = g_rb_energy_sample.duration_ns;
+     if (observed > now) observed = 0;  // completion raced this sample
+     uint64_t before = g_rb_energy_guard.observed_ns;
+-    int was = g_rb_energy_guard.capped_since_ns != 0, busy = 0;
++    int was = g_rb_energy_guard.capped_since_ns != 0, workload = RB_ENERGY_WORK_UNKNOWN;
+     if (observed > before && frame >= 8) {
+-        // Three of five completed game frames must have required at least
+-        // 10 ms of GPU work. Missing frames and light menus cannot add pressure.
+-        int loaded = 0;
+-        for (unsigned i = 4; i <= 8; i++) loaded += nvn_be_gpu_ms(frame - i) >= 10.0;
+-        busy = loaded >= 3;
+-    }
+-    int capped = rb_energy_update(&g_rb_energy_guard, now, observed, duration, busy, nominal);
++        // A majority of completed frames decides the workload. Missing
++        // timings alone indicate neither heavy work nor a light menu.
++        int loaded = 0, light = 0;
++        for (unsigned i = 4; i <= 8; i++) {
++            double ms = nvn_be_gpu_ms(frame - i);
++            loaded += ms >= 10.0;
++            light += ms >= 0.0 && ms < 10.0;
++        }
++        if (loaded >= 3) workload = RB_ENERGY_WORK_BUSY;
++        else if (light >= 3) workload = RB_ENERGY_WORK_LIGHT;
++    }
++    int capped = rb_energy_update(&g_rb_energy_guard, now, observed, duration, workload, nominal && eligible);
+     uint64_t base = g_rb_energy_guard.baseline_ns;
+     unsigned slow = g_rb_energy_guard.over, recovery = g_rb_energy_guard.recovered;
+     int fresh = before != g_rb_energy_guard.observed_ns;
+@@ -7575,9 +7580,10 @@
+     g_rb_energy_last_applied = applied;
+     pthread_mutex_unlock(&g_rb_energy_mu);
+     if ((mode & RB_ENERGY_DIAG) && (fresh || was != capped || changed))
+-        MLOG("[RB-ENERGY-SPEC] t_ns=%llu frame=%llu probe_ns=%llu baseline_ns=%llu busy=%d nominal=%d slow=%u recovery=%u cap=%d applied=%d",
++        MLOG("[RB-ENERGY-SPEC] t_ns=%llu frame=%llu probe_ns=%llu baseline_ns=%llu busy=%d nominal=%d slow=%u recovery=%u cap=%d applied=%d workload=%s",
+              (unsigned long long)now, (unsigned long long)frame, (unsigned long long)(fresh ? duration : 0),
+-             (unsigned long long)base, busy, nominal, slow, recovery, capped, applied);
++             (unsigned long long)base, workload == RB_ENERGY_WORK_BUSY, nominal, slow, recovery, capped, applied,
++             workload == RB_ENERGY_WORK_LIGHT ? "light" : workload == RB_ENERGY_WORK_BUSY ? "busy" : "unknown");
+     return applied;
+ }
+ static int rb_spec_on(void) {

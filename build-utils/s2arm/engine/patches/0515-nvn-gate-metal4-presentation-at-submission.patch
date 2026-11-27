@@ -1,0 +1,37 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -29895,10 +29895,9 @@
+         if (!present_encode_slot(cb3, src, dr.texture, crop, alloc_i)) return 0;
+     } else if (@available(macOS 26.0, iOS 26.0, *)) {
+         [g_present_alloc4[alloc_i] reset];
+-        [rb_present_queue() waitForDrawable:dr];
+         cb = g_present_cb[alloc_i];
+         [cb beginCommandBufferWithAllocator:g_present_alloc4[alloc_i]];
+-        if (!present_encode_m4(cb, src, dr.texture, crop, alloc_i)) { [cb endCommandBuffer]; [rb_present_queue() signalDrawable:dr]; return 0; }
++        if (!present_encode_m4(cb, src, dr.texture, crop, alloc_i)) { [cb endCommandBuffer]; return 0; }
+         if (rl_m4) {   // DM_NVN_REGLUM: after the present blit, behind the same queue barrier
+             id<MTLBuffer> b = g_rl_buf[alloc_i];
+             if (!b || b.length < rw * rh * 4) { if (b) res_remove(b); b = g_rl_buf[alloc_i] = [g_dev newBufferWithLength:rw * rh * 4 options:MTLResourceStorageModeShared]; res_add(b); }
+@@ -29949,6 +29948,9 @@
+         if (readback) readback(f);
+         pthread_mutex_lock(&g_pq_mu); g_present_slot_done[alloc_i] = ticket; if (aa) aa->busy = NO; if (fxs) fxs->busy = NO; rb_present_complete(ticket); g_pq_inflight--; RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu);
+     });
++    // Metal 3 checks the halt gate in its commit wrapper. Metal 4 must
++    // check before publishing ownership or queuing any drawable work.
++    if (!g_m3 && !gpu_go()) { present_store(ticket, -1); return 0; }
+     // Publish the owner before submission, including callbacks that run before commit returns.
+     pthread_mutex_lock(&g_pq_mu);
+     g_present_alloc_fence[alloc_i] = ticket;
+@@ -29973,7 +29975,10 @@
+     } else {
+         // Publish residency before every Metal 4 present submit, including resources added during encoding (#298).
+         res_commit();
+-        id<MTL4CommandBuffer> buffers[] = {cb}; [rb_present_queue() commit:buffers count:1 options:o];
++        id<MTL4CommandQueue> queue = rb_present_queue();
++        [queue waitForDrawable:dr];
++        id<MTL4CommandBuffer> buffers[] = {cb};
++        [queue commit:buffers count:1 options:o];
+     }
+     // The title profile reports after presentation. The legacy summary sorts
+     // two arrays and writes host.log here, between commit and signalDrawable.
