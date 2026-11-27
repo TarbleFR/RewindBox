@@ -130,6 +130,48 @@ static __attribute__((noinline)) uint64_t standins(int fresh, int n) {
     }
     return ns() - t0;
 }
+
+// Submit side (patch 0469): the wrapper's call to the stand-in (objc_msgSend + the stand-in's method writing the record) against the same record written directly after a class test
+typedef struct { uint32_t op, nobj; uint64_t a[15]; } srec;
+enum { SREC_N = 1 << 16 };
+static srec g_srec[SREC_N]; static uint32_t g_sn; static uint64_t g_sh;
+static inline srec *sput(uint32_t op) { if (g_sn == SREC_N) { for (uint32_t i = 0; i < g_sn; i++) g_sh = mix(g_sh, g_srec[i].op ^ g_srec[i].a[0] ^ g_srec[i].a[1] * 3 ^ g_srec[i].a[2] * 7 ^ g_srec[i].a[7] * 11); g_sn = 0; } srec *r = &g_srec[g_sn++]; r->op = op; r->nobj = 0; return r; }
+static inline void sw_pso(uint64_t p) { sput(O_PSO)->a[0] = p; }
+static inline void sw_dss(uint64_t p) { sput(O_DSS)->a[0] = p; }
+static inline void sw_vp(uint64_t a, uint64_t b) { srec *r = sput(O_VP); r->a[0] = a; r->a[1] = b; }
+static inline void sw_sc(uint64_t a, uint64_t b) { srec *r = sput(O_SC); r->a[0] = a; r->a[1] = b; }
+static inline void sw_cull(uint64_t m) { sput(O_CULL)->a[0] = m; }
+static inline void sw_sref(uint64_t f, uint64_t b) { srec *r = sput(O_SREF); r->a[0] = f; r->a[1] = b; }
+static inline void sw_draw(uint64_t p, uint64_t n, uint64_t g) { srec *r = sput(O_DRAW); r->a[0] = p; r->a[1] = n; r->a[2] = 1; r->a[3] = g; r->a[4] = 4096; r->a[5] = 1; r->a[6] = 0; r->a[7] = 0; }
+@interface BStand : NSObject
+- (void)setRenderPipelineState:(uint64_t)p; - (void)setDepthStencilState:(uint64_t)s; - (void)setViewport:(uint64_t)a y:(uint64_t)b; - (void)setScissor:(uint64_t)a w:(uint64_t)b;
+- (void)setCullMode:(uint64_t)m; - (void)setStencilFront:(uint64_t)f back:(uint64_t)b; - (void)drawIndexed:(uint64_t)p count:(uint64_t)n buffer:(uint64_t)g;
+@end
+@implementation BStand
+- (void)setRenderPipelineState:(uint64_t)p { sw_pso(p); } - (void)setDepthStencilState:(uint64_t)s { sw_dss(s); } - (void)setViewport:(uint64_t)a y:(uint64_t)b { sw_vp(a, b); }
+- (void)setScissor:(uint64_t)a w:(uint64_t)b { sw_sc(a, b); } - (void)setCullMode:(uint64_t)m { sw_cull(m); } - (void)setStencilFront:(uint64_t)f back:(uint64_t)b { sw_sref(f, b); }
+- (void)drawIndexed:(uint64_t)p count:(uint64_t)n buffer:(uint64_t)g { sw_draw(p, n, g); }
+@end
+static inline int sdirect(id e) { static Class k; if (__builtin_expect(!k, 0)) k = [BStand class]; return e && object_getClass(e) == k; }
+static __attribute__((noinline)) void submit_side(int direct, id e, int passes, int draws) {
+    for (int p = 0; p < passes; p++) for (int d = 0; d < draws; d++) {
+        uint64_t g = 0x100000ull + (uint64_t)(p * 256 + d * 16);
+        if (!(d & 3)) {
+            if (direct && sdirect(e)) sw_pso(g); else [e setRenderPipelineState:g];
+            if (direct && sdirect(e)) sw_dss(g + 1); else [e setDepthStencilState:g + 1];
+            if (direct && sdirect(e)) sw_vp(1280, 720); else [e setViewport:1280 y:720];
+            if (direct && sdirect(e)) sw_sc(0, 1280); else [e setScissor:0 w:1280];
+        }
+        if (!(d & 7)) { if (direct && sdirect(e)) sw_cull(2); else [e setCullMode:2]; if (direct && sdirect(e)) sw_sref((uint64_t)d & 255, (uint64_t)d & 255); else [e setStencilFront:(uint64_t)d & 255 back:(uint64_t)d & 255]; }
+        if (direct && sdirect(e)) sw_draw(3, 36, g); else [e drawIndexed:3 count:36 buffer:g];
+    }
+}
+static uint64_t submit_hash(void) { uint64_t h = g_sh; for (uint32_t i = 0; i < g_sn; i++) h = mix(h, g_srec[i].op ^ g_srec[i].a[0] ^ g_srec[i].a[1] * 3 ^ g_srec[i].a[2] * 7 ^ g_srec[i].a[7] * 11); return h ^ g_sn; }
+static uint64_t submit_run(int direct, id e, double *ns_per_call, uint64_t *calls) {
+    g_sn = 0; g_sh = 0; enum { SP = 512, SD = 64, SR = 40 }; uint64_t t0 = ns();
+    for (int r = 0; r < SR; r++) submit_side(direct, e, SP, SD);
+    uint64_t c = (uint64_t)SR * SP * (SD + SD / 4 * 4 + SD / 8 * 2); *calls = c; *ns_per_call = (double)(ns() - t0) / (double)c; return submit_hash();
+}
 static int cmpd(const void *a, const void *b) { double x = *(const double *)a, y = *(const double *)b; return (x > y) - (x < y); }
 int main(void) { @autoreleasepool {
     enum { PASSES = 512, DRAWS = 64, REPEAT = 40, PAIRS = 12, STANDINS = 200000 };
@@ -156,6 +198,19 @@ int main(void) { @autoreleasepool {
     fprintf(stderr, "records/pass %zu; dispatch ns/record median base %.4f cached_imp %.4f paired %.2f%% (p25 %.2f%%, p75 %.2f%%); stand-in ns median fresh %.2f reused %.2f paired diff %.2f ns (p25 %.2f, p75 %.2f)\n",
             n / PASSES, (base[5] + base[6]) / 2, (cand[5] + cand[6]) / 2, (pct[5] + pct[6]) / 2, (pct[2] + pct[3]) / 2, (pct[8] + pct[9]) / 2,
             (sf[5] + sf[6]) / 2, (sr[5] + sr[6]) / 2, (spct[5] + spct[6]) / 2, (spct[2] + spct[3]) / 2, (spct[8] + spct[9]) / 2);
+    {   // Submit side (patch 0469)
+        BStand *st = [BStand new]; double a, b; uint64_t calls, h0 = submit_run(0, st, &a, &calls), h1 = submit_run(1, st, &b, &calls);
+        if (h0 != h1) { fprintf(stderr, "SUBMIT PARITY FAIL\n"); return 1; }
+        double sb[PAIRS], sc[PAIRS], sp[PAIRS];
+        for (int p = 0; p < PAIRS; p++) {
+            for (int k = 0; k < 2; k++) { int d = (p & 1) ^ k; double v; if (submit_run(d, st, &v, &calls) != h0) { fprintf(stderr, "SUBMIT PARITY FAIL pair %d\n", p); return 1; } if (d) sc[p] = v; else sb[p] = v; }
+            printf("submit,%d,message,%.4f,%016llx\nsubmit,%d,direct,%.4f,%016llx\n", p, sb[p], (unsigned long long)h0, p, sc[p], (unsigned long long)h0);
+            sp[p] = 100.0 * (sc[p] / sb[p] - 1.0);
+        }
+        qsort(sb, PAIRS, 8, cmpd); qsort(sc, PAIRS, 8, cmpd); qsort(sp, PAIRS, 8, cmpd);
+        fprintf(stderr, "submit side: %llu calls a sample; ns/call median message %.4f direct %.4f paired %.2f%% (p25 %.2f%%, p75 %.2f%%)\n", (unsigned long long)calls,
+                (sb[5] + sb[6]) / 2, (sc[5] + sc[6]) / 2, (sp[5] + sp[6]) / 2, (sp[2] + sp[3]) / 2, (sp[8] + sp[9]) / 2);
+    }
     free(r);
     return 0;
 } }
