@@ -716,7 +716,7 @@ static NSDictionary<NSString *, id> *Failure(NSString *code, NSString *message) 
   }
   // NeoStation console: key of the frontend settings file and of the skins.
   NSString *console = StringArgument(arguments, @"console");
-  if (console.length == 0 || [console rangeOfCharacterFromSet:invalid].location != NSNotFound) {
+  if (!ValidCoreIdentifier(console)) {
     result(Failure(@"LIBRETRO_INVALID_REQUEST", @"console"));
     return;
   }

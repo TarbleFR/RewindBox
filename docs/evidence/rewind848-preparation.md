@@ -8,3 +8,7 @@ Base : IPA 847 livrée et vérifiée. Inclure les ajouts produit depuis cette ba
 - Autres moteurs inchangés. Suites Flutter/natives non exécutées pour cette compilation ; contrôles indispensables conservés.
 
 Statut : préparation, aucune IPA livrée. FPS, chauffe et multijoueur sur iPhone non mesurés. Maturité S2Arm inchangée : I/R/C/P/S = 50/60/65/35/25, estimation 50 % ; une compilation ne démontre pas un gain sur appareil.
+
+## Premier essai et correction
+
+Le run `45997541453` (source `e24166ebe`) passe le contrat de livraison puis échoue dans la compilation Objective-C : `LibretroInternalBridgePlugin.m:719`, identifiant `invalid` hors portée depuis la promotion `025a688f`. Le contrôle de console utilise maintenant `ValidCoreIdentifier(console)`, identique à l’ancien alphabet autorisé. Aucun moteur à recompiler ; nouvelle compilation application nécessaire. Aucun IPA produit par ce premier essai.
