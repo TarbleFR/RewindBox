@@ -1,6 +1,6 @@
 # Wiimmfi dans Dolphin — 27 novembre 2026
 
-[Diagnostic du lancement et parcours Mario Kart Wii, ABI 5](evidence/wiimmfi-session-diagnostic.md). Le réglage de dossier NAND ne peut plus détourner une session Wiimmfi de la copie importée. Le diagnostic sépare les certificats TLS locaux, l’identité chargée par IOS et la connexion au serveur. Les preuves anciennes ci-dessous restent liées à leurs versions.
+[Diagnostic du lancement et parcours Mario Kart Wii, ABI 5](evidence/wiimmfi-session-diagnostic.md). Le réglage de dossier NAND et les nouvelles tentatives au repos sont contrôlés. La reconnaissance exige aussi la présence des signatures de l’identité Wii. Le diagnostic sépare les certificats TLS locaux, l’identité chargée par IOS et la connexion au serveur. Les preuves anciennes ci-dessous restent liées à leurs versions.
 
 [Parcours visuel unifié avec Nextendo](evidence/wiimmfi-nextendo-interface-2026-11-27.md) : menu de la playlist Wii → Wiimmfi, préparation de la console, Services en ligne et état synthétique ; aide/détails repliés. Composants partagés avec Nextendo, authentifications distinctes et inchangées.
 

@@ -9,6 +9,14 @@
 
 Aucun code en jeu ni dump réel fourni pour cette revue. Les défauts ci-dessus sont reproductibles dans l’intégration, mais leur présence sur l’iPhone de l’utilisateur et le point de refus du serveur restent à déterminer.
 
+## Contre-expertise des nouvelles tentatives
+
+Sur `40f4de0f`, une seconde activation alors que le Core reste au repos remplaçait le dossier à restaurer par la NAND temporaire de Wiimmfi. Désactiver sans lancer le jeu gardait aussi ce dossier. Si la seconde activation échouait au contrôle TLS, les drapeaux réseau de la première pouvaient rester actifs. La reproduction sur les vrais corps C++ échouait avant correction. Chaque nouvelle configuration idle ferme désormais son autorisation précédente et rétablit le dossier d’origine avant de vérifier et armer la tentative suivante.
+
+Le contrôle structurel de `keys.bin` regardait l’ID et la clé privée NG, mais acceptait les deux composantes ECC de signature NG vides ainsi que les identifiants CA/MS manquants. Dolphin emploie ces champs pour constituer le certificat de la Wii. Ils sont maintenant requis avant de reconnaître la NAND, d’importer la copie et d’autoriser son lancement. Le contrôle vérifie la présence des champs. La chaîne cryptographique et l’acceptation du serveur restent des étapes distinctes. Aucun identifiant n’est exporté.
+
+Les tests exécutent la fonction de reconnaissance sur des données entièrement synthétiques. Ils couvrent le cas structurel complet et dix refus pour clé, signature et émetteurs absents ou remplis de `FF`. Le cycle de vie vérifie vingt alternances Wii/GameCube, doubles activations, désactivation avant lancement, refus TLS et restauration après arrêt. Les deux tests réussissent. Le second est inclus dans le producteur Dolphin existant.
+
 ## Préparation guidée
 
 Pour `RMCP01` (Europe), `RMCE01` (Amérique du Nord), `RMCJ01` (Japon) et `RMCK01` (Corée), DiscIO lit la région et la révision de l’image déclarée. L’application vérifie à nouveau ces éléments et l’empreinte complète avant de lancer cette copie. Aucun patchage ou réencodage du jeu n’est effectué sur iPhone.

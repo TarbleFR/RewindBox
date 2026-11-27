@@ -28,6 +28,15 @@ bool DOLWiimmfiNANDReady(const std::string& root)
            std::any_of(begin, end, [](u8 b) { return b != 0xff; });
   };
   if (!nonzero(bytes.begin() + 0x128, bytes.begin() + 0x146)) return false;
+  // IOSC builds the device certificate from both ECC signature components and
+  // its CA/MS issuers. Missing components cannot be repaired by a TLS probe.
+  if (!nonzero(bytes.begin() + 0x20c, bytes.begin() + 0x22a) ||
+      !nonzero(bytes.begin() + 0x22a, bytes.begin() + 0x248)) return false;
+  for (const size_t offset : {size_t{0x200}, size_t{0x204}})
+  {
+    const u32 issuer = Common::swap32(bytes.data() + offset);
+    if (issuer == 0 || issuer == 0xffffffff) return false;
+  }
   File::IOFile settings(root + "/title/00000001/00000002/data/setting.txt", "rb");
   Common::SettingsBuffer settings_bytes{};
   if (settings.GetSize() != settings_bytes.size() ||
@@ -123,6 +132,16 @@ extern "C" __attribute__((visibility("default")))
 int32_t neostation_dolphin_wiimmfi_configure(int32_t enabled)
 {
   if (g_running || g_cleanup_started || !Core::IsUninitialized(Core::System::GetInstance())) return 0;
+  // Reconfiguration is allowed while idle, including after a failed preflight.
+  // Return the previous NAND ownership before saving a new session override.
+  g_wiimmfi_network_allowed = false;
+  g_wiimmfi_session = false;
+  if (!g_wiimmfi_previous_nand_root.empty())
+  {
+    DOLHostQueueRunSync(^{
+      File::SetUserPath(D_WIIROOT_IDX, std::exchange(g_wiimmfi_previous_nand_root, {}));
+    });
+  }
   if (enabled)
   {
     for (auto& counter : g_wiimmfi_network_events) counter = 0;

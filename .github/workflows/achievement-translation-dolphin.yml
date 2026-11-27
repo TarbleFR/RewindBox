@@ -102,6 +102,7 @@ jobs:
           SRC="$RUNNER_TEMP/dolphin-ios"
           python3 build-utils/patch_dolphin_internal_core_v2.py "$SRC"
           python3 test/dolphin_metal_shutdown_test.py
+          python3 test/dolphin_process_lifecycle_test.py
           python3 test/dolphin_cheat_catalog_test.py --upstream "$SRC"
           python3 test/achievement_translation_native_test.py --upstream "$SRC"
           python3 test/wiimmfi_nand_reader_test.py --upstream "$SRC"

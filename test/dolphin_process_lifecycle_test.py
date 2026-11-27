@@ -168,6 +168,19 @@ int main() {
      tls_files_valid=true;
      assert(neostation_dolphin_wiimmfi_configure(1)==1 && g_wiimmfi_network_allowed);
      assert(File::wii_root=="User/Wii" && g_wiimmfi_previous_nand_root=="OtherNand/");
+     // A second setup before boot must not replace the original NAND owner.
+     assert(neostation_dolphin_wiimmfi_configure(1)==1);
+     assert(g_wiimmfi_previous_nand_root=="OtherNand/");
+     assert(neostation_dolphin_wiimmfi_configure(0)==1);
+     assert(!g_wiimmfi_network_allowed && !g_wiimmfi_session);
+     assert(File::wii_root=="OtherNand/" && g_wiimmfi_previous_nand_root.empty());
+     assert(neostation_dolphin_wiimmfi_configure(1)==1);
+     tls_files_valid=false;
+     assert(!neostation_dolphin_wiimmfi_configure(1));
+     assert(!g_wiimmfi_network_allowed && !g_wiimmfi_session);
+     assert(File::wii_root=="OtherNand/" && g_wiimmfi_previous_nand_root.empty());
+     tls_files_valid=true;
+     assert(neostation_dolphin_wiimmfi_configure(1)==1);
      assert(!neostation_dolphin_wiimmfi_validate_boot_nand(false));
      File::wii_root="User/Wii/";
      assert(!neostation_dolphin_wiimmfi_validate_boot_nand(true));
@@ -232,6 +245,73 @@ int main() {
                                   capture_output=True,text=True,timeout=60)
             self.assertEqual(result.returncode,0,result.stderr)
             result=subprocess.run([str(executable)],capture_output=True,text=True,timeout=10)
+            self.assertEqual(result.returncode,0,result.stderr)
+
+
+    def test_identity_readiness_rejects_missing_certificate_components(self):
+        compiler = shutil.which('c++') or shutil.which('clang++')
+        if not compiler:
+            self.skipTest('C++ compiler required')
+        source = bridge_source()
+        harness = r'''
+#include <algorithm>
+#include <array>
+#include <cassert>
+#include <cstdint>
+#include <cstring>
+#include <string>
+using u8=uint8_t; using u32=uint32_t;
+std::array<u8,0x400> fixture{};
+namespace Common {
+u32 swap32(const u8* p) { return (u32(p[0])<<24)|(u32(p[1])<<16)|(u32(p[2])<<8)|p[3]; }
+using SettingsBuffer=std::array<u8,256>;
+struct SettingsReader {
+  explicit SettingsReader(const SettingsBuffer&) {}
+  std::string GetValue(const char*) { return "SYNTHETIC"; }
+};
+}
+namespace File {
+struct IOFile {
+  std::string path;
+  IOFile(std::string name,const char*) : path(std::move(name)) {}
+  size_t GetSize() const {
+    return path.ends_with("keys.bin") ? fixture.size() : path.ends_with("setting.txt") ? 256 : 32;
+  }
+  bool ReadBytes(void* out,size_t size) {
+    if (path.ends_with("keys.bin")) std::memcpy(out,fixture.data(),size);
+    else std::memset(out,0,size);
+    return true;
+  }
+};
+bool IsDirectory(const std::string&) { return true; }
+}
+'''
+        harness += function(source, 'bool DOLWiimmfiNANDReady(')
+        harness += r'''
+int main() {
+  fixture[0x124]=1; fixture[0x128]=1;
+  fixture[0x203]=1; fixture[0x207]=1;
+  fixture[0x20c]=1; fixture[0x22a]=1;
+  assert(DOLWiimmfiNANDReady("synthetic"));
+  for (const auto& [begin,end] : {std::pair{0x128,0x146},std::pair{0x20c,0x22a},
+                                std::pair{0x22a,0x248},std::pair{0x200,0x204},
+                                std::pair{0x204,0x208}}) {
+    const auto valid=fixture;
+    for (const u8 fill : {u8{0},u8{0xff}}) {
+      std::fill(fixture.begin()+begin,fixture.begin()+end,fill);
+      assert(!DOLWiimmfiNANDReady("synthetic"));
+    }
+    fixture=valid;
+  }
+}
+'''
+        with tempfile.TemporaryDirectory() as temporary:
+            path=Path(temporary)
+            cpp=path/'identity.cpp'
+            cpp.write_text(harness)
+            subprocess.run([compiler,'-std=c++20','-Wall','-Wextra','-Werror',
+                            str(cpp),'-o',str(path/'identity')],check=True)
+            result=subprocess.run([str(path/'identity')],capture_output=True,text=True)
             self.assertEqual(result.returncode,0,result.stderr)
 
 
