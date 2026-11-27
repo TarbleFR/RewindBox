@@ -105,6 +105,7 @@ jobs:
           python3 test/dolphin_cheat_catalog_test.py --upstream "$SRC"
           python3 test/achievement_translation_native_test.py --upstream "$SRC"
           python3 test/wiimmfi_nand_reader_test.py --upstream "$SRC"
+          python3 test/wiimmfi_offline_test.py --upstream "$SRC"
           python3 test/wiimmfi_sdk_test.py
 
           cmake -S "$SRC" -B "$SRC/build-iphoneos-Release" -G Ninja             -DCMAKE_TOOLCHAIN_FILE="$SRC/Externals/ios-cmake/ios.toolchain.cmake"             -DPLATFORM=OS64             -DDEPLOYMENT_TARGET=17.4             -DENABLE_VISIBILITY=ON             -DENABLE_BITCODE=OFF             -DENABLE_ARC=ON             -DCMAKE_BUILD_TYPE=Release             -DCMAKE_CXX_FLAGS=-fPIC             -DIOS=ON             -DENABLE_ANALYTICS=NO             -DUSE_SYSTEM_LIBS=OFF             -DUSE_RETRO_ACHIEVEMENTS=ON             -DENABLE_TESTS=OFF             -DCMAKE_POLICY_VERSION_MINIMUM=3.5             -DCMAKE_C_COMPILER_LAUNCHER=ccache             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache             -DCMAKE_OBJC_COMPILER_LAUNCHER=ccache             -DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache             2>&1 | tee build/dolphin-core-diagnostics/configure.log
@@ -156,6 +157,7 @@ jobs:
               'sha256': hashlib.sha256(core.read_bytes()).hexdigest(),
               'architectures': ['arm64'],
               'abi': 'NeoStation Dolphin internal v3 + cheat manager',
+              'wiimmfi_abi': 2,
               'cheat_catalogues': ['Gecko/WiiRD', 'Action Replay/local INI'],
               'device_runtime_tested': False,
               'achievement_presenter': 1,
