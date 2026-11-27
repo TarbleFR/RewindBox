@@ -104,6 +104,8 @@ static void rbm_trace(const rec_t *r) {
                 (unsigned long long)rbm_s.vp[2], (unsigned long long)rbm_s.vp[3], (unsigned long long)rbm_s.sc[2], (unsigned long long)rbm_s.sc[3], (unsigned long long)rbm_s.cull,
                 (unsigned long long)rbm_s.blend[0], rbm_s.buf[0], rbm_s.buf[1], rbm_s.buf[2], rbm_s.buf[3], rbm_s.buf[4]);
         for (int s = 0; s < 5; s++) for (int i = 0; i < 32; i++) if (rbm_s.tex[s][i] || rbm_s.smp[s][i]) fprintf(rbm_tf, "%d.%d:%llu/%llu ", s, i, (unsigned long long)rbm_s.tex[s][i], (unsigned long long)rbm_s.smp[s][i]);
+        fprintf(rbm_tf, "st=%016llx", (unsigned long long)rbm_state());
+        for (int i = 0, n = r->op == RO_R_DRAW ? 3 : r->op == RO_R_DRAW_INST ? 5 : 0; i < n; i++) fprintf(rbm_tf, " a%d=%llu", i, (unsigned long long)r->a[i]);
         fprintf(rbm_tf, "\n"); break;
     default: break;
     }
@@ -126,10 +128,10 @@ static void rbm_exec(const void *rp) {
     case RO_R_CULL: rbm_s.cull = a[0]; break;
     case RO_R_WINDING: rbm_s.wind = a[0]; break;
     case RO_R_FILL: rbm_s.fill = a[0]; break;
-    case RO_R_BIAS: memcpy(rbm_s.bias, a, sizeof rbm_s.bias); break;
+    case RO_R_BIAS: for (int i = 0; i < 3; i++) rbm_s.bias[i] = (uint32_t)a[i]; break;   // floats in the low 32 bits (rec_fv); the high bits are not written
     case RO_R_CLIP: rbm_s.clip = a[0]; break;
-    case RO_R_SREF: rbm_s.sref[0] = a[0]; rbm_s.sref[1] = a[1]; break;
-    case RO_R_BLEND: memcpy(rbm_s.blend, a, sizeof rbm_s.blend); break;
+    case RO_R_SREF: rbm_s.sref[0] = (uint32_t)a[0]; rbm_s.sref[1] = (uint32_t)a[1]; break;
+    case RO_R_BLEND: for (int i = 0; i < 4; i++) rbm_s.blend[i] = (uint32_t)a[i]; break;
     case RO_M3_TEX: if (a[1] < 5 && a[2] < 32) rbm_s.tex[a[1]][a[2]] = rbm_id(a[0]); break;
     case RO_M3_SMP: if (a[1] < 5 && a[2] < 32) rbm_s.smp[a[1]][a[2]] = rbm_id(a[0]); break;
     case RO_M3_BUF: if (a[1] < 5 && a[3] < 32) rbm_s.buf[a[1]] |= 1u << a[3]; break;   // the slot, not the scratch offset: argument contents are checked through the pixels
@@ -140,7 +142,8 @@ static void rbm_exec(const void *rp) {
     case RO_R_DRAW: case RO_R_DRAW_INST: case RO_R_DRAW_IND: case RO_R_DRAW_IDX: case RO_R_DRAW_IDX_IND: case RO_R_DRAW_IND_B: case RO_R_DRAW_IDX_B: case RO_R_DRAW_IDX_IND_B:
     case RO_R_MESH: case RO_R_MESH_IND: case RO_R_MESH_IND_B:
         rbm_draws++; rbm_h = rbm_mix(rbm_h, rbm_state()); rbm_h = rbm_mix(rbm_h, r->op);
-        for (int i = 0; i < 8; i++) if (r->op == RO_R_DRAW || r->op == RO_R_DRAW_INST) rbm_h = rbm_mix(rbm_h, a[i]);
+        // Only the slots the call reads (rec_exec): a record block is reused, so slots past them hold whatever an earlier record left there
+        for (int i = 0, n = r->op == RO_R_DRAW ? 3 : r->op == RO_R_DRAW_INST ? 5 : 0; i < n; i++) rbm_h = rbm_mix(rbm_h, a[i]);
         break;
     case RO_C_DISPATCH: case RO_C_DISPATCH_IND: case RO_C_DISPATCH_THREADS: case RO_C_DISPATCH_IND_B:
         rbm_dispatches++; rbm_h = rbm_mix(rbm_h, 0xd15 ^ rbm_s.cpso); rbm_h = rbm_mix(rbm_h, rbm_state()); break;
