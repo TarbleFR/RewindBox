@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "47029c26b8b93668e2b0cfccff4d28d8dfb553fd71e0cd0436331a4b2ab3e560",
+  "packagedFingerprint": "7798f065487c9977891a9dc6317800a4d7e54d5726b2610deb991f3479ac98b9",
   "producers": {
     "engine": {
-      "run": 45988137849,
+      "run": 46043966034,
       "attempt": 1,
-      "artifact": 15194395265,
-      "name": "s2arm-engine-framework-e64d53205f934ac8aa699fc3a8bc55fdce4cc790",
-      "bytes": 25711012,
-      "sha256": "f59684302563899d9da481e6cdd5971f3d0ec10b62fda9677851099535f7679a",
-      "headSha": "e64d53205f934ac8aa699fc3a8bc55fdce4cc790",
+      "artifact": 15222360547,
+      "name": "s2arm-engine-framework-491008cffa8051913ff2ee21c6427fc3e2f19190",
+      "bytes": 25742261,
+      "sha256": "0c12c736b06d7f75cfde492c347b61d983bff526371816348a32100695e7522d",
+      "headSha": "491008cffa8051913ff2ee21c6427fc3e2f19190",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-27T11:33:02Z",
+      "expiresAt": "2026-12-27T17:52:57Z",
       "members": {
-        "S2ArmEngine.framework.zip": "f6f71f53b4a30e283988a9cc89d62b65599e8fbd547a1212bbe8fbfbb3de880a",
-        "NS2Pro.framework.zip": "9d74656bf8c339c8dd0943784744703e9a4179915bc8f70ae04d6066331729c5"
+        "S2ArmEngine.framework.zip": "841b45ad80cfe009e7befb9e79c02d7ff06732ed6d669775a340015283ed3491",
+        "NS2Pro.framework.zip": "4d3d98b4233485257369bfb2a6ec1fed75009a0f4726ce08e22388a4acb441a2"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "f59684302563899d9da481e6cdd5971f3d0ec10b62fda9677851099535f7679a",
+    "engine": "0c12c736b06d7f75cfde492c347b61d983bff526371816348a32100695e7522d",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -106,12 +106,12 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "6dd57fa925f657f958667207e780c2f70749daff89ed076b3d5d940aab3f26ae",
-      "bytes": 116823656,
-      "fingerprint": "47029c26b8b93668e2b0cfccff4d28d8dfb553fd71e0cd0436331a4b2ab3e560"
+      "sha256": "d757f24062831252bfae96be893de113078f144738620c0a8333590c115c7fe2",
+      "bytes": 116879824,
+      "fingerprint": "7798f065487c9977891a9dc6317800a4d7e54d5726b2610deb991f3479ac98b9"
     },
     "S2ArmEngine.framework/S2ArmShaderXfp.txt": {
-      "sha256": "ff5f5df131ccd1862388dbb9917eb93beb4ba2b30cd45dd3b2a5e95cb895d75d",
+      "sha256": "4a267500efb1e22c5a514925e6418c252c6cd1a1c4744f5c667727ed09b6c1e4",
       "bytes": 17
     },
     "S2ArmEngine.framework/en.lproj/InfoPlist.strings": {
@@ -145,9 +145,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 45988137849,
+      "run": 46043966034,
       "attempt": 1,
-      "head_sha": "e64d53205f934ac8aa699fc3a8bc55fdce4cc790",
+      "head_sha": "491008cffa8051913ff2ee21c6427fc3e2f19190",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -2014,22 +2014,242 @@
         {
           "name": "0470-rb-sdx-live-slot-lists.patch",
           "sha256": "e837089d92c8d8f7f28528ca0db2c6272f1c849773a35517f23052321396c344"
+        },
+        {
+          "name": "0471-rb-cover-load-position-tables.patch",
+          "sha256": "6906dc734c3d09959a0066beab68a40f2f51bdf96a61a51a168b31d40a63a531"
+        },
+        {
+          "name": "0472-runtime-count-new-physical-pages-with-bitmap-words.patch",
+          "sha256": "d10077800aeb59ea1dce2875f901b0ed4cfdb9843c0906cb2a1e6e0bcb357860"
+        },
+        {
+          "name": "0473-runtime-skip-empty-far-directory-blocks.patch",
+          "sha256": "7428490a3db95b716a985dee0429f7317a0dd6d2fe86387fd938e848ca398acc"
+        },
+        {
+          "name": "0474-runtime-record-uniform-mapped-page-groups.patch",
+          "sha256": "8d18f707e4ada36b2f04404e6496d5637ba2b9320f2fcbbba76af20d7b93b2cd"
+        },
+        {
+          "name": "0475-runtime-find-first-free-handle-with-bitmap.patch",
+          "sha256": "ee2555796fd0ce1751b89663df7af10cad78ffc5846a57e0d41ed58b3e1b2b6f"
+        },
+        {
+          "name": "0476-runtime-reuse-transfer-memory-handle-count.patch",
+          "sha256": "c7501043b115ea48320900f42d87f9e3b11a3979a141dc277d081fa94c981a24"
+        },
+        {
+          "name": "0477-rb-m3-arena-argument-hint.patch",
+          "sha256": "a58474b5af6997912d89d7dcc762e218f10967792d8734d0819b0e51fec73758"
+        },
+        {
+          "name": "0478-rb-m3-bound-slot-cache.patch",
+          "sha256": "dae183903a50ad6694afc6ab6472e949f2d42a898551cf32ed14db22eaa1a7de"
+        },
+        {
+          "name": "0479-services-scan-session-slots-without-modulo.patch",
+          "sha256": "b22c7644a1d6865a6c82720373a1fbf3c96a6ec6f5cf8e62f547fff916746b78"
+        },
+        {
+          "name": "0480-runtime-transfer-memory-quota-under-handle-lock.patch",
+          "sha256": "2fdeace6db933ecf3f285f483275428b0656f57a505501c5e5a7cba720b42c9d"
+        },
+        {
+          "name": "0481-rb-tight-gob-rects.patch",
+          "sha256": "b7868c99c98edf23581aead4bc12851de1ca012e6d293b6baa4a418db879b1b1"
+        },
+        {
+          "name": "0482-dsh-mesh-group-barrier.patch",
+          "sha256": "4835a4b67f18748895841e92f4c3542c46c7a25829f999e852972fb12c8ca8a8"
+        },
+        {
+          "name": "0483-rb-empty-depth-stencil-clear.patch",
+          "sha256": "eb4f1841d75c83995a5b0e4ac00be56da31c4d5b6faebfdbd69482653c8502d7"
+        },
+        {
+          "name": "0484-runtime-record-total-memory-peak-after-physical-mapping.patch",
+          "sha256": "db75844cc9fed180ef8082ad431ec81e5a9bbdb5c2b02132857cf067137e8c55"
+        },
+        {
+          "name": "0485-rb-tiled-subresource-rects.patch",
+          "sha256": "37f7e5608cae7b37fa6db7e4f9de17eeadd960e2026f3b319a3b6752eabc2392"
+        },
+        {
+          "name": "0490-runtime-enforce-thread-quota-at-insertion.patch",
+          "sha256": "9f1a9dd2fe1e23d75a87345e9c89cf84a4e6c9be4af6d4ad09308f0a25b58265"
+        },
+        {
+          "name": "0491-runtime-read-resource-memory-under-lock.patch",
+          "sha256": "f13de3d812fb696511e0fec8b226adb85c9dba5f080c0ebb827b857af6e39824"
+        },
+        {
+          "name": "0492-runtime-restore-transfer-count-comparison-switch.patch",
+          "sha256": "51fa55c63dadef4eaf6b92cef798635475a046ec727cc2accfe5a92cd9c1fa5d"
+        },
+        {
+          "name": "0493-services-restore-session-scan-comparison-switch.patch",
+          "sha256": "6384a8aa0332d04cc7d061805f4147f39f7296cefc5a93c19d0429b961f69035"
+        },
+        {
+          "name": "0494-runtime-read-memory-info-from-locked-snapshots.patch",
+          "sha256": "2ff12b8645970274de6e01c27bcdb9a52cf396af45740fe6981cca2e3a02cd75"
+        },
+        {
+          "name": "0495-services-close-romfs-image-on-open-failure.patch",
+          "sha256": "1adfb643eb22de978ffd86089073865b9909a1aebcbcb3e5aadcda0966afc96c"
+        },
+        {
+          "name": "0496-services-reuse-romfs-file-records-from-index.patch",
+          "sha256": "1e5ac17ddaa9d8ba59bbacafeb5ecac0c2bc0c41a6769efde03b6ee4245ae7b1"
+        },
+        {
+          "name": "0497-services-reuse-romfs-index-padding-buffer.patch",
+          "sha256": "97d86a44204eb82dc73ef6d2ea0e9bba1cd132216120e5466f3f96826dca091d"
+        },
+        {
+          "name": "0498-runtime-pack-deferred-zero-page-map.patch",
+          "sha256": "9f623c16ee080f621b710da605f1a477bef83874625ea240c386b836470dbdda"
+        },
+        {
+          "name": "0499-runtime-avoid-touching-unused-mapping-tables-on-reset.patch",
+          "sha256": "27c0edeaaa524ccab48bf9001b58deb6628e5b9712c22932435324dc4d4e7558"
+        },
+        {
+          "name": "0500-runtime-move-overlapping-far-memory-without-staging.patch",
+          "sha256": "c9974805d71daf7af928cecbf36f7a0d0a13cdd7fba0c1e27770ef55893d3a6c"
+        },
+        {
+          "name": "0501-services-pack-hot-romfs-path-metadata.patch",
+          "sha256": "1496e61b58c3fea63b083de3c4c3c988772257c668b43a2c006d4a620b95f878"
+        },
+        {
+          "name": "0502-thermal-reuse-published-speculative-plan-on-fast-path.patch",
+          "sha256": "9f7b01922987f1937e4e33417673ea060b82b1fd0802ae0f241a603b067e92fe"
+        },
+        {
+          "name": "0503-thermal-wake-speculative-workers-when-slots-open.patch",
+          "sha256": "a84f904f3c6472808e7ed3f8fddebdc44a94bf693f0a8f1b4930a9f4560db99e"
+        },
+        {
+          "name": "0504-thermal-cap-optional-work-on-sustained-fixed-probe-slowdown.patch",
+          "sha256": "0fbb7f30a7b894dcdcfbd76f81a6a0a8722c40e74fb41bc988f1304a79652000"
+        },
+        {
+          "name": "0505-thermal-wake-governor-on-system-power-and-thermal-events.patch",
+          "sha256": "8b870c8232e3559262c842932e577c0721d361d91489f2e747275b8ac2e71ebf"
+        },
+        {
+          "name": "0506-nvn-publish-first-ready-encode-block.patch",
+          "sha256": "b6fdb12adadc6f2d53fedb184e6613fcebd3a6238c5b81a822d0c146d2e2c58b"
+        },
+        {
+          "name": "0507-nvn-allow-independent-scalar-queries-during-replay.patch",
+          "sha256": "21b5b234d2eef6ca258afbac9fd756d9e1a857d0ce1de37d98ee8faf90513a33"
+        },
+        {
+          "name": "0508-metal3-retire-refused-presentation.patch",
+          "sha256": "c3907d4c6cd2e57b552c2a0b55ed4edd5676ee4186ad0a9445a55011a74cf99d"
+        },
+        {
+          "name": "0509-nvn-choose-free-presentation-slot.patch",
+          "sha256": "f18509c9bfba92100be6878441d66392577617f6311859a18c108df9ed14e3d8"
+        },
+        {
+          "name": "0510-nvn-correlate-bounded-cpu-gpu-display-timestamps.patch",
+          "sha256": "1484673e9e8f7e0198c399dcc6667ba80bbf579428b542d1cf8928f731a76d4f"
+        },
+        {
+          "name": "0511-nvn-finish-presentation-reads-before-slot-release.patch",
+          "sha256": "7ee906c0d0f7217592911b0db8d7f46e19380dc9d4695a57d0adbe9d6c25c7ab"
+        },
+        {
+          "name": "0512-nvn-observe-native-cadence-at-30-minute-milestones.patch",
+          "sha256": "48f44bcf44998c16a5df65095ac7027d8d3b766aeb31b0cb842ac44d6cc2f84a"
+        },
+        {
+          "name": "0513-thermal-release-energy-cap-after-light-or-ineligible-work.patch",
+          "sha256": "10a174baaa9b234548c7c975b72c8858b2feb9d82f671bcd1995aa35b43adce8"
+        },
+        {
+          "name": "0514-thermal-age-gpu-probe-by-submission.patch",
+          "sha256": "60b15196c66855b6a0099929dd127fb6fd4c0f42273d040019fb88d608b6a66f"
+        },
+        {
+          "name": "0515-nvn-gate-metal4-presentation-at-submission.patch",
+          "sha256": "602b378d94412016f87abd635a2da666b025fb7317c2bb78ca329cf606dc461f"
+        },
+        {
+          "name": "0516-services-check-packed-romfs-path-bounds.patch",
+          "sha256": "606240ab75611191fd19dd4ca7d64e7c6b1ed30d6dd6b14409b76f36a5c7ab24"
+        },
+        {
+          "name": "0517-thermal-release-probe-on-metal-allocation-failure.patch",
+          "sha256": "4b11647209f6f7b2ae3d0994af4037d2a8fe8beeccecc92ccc8fe5d62aa830cc"
+        },
+        {
+          "name": "0518-rb-shadow-depth-accounting.patch",
+          "sha256": "64956d6bc46e27cdb28da95688ef0c8befe25dce3f4aec6dc12364a0874f7231"
+        },
+        {
+          "name": "0519-rb-keep-depth-snapshots-across-disjoint-clears.patch",
+          "sha256": "14c5f104a4700d21716a907ed4a5dc1235a28b4fb5787a17664a1ff6054e79b6"
+        },
+        {
+          "name": "0520-rb-isolate-feedback-in-depth-only-draws.patch",
+          "sha256": "58260af0c95cc6f058d437fe8b82d73d87119c47f6d9544d60064ab39f5898fb"
+        },
+        {
+          "name": "0521-rb-verify-shadow-snapshots-and-depth-stencil.patch",
+          "sha256": "d2ce216031241ef80c7cf84ef5ab3c0e80cf2a5b0d958c09b2484d01c7c17680"
+        },
+        {
+          "name": "0522-rb-guard-atlas-reuse-around-pending-producers.patch",
+          "sha256": "6e436183c9ace96d34fea1573d22fd17278fe195fca3f754ce04dc0cd6d18fbc"
+        },
+        {
+          "name": "0523-rb-run-atlas-fixture-on-virtual-metal.patch",
+          "sha256": "bcef496caba23ccc1a088eb309811eb0cec10a8f203e83cccfb95ec6d7e7ab15"
+        },
+        {
+          "name": "0524-thermal-predict-fixed-work-slowdown-with-optional-admission.patch",
+          "sha256": "944150217f89739a32892a7ee1e91392a990a55a38dd1deb0ef3c6745c7bf67b"
+        },
+        {
+          "name": "0525-thermal-adapt-the-fixed-probe-and-distinguish-queue-delay.patch",
+          "sha256": "0b4ac20143efa49807492490e49f11303106a5a0346f965bb167a8188b70ea55"
+        },
+        {
+          "name": "0526-thermal-wake-the-archive-writer-on-admission-changes.patch",
+          "sha256": "ada089ab6f17097a79d44a1d31ad566c710b713ff37e5696c3a2b4f0e6c4082a"
+        },
+        {
+          "name": "0527-thermal-preserve-probe-and-writer-timing-across-transitions.patch",
+          "sha256": "04ef549bb089d4f5ba1e659ae6f46d688975a2d4b4ca3efdb9f7e317eaedb40f"
+        },
+        {
+          "name": "0528-thermal-confirm-recovery-before-reopening-optional-slots.patch",
+          "sha256": "b48a3a00df9c7c415d7d5375eaccc2151378c891f00f03aff736eb0b7320d3b5"
+        },
+        {
+          "name": "0529-thermal-keep-late-probe-completions-out-of-the-next-session.patch",
+          "sha256": "fcbb96d7f7c808f666e10d4669819877fec06d625508569fe224f27b8a161ff6"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "f6f71f53b4a30e283988a9cc89d62b65599e8fbd547a1212bbe8fbfbb3de880a",
-        "NS2Pro.framework.zip": "9d74656bf8c339c8dd0943784744703e9a4179915bc8f70ae04d6066331729c5"
+        "S2ArmEngine.framework.zip": "841b45ad80cfe009e7befb9e79c02d7ff06732ed6d669775a340015283ed3491",
+        "NS2Pro.framework.zip": "4d3d98b4233485257369bfb2a6ec1fed75009a0f4726ce08e22388a4acb441a2"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",
-        "sha256": "a27e4797bc70e9211f585f47b8defc3d3402dccfe76194fd07c4e56255a1cb5e",
+        "sha256": "9d60b8d4f6fbda51d5d542078f980d5d071e553e68e68803d2f8654d1f0cc4d7",
         "files": 36
       }
     },
     "licenses": {
       "path": "Legal/S2Arm",
       "manifest": "license-sources.json",
-      "sha256": "a27e4797bc70e9211f585f47b8defc3d3402dccfe76194fd07c4e56255a1cb5e",
+      "sha256": "9d60b8d4f6fbda51d5d542078f980d5d071e553e68e68803d2f8654d1f0cc4d7",
       "files": 36
     },
     "preparePatches": [

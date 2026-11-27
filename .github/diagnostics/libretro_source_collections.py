@@ -91,6 +91,12 @@ COLLECTIONS = {
                       name='LibretroCores-57b47ff2394f101e848e4af9c3834ec615ba4d03', bytes=56448900,
                       sha256='25062cc35c425e40a45fc9eee7ac0ce663dcf79f9420d221871ed37d7926394d',
                       cores=('azahar', 'desmume', 'mednafen_psx', 'mednafen_psx_hw')),
+    # Azahar 2127.0-rc5, second 10x series at d2838526. The other 35
+    # embedded libretro image fingerprints match the verified Build 848.
+    15216436265: dict(run=46032835264, source='d2838526a76a4a9770e36e7558002d768dae0ae4',
+                      name='LibretroCores-d2838526a76a4a9770e36e7558002d768dae0ae4', bytes=56456825,
+                      sha256='2ba5b65e3432d4e31a93230bf01927af33ac21807739ec0a59fa866550ab218f',
+                      cores=('azahar', 'desmume', 'mednafen_psx', 'mednafen_psx_hw')),
 }
 
 
