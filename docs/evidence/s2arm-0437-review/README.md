@@ -252,3 +252,26 @@ Run [`45965382114`](https://github.com/TarbleFR/RewindBox/actions/runs/459653821
 - **Tampons liés (`0395`)** : `+0,14 %`, `+1,20 %`, `+1,80 %`, sans écart significatif.
 
 Conclusion de l’axe GPU sur ce runner : les accès mémoire traduits sont efficaces. Ce qui reste, l’encodage Metal 4 (barrières, tables d’arguments, résidence), demande un appareil Metal 4. Le banc reste disponible pour détecter les régressions.
+
+## Coupures en cours de passe : octets bornés, temps non mesurable sur le runner (27 novembre)
+
+**Moteur `0468–0470` (run existant [`45988137849`](https://github.com/TarbleFR/RewindBox/actions/runs/45988137849), réutilisé sans doublon).**
+- Shaders synthétiques (`pipeline_driver`, 48 stages iPhoneOS, 12 paires) : médianes `fresh 3,351`, `one_fresh 2,070`, `vertex_fresh 2,467`, `crossed 0,055`, `repeated 0,050 ms`. Ce banc n’exécute pas le code moteur ; pas de comparaison entre runners.
+- Homebrew : 3 programmes, **6/6 relectures Metal exactes** chacun face à l’oracle Vulkan.
+- Cadence hors écran `limit=1` : `gpu_work_p50` `0,64–0,93 ms`, `encode_commit_thread_cpu_p95` `0,08–0,10 ms`.
+
+**Banc.** Le rejeu NVN synthétique ([`t_rb_replay_metrics.m`](../../../build-utils/s2arm/engine/tests/t_rb_replay_metrics.m)) compte désormais les coupures (`cuts`, `pass_cuts`) et le temps mural de chaque image mesurée, de la soumission à la fin de file. [`replay_compare.py`](../../../build-utils/s2arm/engine/tests/replay_compare.py) donne l’écart apparié au baseline du même tour. Variantes `DM_NVN_CUT=0`, `16`, `4` ; 12 tours. Run [`45991888494`](https://github.com/TarbleFR/RewindBox/actions/runs/45991888494) (commit `c63966c1e`).
+
+| Variante | Coupures / image | Octets chargés / stockés par image | Exactitude | Temps mural apparié (p25 ; p75) |
+| --- | --- | --- | --- | ---: |
+| Défaut (`64`) | 2, dont 0 en passe (12/12 runs) | `344 064` / `1 916 928` | référence stable | `6,94 ms` |
+| `DM_NVN_CUT=0` | 0 (commits 3 → 1) | inchangés | état et pixels identiques | `+13,70 %` (−24,67 ; +27,12) |
+| `DM_NVN_CUT=16` | 4, dont 1 en passe | `+262 144` / `+262 144` | pixels identiques, état différent (passe scindée, attendu) | `+6,96 %` (−31,68 ; +14,94) |
+| `DM_NVN_CUT=4` | 4, dont 1 en passe | `+262 144` / `+262 144` | pixels identiques, état différent (attendu) | `−6,73 %` (−27,90 ; +0,05) |
+
+**Lecture.**
+- Une coupure en passe coûte exactement un stockage et un rechargement des attachements de la passe ouverte, plus un encodeur et ses états. Les pixels restent identiques.
+- Sur ce runner, l’écart interquartile du temps mural apparié atteint plusieurs dizaines de points pour chaque interrupteur, y compris `rec_imp_off`, qui ne change que la répartition des appels. Le banc ne détecte que les grosses régressions ; il ne borne pas le coût d’une coupure contre le temps d’inactivité GPU qu’elle évite.
+- Aucun changement de la règle de coupure : il faudrait une borne mesurée sur appareil. Mesure sans candidat : ni rejet ni remise à zéro.
+
+Temps d’image, FPS et chauffe sur iPhone : non mesurés. Échecs consécutifs : 0. Prochain axe : clés texte de `prog_peek_jobs` (8 `snprintf`, création de `NSString`, `shmap_stage`, `stringByAppendingString:` et `shader_identity` sous `g_shader_lock`, par étage et par dessin dont le programme n’est pas résolu), en A/B sur le runtime Apple (comme `rec_bench.m`), clés et résultats identiques, 12 paires, parts sans programme 0/10/100 %.

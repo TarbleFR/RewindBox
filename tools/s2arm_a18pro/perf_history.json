@@ -6926,6 +6926,67 @@
       },
       "reading": "Engine compiled with 0469's guards; fidelity and synthetic pipeline compilation checked on the new engine (runner-to-runner variance forbids comparing these times with run 45958486174). The replay digest is now a valid equivalence check. The in-pass cut is a submission cost on tile GPUs (a full store and reload of every attachment) taken in exchange for GPU idle time; its balance on A18 Pro is not measured.",
       "physical_device_status": "not measured"
+    },
+    {
+      "schema_version": "2.0",
+      "timestamp": "2026-11-27T12:55:00+00:00",
+      "label": "0468_0470_engine_shader_compile_and_homebrew_same_run",
+      "host": {
+        "gpu": "Apple Paravirtual device (macOS 26 runner)",
+        "run": 45988137849,
+        "commit": "e64d53205"
+      },
+      "runs_per_variant": 12,
+      "results": {
+        "pipeline_driver_12_pairs_median_ms": {
+          "fresh": 3.351,
+          "one_fresh": 2.0697,
+          "vertex_fresh": 2.4671,
+          "crossed": 0.055,
+          "repeated": 0.0504
+        },
+        "homebrew_fidelity": "metal_readback 3 programs x 6/6 exact against the Vulkan oracle (256, 16384, 16384 bytes)",
+        "homebrew_pacing_limit1_12_pairs": "gpu_work_p50 0.637-0.931 ms, encode_commit_thread_cpu_p95 0.081-0.102 ms, 4 intervals over 16.67 ms in 12 x 180 frames (pairs 3 and 10)"
+      },
+      "reading": "Existing run of the combined 0468-0470 engine, reused (no duplicate run). pipeline_driver does not execute engine code and runner-to-runner variance forbids comparing these times with runs 45958486174 or 45986463824. Fidelity unchanged.",
+      "physical_device_status": "not measured"
+    },
+    {
+      "schema_version": "2.0",
+      "timestamp": "2026-11-27T13:20:00+00:00",
+      "label": "in_pass_cut_replay_bytes_and_frame_wall",
+      "host": {
+        "gpu": "Apple Paravirtual device (macOS 26 runner)",
+        "run": 45991888494,
+        "commit": "c63966c1e"
+      },
+      "runs_per_variant": 12,
+      "results": {
+        "baseline_DM_NVN_CUT_64": "cuts 2 per frame, pass_cuts 0 in 12/12 runs, commits 3, load_bytes 344064, store_bytes 1916928",
+        "cut_off_DM_NVN_CUT_0": "commits 3 -> 1, cuts 2 -> 0, records 1206 -> 1202; state and pixels identical in 12/12 runs",
+        "cut_16_and_cut_4": "one in-pass cut per frame (pass_cuts 0 -> 1, up to 1.3), render_encoders 7 -> 8, commits 3 -> 5, load_bytes +262144 and store_bytes +262144 per frame (+76.2% / +13.7%), state records +12; pixels identical, state digest different (pass split, expected)",
+        "frame_wall_ms_submit_to_finish": {
+          "baseline_median": 6.9435,
+          "cut_off_paired_pct": {
+            "median": 13.7,
+            "p25": -24.67,
+            "p75": 27.12
+          },
+          "cut_16_paired_pct": {
+            "median": 6.96,
+            "p25": -31.68,
+            "p75": 14.94
+          },
+          "cut_4_paired_pct": {
+            "median": -6.73,
+            "p25": -27.9,
+            "p75": 0.05
+          },
+          "other_switches": "all paired IQRs cross zero (rec_imp_off +5.22, draw_barriers_full +3.78, producer_cover_on +2.34, tbdr +0.15, noload_off +2.53, tab_cache_off +9.68)"
+        }
+      },
+      "reading": "One in-pass cut costs exactly one store and one reload of the open pass's attachments (here 262144 bytes each way) plus one render encoder and its state re-records; pixels stay identical. On this runner the frame wall time spread (paired IQR about 40-50 points) is far larger than any cut effect, so the bandwidth cost cannot be bounded against the idle time it removes here. No change of the cut rule: it needs a device-side bound. Not a rejected candidate (no patch).",
+      "physical_device_status": "not measured"
     }
   ],
   "accepted_optimizations": [
@@ -7014,9 +7075,9 @@
     "Submission lookahead and render-pass/copy analysis CPU cost (sdx_walk, udc/fb/defer lookaheads) and GPU frametime pacing",
     "First-use pipeline compilation and residency measured separately from CPU key construction",
     "Presentation queue scheduling, native frame pacing and physical iPhone 16 Pro Max 1x 60 FPS / thermal validation (unmeasured)",
-    "Timing-dependent in-pass cut (upstream sub_cut_pass, every 64 draws when the GPU is idle): on a tile GPU each cut stores and reloads every attachment of the open pass; seen on the synthetic frame in 2 of 30 runs (+786 KB each way at 3 x 256x256 RGBA8). Its count per frame and its GPU balance on A18 Pro are unmeasured"
+    "In-pass cut (upstream sub_cut_pass, DM_NVN_CUT=64 by default, only when the GPU is idle): bytes bounded on the synthetic frame (one store + one reload of the open pass's attachments per cut, run 45991888494); its time balance against GPU idle is below the runner's noise and stays unmeasured on A18 Pro"
   ],
-  "next_axis": "Submission GPU cost of the in-pass cut: add replay variants forcing it (DM_NVN_CUT=0 to forbid, small DM_NVN_CUT to provoke) and count attachment bytes per cut on the synthetic frame; then time a forced-cut vs no-cut frame on the Mac GPU in one process (GPU time, paired, 12 pairs) to bound the bandwidth cost against the idle time it removes. A change of the cut rule needs that bound and pixel/state equivalence; A18 Pro frame time stays unmeasured.",
+  "next_axis": "prog_peek_jobs text keys (per stage: 8 snprintf for the hex key, NSString creation, shmap_stage lookup, stringByAppendingString:@\"_b\" and shader_identity under g_shader_lock) on every draw whose combined program is not resolved yet, called from sdx_walk and pso_predict_rest_: A/B on the Apple runtime (macOS 26 runner, as rec_bench.m) with identical keys and results, 12 alternated pairs, nil-program shares 0/10/100 %; then repeat pipeline_driver and homebrew fidelity in the same run if the engine changes.",
   "legacy_note": "First 21 entries are original host summaries. Their draft patch numbers describe historical experiments; numbers may differ from integrated engine patches. Cachegrind counters are on x86. The uncalibrated projections were withdrawn. No legacy entry establishes fidelity, A18 Pro frametime, GPU time, energy, RAM or FPS.",
   "initial_reference": "0426",
   "intermediate_reference": "0436 (8be902ac0)",
@@ -7033,7 +7094,7 @@
     "consecutive_rejections_after_0463_before_0464": 0,
     "rejected_during_0464_0466_cycle": 1,
     "consecutive_rejections_at_0466": 0,
-    "last_updated": "2026-11-27T11:45:00Z",
+    "last_updated": "2026-11-27T13:20:00Z",
     "consecutive_rejections_at_0467": 0,
     "consecutive_rejections_after_0468_lock_merge": 1,
     "consecutive_rejections_at_0468": 0,
@@ -7041,7 +7102,9 @@
     "consecutive_rejections_after_0469_submit_direct": 2,
     "consecutive_rejections_at_0470": 0,
     "consecutive_rejections_after_0469_metrics": 0,
-    "counter_note_0469_metrics": "The two dismissals of 2026-11-27 (TBDR default, constant-index WideLoads) were not implemented and are not counted, as for the earlier dismissals by analysis. The 0469 compile and harness fixes are measurement-only and do not reset or add to the count."
+    "counter_note_0469_metrics": "The two dismissals of 2026-11-27 (TBDR default, constant-index WideLoads) were not implemented and are not counted, as for the earlier dismissals by analysis. The 0469 compile and harness fixes are measurement-only and do not reset or add to the count.",
+    "consecutive_rejections_after_in_pass_cut_measure": 0,
+    "counter_note_in_pass_cut": "The in-pass cut axis was a measurement without a candidate patch (no cut-rule change attempted): it neither resets nor adds to the count."
   },
   "device_metrics": {
     "native_fps": null,
@@ -7079,6 +7142,11 @@
       "patch": "0469",
       "evidence": "build-utils/s2arm/engine/tests/t_rb_replay_metrics.m, replay_compare.py",
       "note": "Replay metrics: 5 runs per variant in rotating order, per-draw trace (RBM_TRACE), state digest over the record slots each call reads; engine compile of the two 0469 guards in run 45982852470."
+    },
+    {
+      "patch": "harness c63966c1e",
+      "evidence": "build-utils/s2arm/engine/tests/t_rb_replay_metrics.m, replay_compare.py, replay_variants.txt",
+      "note": "Replay metrics count total cuts and in-pass cuts per frame and print the wall time of each measured frame (submit to queue finish); replay_compare.py reports the paired change against the baseline of the same round; cut variants DM_NVN_CUT=0/16/4; the CI step runs 12 rounds."
     }
   ],
   "layer_rotation_review": "iOS front adapter creates one layer and reuses it even across a display switch. No evidence of layer-object rotation as a steady-state iPhone performance bottleneck. Mac replacement and device mutation differ; do not assume an old residencySet can be recovered from the layer after a device change.",
@@ -7320,6 +7388,10 @@
     {
       "date": "2026-11-27",
       "note": "Replay state digest was unstable in runs 45974878139 and 45982852470 because it mixed record slots the call does not read (RO_R_DRAW a[3..7], high words of float slots) left over from reused record blocks: a harness bug, not an engine effect. Fixed in 0dbe4056d (run 45986463824)."
+    },
+    {
+      "date": "2026-11-27",
+      "note": "Run 45991888494: the baseline showed 0 in-pass cuts in 12/12 runs (the 2 of 30 earlier runs were timing-dependent). Frame wall time submit-to-finish on the paravirtual GPU has a paired IQR of tens of percent for every switch, including switches that change nothing but call dispatch (rec_imp_off): it detects only large regressions, not the cost of one cut."
     }
   ]
 }
