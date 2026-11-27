@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Targeted candidate matrix on the host Metal fixture. Run from the prepared engine tree."""
 import argparse
-from collections import Counter
-import hashlib
 import json
 import os
 from pathlib import Path
 import re
 import subprocess
 import sys
+
+from replay_sync_oracle import canonical_trace, check_events, sync_rows, verify_negative_controls
 
 
 FLAGS = ("S2A_RB_REC_EARLY", "S2A_RB_REPLAY_WORKER", "S2A_RB_REPLAY_SCALAR_QUERIES", "S2A_RB_PARALLEL_TRACE")
@@ -19,43 +19,41 @@ FRAMES = 3
 ROUNDS = 4
 
 
-def ordered_trace(path, expected_barriers):
-    counts = Counter()
-    records = []
-    frame = None
-    for line in path.read_text().splitlines():
-        tag = line.split(maxsplit=1)[0]
-        if tag == "F":
-            frame = int(line.split()[1])
-        if tag == "S":
-            counts[frame] += 1
-        # Include boundaries, pass begins/ends, draw, dispatch, ordered barriers and consumed masks.
-        if tag not in ("F", "P", "E", "D", "K", "S"):
-            raise ValueError(f"unknown record {tag} in {path}")
-        records.append(line)
-    if counts != {f: expected_barriers for f in range(1, FRAMES + 1)}:
-        raise ValueError(f"barrier trace does not match per-frame engine counters: {counts}")
-    return records
-
-
-def validate(out):
-    baseline = None
+def validate(out, fixed, rounds):
+    baseline_trace = baseline_ops = baseline_sync = None
     results = {}
     diag = json.loads((out / "diagnostic-metrics.json").read_text())
     measured = json.loads((out / "metrics.json").read_text())
     for name, (_, worker, _, tracing) in ARMS.items():
         metrics = diag[name]
-        barrier_count = metrics["barriers_fences"]
-        if barrier_count <= 0 or barrier_count != int(barrier_count):
-            raise ValueError(f"invalid barrier/fence count {barrier_count}")
-        trace = ordered_trace(out / f"{name}.diagnostic.trace", int(barrier_count))
-        if name == "baseline":
-            baseline = trace
-        elif trace != baseline:
-            raise ValueError(f"{name}: ordered render/dispatch/barrier stream differs from baseline")
-        cb_counts = []
-        for run in ("diagnostic", *range(ROUNDS)):
+        cb_counts, pass_cuts = [], []
+        for run in ("diagnostic", *range(rounds)):
             log = (out / f"{name}.{run}.log").read_text(errors="replace")
+            wait, update, rows = sync_rows(log, FRAMES)
+            run_metrics = metrics if run == "diagnostic" else measured[name][run]
+            counts = [len(events) for _, events in rows]
+            cuts = [cut for cut, _ in rows]
+            if (round(sum(counts)/FRAMES, 1) != run_metrics["barriers_fences"] or
+                    round(sum(cuts)/FRAMES, 1) != run_metrics["pass_cuts"]):
+                raise ValueError(f"{name}.{run}: observed events differ from production totals")
+            extras = [check_events(events, cut, wait, update, metrics["backend"], fixed) for cut, events in rows]
+            sync = [[e for i,e in enumerate(events) if i not in extra and i-1 not in extra]
+                    for (_, events), extra in zip(rows, extras)]
+            ops = [s for s in log.splitlines() if s.startswith("OPSEQ ")]
+            if len(ops) != FRAMES or any(not re.fullmatch(rf"OPSEQ {i} [1-9][0-9]* [0-9a-f]{{16}}", line)
+                                         for i, line in enumerate(ops, 1)):
+                raise ValueError(f"{name}.{run}: invalid opcode counts/digests")
+            if baseline_sync is None:
+                baseline_sync, baseline_ops = sync, ops
+            if sync != baseline_sync or (fixed and ops != baseline_ops):
+                raise ValueError(f"{name}.{run}: core sync sequence or fixed opcode stream differs")
+            if run == "diagnostic":
+                trace_hash = canonical_trace(out / f"{name}.diagnostic.trace", rows, extras)
+                if baseline_trace is None:
+                    baseline_trace = trace_hash
+                if trace_hash != baseline_trace:
+                    raise ValueError(f"{name}: ordered diagnostic stream differs")
+            pass_cuts.append(cuts)
             if f"CANDIDATE worker_seen={worker} scalar_checks={FRAMES+1}" not in log.splitlines():
                 raise ValueError(f"{name}.{run}: expected worker/scalar observation missing")
             events = [s for s in log.splitlines() if "[rb-parallel] v=1 " in s]
@@ -70,10 +68,8 @@ def validate(out):
             if any(" status=error" in s for s in events):
                 raise ValueError(f"{name}.{run}: GPU feedback error")
             cb_counts.append(cbs)
-        if any(m["barriers_fences"] != barrier_count for m in measured[name]):
-            raise ValueError(f"{name}: unstable barrier count with fixture trace disabled")
-        results[name] = dict(backend=metrics["backend"], barriers_per_frame=barrier_count,
-                             diagnostic_order_sha256=hashlib.sha256(("\n".join(trace)+"\n").encode()).hexdigest(),
+        results[name] = dict(backend=metrics["backend"], barriers_per_frame=metrics["barriers_fences"],
+                             canonical_order_sha256=trace_hash, pass_cuts_by_run=pass_cuts,
                              draw_state_digest=metrics["draw_state_digest"], pixel_digest=metrics["pixel_digest"],
                              worker_seen=worker, scalar_checks_per_process=FRAMES+1, trace_cb_callbacks=cb_counts)
     (out / "parallel-validation.json").write_text(json.dumps(results, indent=2) + "\n")
@@ -88,13 +84,26 @@ def main():
     here = Path(__file__).resolve().parent
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=True)
-    plan = out / "candidate-variants.txt"
-    plan.write_text("".join(name+" "+" ".join(f"{k}={v}" for k, v in zip(FLAGS, values))+"\n"
-                            for name, values in ARMS.items()))
-    env = {**os.environ, "RBM_PARALLEL_REPLAY": "1", "S2A_RB_PARALLEL_FROM": "0"}
-    subprocess.run([sys.executable, here / "replay_compare.py", args.binary.resolve(), plan, out, str(FRAMES),
-                    str(ROUNDS), "--timeout", "90"], env=env, check=True)
-    validate(out)
+    verify_negative_controls()
+    failures = []
+    for fixed in (False, True):
+        target = out / "fixed-cuts" if fixed else out
+        target.mkdir(parents=True, exist_ok=True)
+        plan = target / "candidate-variants.txt"
+        plan.write_text("".join(name+" "+" ".join(f"{k}={v}" for k, v in zip(FLAGS, values))+"\n"
+                                for name, values in ARMS.items()))
+        env = {**os.environ, "RBM_PARALLEL_REPLAY": "1", "S2A_RB_PARALLEL_FROM": "0"}
+        env.pop("DM_NVN_CUT", None)
+        if fixed:
+            env["DM_NVN_CUT"] = "0"   # Test-only attribution control; normal matrix retains adaptive cuts.
+        rounds = 3 if fixed else ROUNDS
+        try:
+            subprocess.run([sys.executable, here / "replay_compare.py", args.binary.resolve(), plan, target,
+                            str(FRAMES), str(rounds), "--timeout", "90"], env=env, check=True)
+            validate(target, fixed, rounds)
+        except (ValueError, OSError, subprocess.CalledProcessError) as error:
+            failures.append(f"{'fixed' if fixed else 'default'}: {error}")
+            print(failures[-1], file=sys.stderr, flush=True)
     # Complement the single-queue replay with the existing signal/wait fixture, compiled once.
     xqueue = Path("build/tests/t_nvn_xqueue")
     subprocess.run(["make", "-j4", "-f", "Makefile", "-f", here / "host-tests.mk", xqueue], check=True)
@@ -107,6 +116,8 @@ def main():
         if not summary:
             raise ValueError(f"xqueue {mode}: missing executed assertion summary")
         print(f"resume={mode} {summary.group()}", flush=True)
+    if failures:
+        raise SystemExit("\n".join(failures))
 
 
 if __name__ == "__main__":

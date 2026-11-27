@@ -31,6 +31,16 @@ class TraceTest(unittest.TestCase):
         self.assertFalse(result["reservations_match_callbacks"])
         self.assertTrue(all(isinstance(event["tid"], int) for event in trace["traceEvents"]))
 
+    def test_display_stall_across_coalesced_or_unobserved_tickets(self):
+        summary, _ = self.parse(
+            "event=present frame=14 ticket=34 resource=2 enqueue_s=1.020 status=shown present_s=1.110",
+            "event=present frame=12 ticket=32 resource=3 enqueue_s=1.010 status=unshown",
+            "event=present frame=11 ticket=31 resource=2 enqueue_s=1.000 status=shown present_s=1.010")
+        result = summary[4]
+        self.assertEqual(result["consecutive_presentation_intervals"], 0)
+        self.assertAlmostEqual(result["observed_display_interval_ms"]["p99"], 100)
+        self.assertEqual(result["observed_display_intervals_crossing_frame_or_ticket_gaps"], 1)
+
     def test_missing_is_distinct_from_zero(self):
         cb = "event=cb frame=4 cb=8 sub=1 seg=0 metal=3 reason=flush prep_start_s=1 prep_end_s=2"
         summary, _ = self.parse(cb + " status=missing", "event=present frame=4 ticket=3 resource=1 enqueue_s=2 status=unshown")

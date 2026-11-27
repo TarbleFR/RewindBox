@@ -151,25 +151,47 @@ static void rbm_track(void) {
     else if ([g_rx_enc conformsToProtocol:@protocol(MTLComputeCommandEncoder)]) [(id<MTLComputeCommandEncoder>)g_rx_enc useResources:v count:k usage:u];
     free(v);
 }
+// Save only synchronizations and their work ordinal during timing. Emit after all measured frames.
+enum { RBM_SYNC_CAP = 128 };
+typedef struct { unsigned work, op, count; uint64_t args[3]; } rbm_sync_event;
+typedef struct { unsigned n, op_count; uint64_t work0, cuts, op_hash; rbm_sync_event events[RBM_SYNC_CAP]; } rbm_sync_frame;
+static rbm_sync_frame *rbm_sync_current;
+static void rbm_sync_observe(const rec_t *r) {
+    rbm_sync_frame *f = rbm_sync_current;
+    f->op_count++;
+    f->op_hash = (f->op_hash ^ r->op) * UINT64_C(1099511628211);
+    unsigned count;
+    switch (r->op) {
+    case RO_BAR_QUEUE: case RO_BAR_AFTER_STAGES: case RO_BAR_ENCODER: count = 3; break;
+    case RO_M3_WAIT: case RO_M3_UPD: count = r->a[0] ? 2 : 1; break;
+    case RO_M3_MB: count = 1; break;
+    default: return;
+    }
+    REQUIRE(f->n < RBM_SYNC_CAP);
+    rbm_sync_event *e = &f->events[f->n++];
+    e->work = (unsigned)(rbm_draws + rbm_dispatches - f->work0);
+    e->op = r->op; e->count = count;
+    memcpy(e->args, r->a, count * sizeof(*e->args));
+    if (rbm_tf) {
+        fprintf(rbm_tf, "S %u", e->op);
+        for (unsigned j = 0; j < count; ++j) fprintf(rbm_tf, " %llu", (unsigned long long)e->args[j]);
+        fputc('\n', rbm_tf);
+    }
+}
+static void rbm_sync_print(const rbm_sync_frame *f, int frame) {
+    printf("OPSEQ %d %u %016llx\n", frame, f->op_count, (unsigned long long)f->op_hash);
+    printf("SYNCFRAME %d %llu", frame, (unsigned long long)f->cuts);
+    for (unsigned i = 0; i < f->n; ++i) {
+        const rbm_sync_event *e = &f->events[i];
+        printf(" %u/%u", e->work, e->op);
+        for (unsigned j = 0; j < e->count; ++j) printf("/%llu", (unsigned long long)e->args[j]);
+    }
+    putchar('\n');
+}
 // RBM_TRACE=<file>: one line per pass begin / end, draw and dispatch of the measured frames, with the canonical ids the state digest mixes,
 //   so that two runs can be compared line by line (replay_compare.py names the first line where the baseline's own runs part)
 static void rbm_trace(const rec_t *r) {
     if (!rbm_tf) return;
-    if (rbm_candidate) {
-        // Exactly the scalar operands consumed by rec_exec; unused record slots may be stale.
-        int count = 0;
-        switch (r->op) {
-        case RO_BAR_QUEUE: case RO_BAR_AFTER_STAGES: case RO_BAR_ENCODER: count = 3; break;
-        case RO_M3_WAIT: case RO_M3_UPD: count = r->a[0] ? 2 : 1; break;
-        case RO_M3_MB: count = 1; break;
-        default: break;
-        }
-        if (count) {
-            fprintf(rbm_tf, "S %u", r->op);
-            for (int i = 0; i < count; ++i) fprintf(rbm_tf, " %llu", (unsigned long long)r->a[i]);
-            fputc('\n', rbm_tf);
-        }
-    }
     switch (r->op) {
     case RO_RE_BEGIN: fprintf(rbm_tf, "P"); for (int k = 0; k < rbm_pass.n; k++) fprintf(rbm_tf, " %llu:%d", (unsigned long long)rbm_id((uint64_t)(uintptr_t)(__bridge void *)rbm_pass.tex[k]), rbm_pass.load[k]); fprintf(rbm_tf, "\n"); break;
     case RO_END: fprintf(rbm_tf, "E\n"); break;
@@ -189,6 +211,7 @@ static void rbm_trace(const rec_t *r) {
 static void rbm_exec(const void *rp) {
     const rec_t *r = rp; const uint64_t *a = r->a; if (r->op < RBM_OPS) rbm_exec_n[r->op]++;
     rbm_track();
+    if (rbm_sync_current) rbm_sync_observe(r);
     if (rbm_tf && r->op != RO_RE_BEGIN) rbm_trace(r);
     switch (r->op) {
     case RO_RE_BEGIN: memset(&rbm_s, 0, sizeof rbm_s); rbm_pass_begin(rec_id(a[0])); rbm_trace(r); break;   // a new encoder starts with no state
@@ -611,6 +634,7 @@ static void rbm_gob_array(void) {
 }
 
 int main(int argc, char **argv) { @autoreleasepool {
+    if (argc == 2 && !strcmp(argv[1], "--probe-metal")) return MTLCreateSystemDefaultDevice() ? 0 : 77;
     setvbuf(stdout, NULL, _IOLBF, 0);
     int frames = argc > 1 ? atoi(argv[1]) : 3; if (frames < 1) frames = 1;
     char map[] = "/tmp/t_rbm_map_XXXXXX", user[] = "/tmp/t_rbm_user_XXXXXX"; int fd = mkstemp(map); close(fd); fd = mkstemp(user); close(fd);
@@ -666,6 +690,8 @@ int main(int argc, char **argv) { @autoreleasepool {
     uint64_t empty_ds_base = 0;
     double *frame_ms = calloc((size_t)frames, sizeof *frame_ms); REQUIRE(frame_ms);   // wall time of each measured frame, submit to queue finish (Mac runner: CPU encode + GPU + idle, not an iPhone frame time)
     NVNT_nvnDeviceGetTextureHandle scalar_query = rbm_candidate ? API(nvnDeviceGetTextureHandle) : NULL;
+    rbm_sync_frame *sync_frames = rbm_candidate ? calloc((size_t)frames, sizeof(*sync_frames)) : NULL;
+    REQUIRE(!rbm_candidate || sync_frames);
     for (int f = 0; f <= frames; f++) {
         // The offscreen workload has no guest present to advance this counter.
         if (rbm_candidate) nvn_be_set_frame((uint64_t)f);
@@ -680,6 +706,12 @@ int main(int argc, char **argv) { @autoreleasepool {
         API(nvnCommandBufferAddCommandMemory)(&cmd, &pool, 0, CMD); API(nvnCommandBufferBeginRecording)(&cmd);
         record_frame();
         NVNcommandHandle h = API(nvnCommandBufferEndRecording)(&cmd); REQUIRE(h);
+        if (sync_frames && f) {
+            rbm_sync_current = &sync_frames[f-1];
+            rbm_sync_current->op_hash = UINT64_C(14695981039346656037);
+            rbm_sync_current->work0 = rbm_draws + rbm_dispatches;
+            rbm_sync_current->cuts = g_pass_cuts;
+        }
         struct timespec t0, t1; clock_gettime(CLOCK_MONOTONIC, &t0);
         API(nvnQueueSubmitCommands)(&queue, 1, &h);
         if (scalar_query) {
@@ -688,6 +720,10 @@ int main(int argc, char **argv) { @autoreleasepool {
         }
         API(nvnQueueFinish)(&queue); REQUIRE(!mtl_last_commit_error());
         clock_gettime(CLOCK_MONOTONIC, &t1);
+        if (rbm_sync_current) {
+            rbm_sync_current->cuts = g_pass_cuts - rbm_sync_current->cuts;
+            rbm_sync_current = NULL;
+        }
         if (f >= 1) frame_ms[f - 1] = (t1.tv_sec - t0.tv_sec) * 1e3 + (t1.tv_nsec - t0.tv_nsec) / 1e6;
     }
     if (rbm_tf) { FILE *tf = rbm_tf; rbm_tf = NULL; fclose(tf); }
@@ -718,6 +754,9 @@ int main(int argc, char **argv) { @autoreleasepool {
     if (rbm_candidate) {
         int worker = getenv("S2A_RB_REPLAY_WORKER") && !strcmp(getenv("S2A_RB_REPLAY_WORKER"), "1");
         REQUIRE(atomic_load(&rbm_worker_seen) == worker);
+        printf("SYNCOPS %u %u\n", (unsigned)RO_M3_WAIT, (unsigned)RO_M3_UPD);
+        for (int i = 0; i < frames; ++i) rbm_sync_print(&sync_frames[i], i+1);
+        free(sync_frames);
         printf("CANDIDATE worker_seen=%d scalar_checks=%d\n", atomic_load(&rbm_worker_seen), frames+1);
     }
     printf("TIMES"); for (int i = 0; i < frames; i++) printf(" %.4f", frame_ms[i]); printf("\n"); free(frame_ms);

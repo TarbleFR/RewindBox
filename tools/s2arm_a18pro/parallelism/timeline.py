@@ -182,6 +182,10 @@ def summarize(sessions):
         presents.sort()
         gaps = [(b[2]-a[2])*1e3 for a,b in zip(presents, presents[1:])
                 if b[0] == a[0]+1 and b[1] == a[1]+1 and b[2] > a[2]]
+        by_display_time = sorted(presents, key=lambda p: (p[2], p[0]))
+        observed_gaps = [(b[2]-a[2])*1e3 for a,b in zip(by_display_time, by_display_time[1:])]
+        crossed = sum(b[0] != a[0]+1 or b[1] != a[1]+1
+                      for a,b in zip(by_display_time, by_display_time[1:]))
         cb_count = sum(r["event"] == "cb" for r in records.values())
         present_count = sum(r["event"] == "present" for r in records.values())
         end = records.get(("window_end", None))
@@ -201,6 +205,9 @@ def summarize(sessions):
             "eligible_next_frame_pairs": known_pairs,
             "observed_gaps_between_main_queue_gpu_intervals_ms": distribution(
                 [(b[0]-a[1])*1e3 for a,b in zip(all_gpu, all_gpu[1:])]),
+            "observed_display_intervals": len(observed_gaps),
+            "observed_display_interval_ms": distribution(observed_gaps),
+            "observed_display_intervals_crossing_frame_or_ticket_gaps": crossed,
             "consecutive_presentation_intervals": len(gaps),
             "consecutive_presentation_interval_ms": distribution(gaps),
             "ticket_enqueue_to_display_ms": distribution([(stamp-enqueue)*1e3 for _,_,stamp,enqueue in presents]),

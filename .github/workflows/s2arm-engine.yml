@@ -38,7 +38,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON((contains(github.event.head_commit.message, '[s2arm-check-delivery]') || ((contains(github.event.head_commit.message, '[s2arm-shader-checks]') || (contains(github.event.head_commit.message, '[s2arm-thermal-checks]') || (contains(github.event.head_commit.message, '[s2arm-archive-check]') || (contains(github.event.head_commit.message, '[s2arm-gpu-textures]') || (contains(github.event.head_commit.message, '[s2arm-pipeline-driver]') || (contains(github.event.head_commit.message, '[s2arm-bounds-clamp]') || (contains(github.event.head_commit.message, '[s2arm-homebrew-pacing]') || contains(github.event.head_commit.message, '[s2arm-parallel-bench]') || contains(github.event.head_commit.message, '[s2arm-lab]')))))))) && !contains(github.event.head_commit.message, '[s2arm-engine]'))) && '["macos-26"]' || '["macos-26","macos-15"]') }}
+        os: ${{ fromJSON((contains(github.event.head_commit.message, '[s2arm-parallel-replay]') || contains(github.event.head_commit.message, '[s2arm-check-delivery]') || ((contains(github.event.head_commit.message, '[s2arm-shader-checks]') || (contains(github.event.head_commit.message, '[s2arm-thermal-checks]') || (contains(github.event.head_commit.message, '[s2arm-archive-check]') || (contains(github.event.head_commit.message, '[s2arm-gpu-textures]') || (contains(github.event.head_commit.message, '[s2arm-pipeline-driver]') || (contains(github.event.head_commit.message, '[s2arm-bounds-clamp]') || (contains(github.event.head_commit.message, '[s2arm-homebrew-pacing]') || contains(github.event.head_commit.message, '[s2arm-parallel-bench]') || contains(github.event.head_commit.message, '[s2arm-lab]')))))))) && !contains(github.event.head_commit.message, '[s2arm-engine]'))) && '["macos-26"]' || '["macos-26","macos-15"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120
     env:
@@ -297,7 +297,7 @@ jobs:
           python3 docs/evidence/s2arm-0437-review/homebrew/pacing/measure.py proof/parallel-frames.csv --parallel-depths | tee proof/parallel-summary.csv || rc=$?
           if [[ "$rc" == 77 ]]; then echo 'Metal device unavailable' | tee proof/parallel-unavailable.txt; elif [[ "$rc" != 0 ]]; then exit "$rc"; fi
       - name: Check encoder handoff, refused Metal presentation and ordered NVN replay
-        if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-parallel-bench]')
+        if: matrix.os == 'macos-26' && (contains(github.event.head_commit.message, '[s2arm-parallel-bench]') || contains(github.event.head_commit.message, '[s2arm-parallel-replay]'))
         working-directory: ${{ runner.temp }}/s2arm
         env:
           S2A_DEVELOPER_DIR: ${{ env.DEVELOPER_DIR }}
@@ -311,8 +311,12 @@ jobs:
           for early in 0 1; do
             S2A_RB_REC_EARLY="$early" build/tests/t_nvn_wait_event --rb-encode-worker | tee "$proof/parallel-encode-$early.txt"
           done
-          if [[ -f "$proof/parallel-unavailable.txt" ]]; then
+          rc=0
+          build/tests/t_nvn_rb_replay_metrics --probe-metal || rc=$?
+          if [[ "$rc" == 77 ]]; then
             echo "Offscreen Metal unavailable. Replay and native GPU halt checks require a device." >> "$GITHUB_STEP_SUMMARY"
+          elif [[ "$rc" != 0 ]]; then
+            exit "$rc"
           else
             NXGAL_BE=mtl3 build/tests/t_nvn_gpu_halt | tee "$proof/parallel-gpu-halt.txt"
             python3 "$tests/parallel_replay.py" build/tests/t_nvn_rb_replay_metrics "$proof/parallel-replay" | tee "$proof/parallel-replay.txt"
