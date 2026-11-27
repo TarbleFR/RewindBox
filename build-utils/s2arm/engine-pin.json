@@ -1,20 +1,20 @@
 {
   "status": "verified",
-  "packagedFingerprint": "169fca94731d46225e40ac15448dc8244b80fef61421bcbdab7bebadcf7e3d9a",
+  "packagedFingerprint": "47029c26b8b93668e2b0cfccff4d28d8dfb553fd71e0cd0436331a4b2ab3e560",
   "producers": {
     "engine": {
-      "run": 45933674709,
+      "run": 45988137849,
       "attempt": 1,
-      "artifact": 15169468594,
-      "name": "s2arm-engine-framework-3d78a7149d752913983d29727825dbe811d417e4",
-      "bytes": 25708844,
-      "sha256": "0de835fdd0e01788735407e90baca79ad6020a36c186d3e58998c3794a5f0871",
-      "headSha": "3d78a7149d752913983d29727825dbe811d417e4",
+      "artifact": 15194395265,
+      "name": "s2arm-engine-framework-e64d53205f934ac8aa699fc3a8bc55fdce4cc790",
+      "bytes": 25711012,
+      "sha256": "f59684302563899d9da481e6cdd5971f3d0ec10b62fda9677851099535f7679a",
+      "headSha": "e64d53205f934ac8aa699fc3a8bc55fdce4cc790",
       "headBranch": "Claude",
-      "expiresAt": "2026-12-27T03:35:10Z",
+      "expiresAt": "2026-12-27T11:33:02Z",
       "members": {
-        "S2ArmEngine.framework.zip": "887ebbde13822afb91e40681bcd34170ec13bafe5eea2ecc46ea8ec1eb70ffff",
-        "NS2Pro.framework.zip": "d0e25a283d5b34efec3e241b233fac10fe696ded036ed88d859400d4efb73cfc"
+        "S2ArmEngine.framework.zip": "f6f71f53b4a30e283988a9cc89d62b65599e8fbd547a1212bbe8fbfbb3de880a",
+        "NS2Pro.framework.zip": "9d74656bf8c339c8dd0943784744703e9a4179915bc8f70ae04d6066331729c5"
       },
       "unpack": [
         "S2ArmEngine.framework.zip",
@@ -59,7 +59,7 @@
     }
   },
   "zips": {
-    "engine": "0de835fdd0e01788735407e90baca79ad6020a36c186d3e58998c3794a5f0871",
+    "engine": "f59684302563899d9da481e6cdd5971f3d0ec10b62fda9677851099535f7679a",
     "prepare": "272aad12a61c0431ee02762acfc325709fb8569bfd44036d32d7a7e25ea4fde3",
     "sysdata": "802072525439f3404d52fea45cecf1a8418ea3f33efe3f03eb2d79aff4d5f7f0"
   },
@@ -106,9 +106,9 @@
       "bytes": 13
     },
     "S2ArmEngine.framework/S2ArmEngine": {
-      "sha256": "8e89ab144fb2c9c4c6390c95203046d3d7a4f6fb5294c7b637833aed0c9a13df",
-      "bytes": 116789760,
-      "fingerprint": "169fca94731d46225e40ac15448dc8244b80fef61421bcbdab7bebadcf7e3d9a"
+      "sha256": "6dd57fa925f657f958667207e780c2f70749daff89ed076b3d5d940aab3f26ae",
+      "bytes": 116823656,
+      "fingerprint": "47029c26b8b93668e2b0cfccff4d28d8dfb553fd71e0cd0436331a4b2ab3e560"
     },
     "S2ArmEngine.framework/S2ArmShaderXfp.txt": {
       "sha256": "ff5f5df131ccd1862388dbb9917eb93beb4ba2b30cd45dd3b2a5e95cb895d75d",
@@ -145,9 +145,9 @@
   },
   "identity": {
     "sourceIdentity": {
-      "run": 45933674709,
+      "run": 45988137849,
       "attempt": 1,
-      "head_sha": "3d78a7149d752913983d29727825dbe811d417e4",
+      "head_sha": "e64d53205f934ac8aa699fc3a8bc55fdce4cc790",
       "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
       "xcode": "Xcode 26.6",
       "patches": [
@@ -1986,11 +1986,39 @@
         {
           "name": "0463-services-romfs-cursor-and-zero-alloc-lazy-handle-lru.patch",
           "sha256": "8f204b160340c4ad6e0a848694bdb3a6a0830d8d6a5878b8826b5efbe9dacaa6"
+        },
+        {
+          "name": "0464-rb-args-slot-gens-and-ubolen-fast.patch",
+          "sha256": "7a2fef3ab38c82a527b33cdf0f5d3611ed9122dd08baa397014fcb055c057d20"
+        },
+        {
+          "name": "0465-rb-vbuf-dirty-bitmask.patch",
+          "sha256": "933ee9e5a2ec1dc76b387288d9d65f10fd2f9b397159212b1ab72f752db50084"
+        },
+        {
+          "name": "0466-rb-arena-ubs-subcommit-zero-arc.patch",
+          "sha256": "a42f4f2dfcaaa708e49fd888aa55a67a146a518bd1910cf485c86a4c40acbb94"
+        },
+        {
+          "name": "0467-rb-svc-mem-amask-probe-count.patch",
+          "sha256": "ca82061e8c4bfaeb3bb5c64962b81ab026b09102a2908e0d32350e053280cdc2"
+        },
+        {
+          "name": "0468-rb-rec-exec-imp-cache.patch",
+          "sha256": "221a745e72118a99f99a927cf8cd7c4082edf8836e373bb383bfc87edc6a1489"
+        },
+        {
+          "name": "0469-rb-replay-metrics-hooks.patch",
+          "sha256": "af87f50e245ba36ea9cd014f043ea5ad7e00e613206349da50662a6143afa767"
+        },
+        {
+          "name": "0470-rb-sdx-live-slot-lists.patch",
+          "sha256": "e837089d92c8d8f7f28528ca0db2c6272f1c849773a35517f23052321396c344"
         }
       ],
       "files": {
-        "S2ArmEngine.framework.zip": "887ebbde13822afb91e40681bcd34170ec13bafe5eea2ecc46ea8ec1eb70ffff",
-        "NS2Pro.framework.zip": "d0e25a283d5b34efec3e241b233fac10fe696ded036ed88d859400d4efb73cfc"
+        "S2ArmEngine.framework.zip": "f6f71f53b4a30e283988a9cc89d62b65599e8fbd547a1212bbe8fbfbb3de880a",
+        "NS2Pro.framework.zip": "9d74656bf8c339c8dd0943784744703e9a4179915bc8f70ae04d6066331729c5"
       },
       "licenses": {
         "manifest": "licenses/license-sources.json",

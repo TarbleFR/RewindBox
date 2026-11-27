@@ -548,7 +548,21 @@ def manifest_errors(value):
     for key, spec in value['components'].items():
         if spec.get('mode') == 'pinned-engine':
             errors.extend(engine_spec_errors(key, spec, value))
-    check(value['components'].get('dolphin', {}).get('mode') == 'retain', 'components.dolphin must be retained')
+    dolphin = value['components'].get('dolphin', {})
+    if dolphin.get('origin', {}).get('workflow') == '.github/workflows/achievement-translation-dolphin.yml':
+        import dolphin_core_component as component
+        mode = dolphin.get('mode')
+        check(mode in ('retain', 'replace') and dolphin.get('image') == component.IMAGE and
+              tuple(dolphin.get('inputs', ())) == component.INPUTS and
+              HEX40.fullmatch(str(dolphin.get('upstreamRevision'))) and
+              HEX64.fullmatch(str(dolphin.get('payloadFingerprint'))), 'Invalid Dolphin producer pin')
+        replaced = value['images'].get('replaced', {}).get('dolphin')
+        retained_images = value['images'].get('retained', {}).get('dolphin', [])
+        check((mode == 'replace' and replaced == component.IMAGE and not retained_images) or
+              (mode == 'retain' and replaced is None and retained_images == [component.IMAGE]),
+              'Dolphin image policy differs from the component mode')
+    else:
+        check(dolphin.get('mode') == 'retain', 'The legacy Dolphin component must be retained')
     armsx2 = value['components'].get('armsx2', {})
     if armsx2.get('origin', {}).get('workflow') == '.github/workflows/armsx2-core.yml':
         import armsx2_core_component as component
@@ -2464,6 +2478,9 @@ def melonx_operation(operation):
 
 
 def native_producer(kind, spec):
+    if kind == 'dolphin' and spec.get('origin', {}).get('workflow') == '.github/workflows/achievement-translation-dolphin.yml':
+        import dolphin_core_component
+        return dolphin_core_component
     if kind == 'armsx2' and spec.get('origin', {}).get('workflow') == '.github/workflows/armsx2-core.yml':
         import armsx2_core_component
         return armsx2_core_component
@@ -2807,6 +2824,10 @@ def validate(ipa):
             for path, digest in receipt['components'][kind]['compiledSourcePostimages'].items():
                 require(sha(archive.read(root + folder + 'patched-source/' + path)) == digest,
                         'Retained patched native source notice differs: ' + path)
+            if kind == 'dolphin' and native_producer(kind, spec):
+                producer = native_producer(kind, spec)
+                require(producer.WIIMMFI_EXPORTS <= exports, 'Packaged Dolphin lacks Wiimmfi ABI 4 exports')
+                producer.verify_notices(archive, root + folder, receipt['components'][kind])
         plugin = archive.read(root + 'Frameworks/achievement_translation.framework/achievement_translation')
         translation = macho(plugin)
         require(translation['platform'] == 2 and translation['fileType'] == 6 and translation['minimumOS'].startswith('18.'),
@@ -3000,12 +3021,14 @@ def freeze(build, dry_run=False, repo=None, root=None):
     for component, image in images['replaced'].items():
         replaced[image] = (pin['core'].get('payloadFingerprint') if component == 'rpcs3' else
                            melonx_pin['packagedFingerprint'] if component == 'melonx' else
-                           draft['components']['armsx2']['payloadFingerprint'] if component == 'armsx2' else None)
-    armsx2 = draft['components']['armsx2']
-    if native_producer('armsx2', armsx2):
-        matches_base = armsx2['payloadFingerprint'] == base_images_value.get(armsx2['image'])
-        if matches_base != (armsx2['mode'] == 'retain'):
-            blockers.append('ARMSX2 pinned payload must match the base only in retain mode')
+                           draft['components'][component]['payloadFingerprint']
+                           if component in ('armsx2', 'dolphin') else None)
+    for kind in ('armsx2', 'dolphin'):
+        spec = draft['components'][kind]
+        if native_producer(kind, spec):
+            matches_base = spec['payloadFingerprint'] == base_images_value.get(spec['image'])
+            if matches_base != (spec['mode'] == 'retain'):
+                blockers.append(kind + ' pinned payload must match the base only in retain mode')
     retained_images = {}
     for component, patterns in images['retained'].items():
         for name in expand_image_patterns(patterns, names):
