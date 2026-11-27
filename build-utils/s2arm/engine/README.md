@@ -848,3 +848,7 @@ Série `0468–0470` compilée ensemble sur `macos-15` et `macos-26` (run [`4598
 ### 0479 — parcours circulaire des sessions IPC
 
 `Dispatcher.AddSession` remet l’index à zéro en fin de tableau. Le calcul du reste disparaît de chaque visite. Le premier emplacement disponible depuis le curseur, les numéros de session, le doublement de capacité et la fermeture hors verrou suivent les mêmes règles. [Banc NativeAOT](../../../docs/evidence/s2arm-runtime-0479.md).
+
+### 0480 — création concurrente de mémoire de transfert
+
+La création d’un handle recontrôle le quota de mémoire de transfert sous le verrou d’attribution. Quand deux demandes visent le dernier emplacement disponible, la seconde rend le prêt mémoire et retourne `ResLimitExceeded`. [Contre-expertise CPU et preuves](../../../docs/evidence/s2arm-cpu-counteraudit-0480.md).

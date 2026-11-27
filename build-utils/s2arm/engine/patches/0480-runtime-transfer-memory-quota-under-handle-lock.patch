@@ -1,0 +1,24 @@
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -3520,8 +3520,18 @@
+         tmem_t *tm = malloc(sizeof *tm); if (!tm) { regs[0] = 0xCE01; return 1; }
+         tm->addr = regs[1]; tm->size = regs[2]; tm->perm = (uint32_t)regs[3];
+         uint32_t be = s2a_mem_tmem_borrow(tm->addr, tm->size, tm->perm); if (be) { free(tm); regs[0] = be; return 1; }
+-        glock(); uint32_t h = h_new(S2A_OBJ_TMEM, tm, 0); pthread_mutex_unlock(&G);
+-        if (!h) { s2a_mem_tmem_unborrow(tm->addr, tm->size); free(tm); regs[0] = R_OUT_OF_RES; return 1; }
++        // Borrowing releases G. Recheck the quota in the same critical
++        // section as allocation when another creator took the last slot.
++        glock();
++        uint32_t error = lim_on() && g_kcnt[S2A_OBJ_TMEM] >= LIM_TMEM ? 0x10801 : 0;
++        uint32_t h = error ? 0 : h_new(S2A_OBJ_TMEM, tm, 0);
++        pthread_mutex_unlock(&G);
++        if (!h) {
++            s2a_mem_tmem_unborrow(tm->addr, tm->size);
++            free(tm);
++            regs[0] = error ? error : R_OUT_OF_RES;
++            return 1;
++        }
+         regs[0] = 0; regs[1] = h; return 1;
+     }
+     case 0x16: {   // CloseHandle；诊断 S2A_SVC_TRACE=1 时记游戏关了哪个句柄、什么种类（查服务与游戏对句柄归属的理解不一致）
