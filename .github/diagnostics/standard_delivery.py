@@ -2827,7 +2827,9 @@ def validate(ipa):
                         'Retained patched native source notice differs: ' + path)
             if kind == 'dolphin' and native_producer(kind, spec):
                 producer = native_producer(kind, spec)
-                require(producer.WIIMMFI_EXPORTS <= exports, 'Packaged Dolphin lacks Wiimmfi ABI 4 exports')
+                abi, wiimmfi_exports = producer.wiimmfi_bridge_contract()
+                require(receipt['components'][kind]['identity']['wiimmfi_abi'] == abi and wiimmfi_exports <= exports,
+                        f'Packaged Dolphin differs from the bridge requirements for Wiimmfi ABI {abi}')
                 producer.verify_notices(archive, root + folder, receipt['components'][kind])
         plugin = archive.read(root + 'Frameworks/achievement_translation.framework/achievement_translation')
         translation = macho(plugin)

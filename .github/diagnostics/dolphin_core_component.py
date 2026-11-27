@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import shutil
 import subprocess
 import zipfile
@@ -20,8 +21,23 @@ STEPS = ('Patch and compile Dolphin Core', 'Materialize and validate Dolphin fra
 IMAGE = 'Frameworks/DolphinCore.framework/DolphinCore'
 INPUTS = ('build-utils/patch_dolphin_internal_core_v2.py', 'build-utils/dolphin_wiimmfi.py',
           'packages/dolphin_internal_bridge/core/')
+WIIMMFI_BRIDGE_HEADER = 'packages/dolphin_internal_bridge/ios/Classes/DOLWiimmfi.h'
 WIIMMFI_EXPORTS = {'_neostation_dolphin_wiimmfi_' + name for name in
                    ('abi', 'import', 'nand_ready', 'configure', 'import_progress', 'cancel_import', 'interrupt_boot')}
+
+
+def wiimmfi_bridge_contract():
+    header = (ROOT / WIIMMFI_BRIDGE_HEADER).read_text(encoding='utf-8')
+    predicates = re.findall(r'\bDOLWiimmfiSupported\s*\(\s*\)\s*\{([^{}]*)\}', header)
+    retained.require(len(predicates) == 1, 'Cannot identify the Wiimmfi bridge support predicate')
+    predicate, = predicates
+    versions = re.findall(r'\b(?:DOLWiimmfiABI|abi)\s*\(\s*\)\s*==\s*([1-9][0-9]*)\b', predicate)
+    retained.require(len(versions) == 1, 'Cannot identify the Wiimmfi bridge ABI')
+    symbols = re.findall(r'\bdlsym\s*\(\s*RTLD_DEFAULT\s*,\s*"(neostation_dolphin_wiimmfi_\w+)"\s*\)',
+                         predicate)
+    retained.require(len(symbols) == len(re.findall(r'\bdlsym\s*\(', predicate)),
+                     'Cannot identify the required Wiimmfi bridge symbols')
+    return int(versions[0]), WIIMMFI_EXPORTS | {'_' + name for name in symbols}
 
 
 def input_bytes(source=None):
@@ -76,8 +92,9 @@ def verify(directory, compiled, spec):
     tree = subprocess.check_output(['git', 'rev-parse', source + '^{tree}'], cwd=ROOT, text=True).strip()
     expected = {p: retained.sha(raw) for p, raw in input_bytes(source).items()}
     current = {p: retained.sha(raw) for p, raw in input_bytes().items()}
+    abi, wiimmfi_exports = wiimmfi_bridge_contract()
     retained.require(tree == compiled['execution']['tree'] and identity['host_commit'] == source and
-                     identity['source_revision'] == spec['upstreamRevision'] and identity['wiimmfi_abi'] == 4 and
+                     identity['source_revision'] == spec['upstreamRevision'] and identity['wiimmfi_abi'] == abi and
                      identity['architectures'] == ['arm64'] and identity['achievement_presenter'] == 1 and
                      identity['use_retro_achievements'] is True and identity['source_inputs'] == expected == current,
                      'Dolphin compiled inputs, ABI or effective checkout differ')
@@ -87,7 +104,7 @@ def verify(directory, compiled, spec):
     retained.require(retained.sha(raw) == identity['sha256'] and fingerprint == spec['payloadFingerprint'] and
                      image['architecture'] == 'arm64' and image['platform'] == 2 and image['fileType'] == 6 and
                      image['id'] == '@rpath/DolphinCore.framework/DolphinCore' and
-                     (DOLPHIN_EXPORTS | WIIMMFI_EXPORTS) <= set(image['definedSymbols']),
+                     (DOLPHIN_EXPORTS | wiimmfi_exports) <= set(image['definedSymbols']),
                      'Invalid Dolphin binary identity or exports')
     postimages = member_hashes(directory / 'patched-source')
     retained.require(set(postimages) == {'AchievementManager.cpp', 'NeoStationBridge.mm'} and
