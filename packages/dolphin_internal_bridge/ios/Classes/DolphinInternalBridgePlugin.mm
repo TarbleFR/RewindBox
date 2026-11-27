@@ -1826,6 +1826,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
   if (self.dolphinController.touchEditing) return;
   if (self.wiimmfiSession) {
     // Do not pause an online guest or expose cheats/states/clock controls.
+    neostation_dolphin_release_touches();
     DOLDolphinViewController* owner = self.dolphinController;
     UIAlertController* online = [UIAlertController alertControllerWithTitle:@"Wiimmfi"
         message:self.menuLabels[@"wiimmfiMenuHelp"] preferredStyle:UIAlertControllerStyleAlert];

@@ -29,6 +29,7 @@ import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/utils/enabled_index_nav.dart';
 import 'package:neostation/utils/game_utils.dart';
 import 'package:neostation/widgets/confirm_action_dialog.dart';
+import 'package:neostation/widgets/wiimmfi_panel.dart';
 import 'package:neostation/widgets/custom_notification.dart';
 import 'package:neostation/widgets/delete_game_dialog.dart';
 import 'package:provider/provider.dart';
@@ -391,6 +392,9 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (_targetSystemFolder.toLowerCase() == 'wii' &&
+              (widget.game.romPath?.startsWith('/') ?? false))
+            WiimmfiPanel(gamePath: widget.game.romPath),
           if (_nextendoVersion != null) ...[
             _nextendoVersionCard(context),
             SizedBox(height: 12.r),

@@ -5,7 +5,7 @@
 // Optional owned C ABI keeps the UI safe with the currently retained Core.
 static inline bool DOLWiimmfiSupported() {
   auto abi = reinterpret_cast<int32_t (*)()>(dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_abi"));
-  return abi && abi() == 1 &&
+  return abi && abi() == 2 &&
       dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_import") &&
       dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_nand_ready") &&
       dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_configure");

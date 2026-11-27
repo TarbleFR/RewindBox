@@ -643,6 +643,7 @@ extension _Tabs on _SystemEmulatorSettingsDialogState {
           // Build 442: phone shake on/off and sensitivity of the Wii Remote,
           // the same native preferences as the in-game Controls menu.
           if (wii) const DolphinWiiMotionPanel(),
+          if (wii) const WiimmfiPanel(),
           // Build 484: touch-controls editor and "hide with a controller"
           // for the GameCube, Wii, PS2 and PS3 embedded engines.
           if (EmbeddedTouchControlsPanel.supports(console))

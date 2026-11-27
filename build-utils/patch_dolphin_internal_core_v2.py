@@ -107,6 +107,7 @@ std::atomic<int> g_boot_language{-1};
 // Runtime-only capture budget. Never persist this cap to the user's GFX.ini.
 std::optional<int> g_capture_previous_scale;
 bool g_wiimmfi_session = false;
+std::atomic<bool> g_wiimmfi_network_allowed{false};
 
 void Log(const std::string& stage, const std::string& message)
 {
@@ -166,6 +167,7 @@ void ResetSessionFlags()
   g_boot_language = -1;
   g_capture_previous_scale.reset();
   g_wiimmfi_session = false;
+  g_wiimmfi_network_allowed = false;
 }
 
 void ShutdownRuntime(const char* reason)
@@ -1739,6 +1741,8 @@ def main() -> None:
     patch_achievement_presentation(root)
     from dolphin_wiimmfi import patch_nand_importer
     patch_nand_importer(root)
+    from dolphin_wiimmfi import patch_wfc_offline_gate
+    patch_wfc_offline_gate(root)
     boot_manager = root / 'Source/Core/Core/BootManager.cpp'
     if 'neostation_dolphin_wiimmfi_boot_policy' not in boot_manager.read_text():
         replace_once(boot_manager, 'namespace BootManager\n{',

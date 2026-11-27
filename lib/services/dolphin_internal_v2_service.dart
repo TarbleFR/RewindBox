@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 
 import '../l10n/dolphin_import_locale.dart';
+import '../l10n/wiimmfi_locale.dart';
 
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
@@ -17,6 +18,7 @@ import 'retro_achievements_session_service.dart';
 import 'logger_service.dart';
 import 'diagnostics_directory.dart';
 import 'dolphin_system_files.dart';
+import 'wiimmfi/wiimmfi_service.dart';
 import 'local_dev_vpn_route_service.dart';
 import 'pairing_file_service.dart';
 import 'storage/storage_import_activity.dart';
@@ -421,6 +423,10 @@ class DolphinInternalV2Service {
     }
   }
 
+  /// Shared exclusion for Wii identity/settings mutations and game launches.
+  static Future<T> withSystemMutation<T>(Future<T> Function() action) =>
+      _withSystemImport(action);
+
   /// Visible in Files > On My iPhone > NeoStation > Dolphin. These are
   /// import folders, not the live NAND; copying here cannot alter a running game.
   static Future<Directory> sharedSystemDirectory(String folderName) async {
@@ -527,10 +533,12 @@ class DolphinInternalV2Service {
     required String folderName,
     required String gamePath,
     String? gameTitle,
+    bool? wiimmfi,
   }) => _launchSession(
     folderName: folderName,
     gamePath: gamePath,
     gameTitle: gameTitle,
+    wiimmfi: wiimmfi,
   );
 
   /// Boots the user's installed NAND title with the same JIT and session
@@ -548,6 +556,7 @@ class DolphinInternalV2Service {
     String? gamePath,
     String? gameTitle,
     bool wiiSystemMenu = false,
+    bool? wiimmfi,
   }) async {
     if (_systemImportBusy || _launchInProgress) {
       throw const DolphinSystemFilesException('busy');
@@ -557,11 +566,16 @@ class DolphinInternalV2Service {
       if (await _channel.invokeMethod<bool>('isRunning') != false) {
         throw const DolphinSystemFilesException('busy');
       }
+      await ensureLayout();
+      final online = !wiiSystemMenu && folderName.toLowerCase() == 'wii'
+          ? await WiimmfiService.prepareLaunch(gamePath!, requested: wiimmfi)
+          : false;
       return await _launch(
         folderName: folderName,
         gamePath: gamePath,
         gameTitle: gameTitle,
         wiiSystemMenu: wiiSystemMenu,
+        wiimmfi: online,
       );
     } catch (_) {
       rethrow;
@@ -575,6 +589,7 @@ class DolphinInternalV2Service {
     String? gamePath,
     String? gameTitle,
     required bool wiiSystemMenu,
+    bool wiimmfi = false,
   }) async {
     final system = _normalizeSystem(folderName);
     await ensureLayout();
@@ -706,9 +721,12 @@ class DolphinInternalV2Service {
         {
           'system': system,
           'bootKind': wiiSystemMenu ? 'wiiSystemMenu' : 'game',
-          'menuLabels': DolphinImportLocale.labelsFor(
-            FlutterLocalization.instance.currentLocale,
-          ),
+          'wiimmfi': wiimmfi,
+          'menuLabels': {
+            ...DolphinImportLocale.labelsFor(FlutterLocalization.instance.currentLocale),
+            for (final key in ['wiimmfiMenuHelp', 'wiimmfiSlow'])
+              key: WiimmfiLocale.labels(FlutterLocalization.instance.currentLocale)[key]!,
+          },
           if (!wiiSystemMenu) 'gamePath': normalizedGame,
           'gameTitle': gameTitle?.trim().isNotEmpty == true
               ? gameTitle!.trim()

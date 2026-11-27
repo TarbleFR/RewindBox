@@ -6,6 +6,37 @@ This does not implement ECC/HMAC authentication or any Nintendo WFC protocol.
 from pathlib import Path
 
 
+def patch_wfc_offline_gate(root: Path) -> None:
+    """An offline launch of a player-patched image must not reach WFC.
+
+    Gate IOS IP ioctls before DNS/async dispatch and socket creation itself.
+    All gates are iPhone-only, fail closed, and belong to this Core session.
+    """
+    declaration = '#ifdef IPHONEOS\nextern "C" bool neostation_dolphin_wiimmfi_network_allowed();\n#endif\n'
+    for relative, signatures, refusal in [
+        ('Source/Core/Core/IOS/Network/IP/Top.cpp', [
+            'std::optional<IPCReply> NetIPTopDevice::IOCtl(const IOCtlRequest& request)',
+            'std::optional<IPCReply> NetIPTopDevice::IOCtlV(const IOCtlVRequest& request)',
+        ], 'return IPCReply(-SO_ENETUNREACH);'),
+        ('Source/Core/Core/IOS/Network/Socket.cpp', [
+            's32 WiiSockMan::NewSocket(s32 af, s32 type, s32 protocol)',
+        ], 'return -SO_ENETUNREACH;'),
+    ]:
+        path = root / relative
+        text = path.read_text()
+        if declaration not in text:
+            text = declaration + text
+        for signature in signatures:
+            anchor = signature + '\n{'
+            guarded = anchor + '\n#ifdef IPHONEOS\n  if (!neostation_dolphin_wiimmfi_network_allowed()) ' + refusal + '\n#endif'
+            if guarded in text:
+                continue
+            if text.count(anchor) != 1:
+                raise SystemExit(f'Pinned WFC socket entry changed: {signature}')
+            text = text.replace(anchor, guarded, 1)
+        path.write_text(text)
+
+
 def patch_nand_importer(root: Path) -> None:
     header = root / 'Source/Core/DiscIO/NANDImporter.h'
     source = root / 'Source/Core/DiscIO/NANDImporter.cpp'

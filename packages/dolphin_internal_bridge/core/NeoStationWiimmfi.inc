@@ -32,7 +32,12 @@ bool DOLWiimmfiNANDReady(const std::string& root)
 }
 
 extern "C" __attribute__((visibility("default")))
-int32_t neostation_dolphin_wiimmfi_abi() { return 1; }
+int32_t neostation_dolphin_wiimmfi_abi() { return 2; }
+
+extern "C" bool neostation_dolphin_wiimmfi_network_allowed()
+{
+  return g_wiimmfi_network_allowed.load();
+}
 
 extern "C" __attribute__((visibility("default")))
 int32_t neostation_dolphin_wiimmfi_nand_ready(const char* root)
@@ -75,6 +80,7 @@ int32_t neostation_dolphin_wiimmfi_configure(int32_t enabled)
   if (g_running || g_cleanup_started || !Core::IsUninitialized(Core::System::GetInstance())) return 0;
   if (enabled && (!g_initialized || !DOLWiimmfiNANDReady(g_user_directory + "/Wii"))) return 0;
   g_wiimmfi_session = enabled != 0;
+  g_wiimmfi_network_allowed = enabled != 0;
   return 1;
 }
 
@@ -88,4 +94,10 @@ extern "C" void neostation_dolphin_wiimmfi_boot_policy()
   Config::SetCurrent(Config::MAIN_OVERCLOCK_ENABLE, false);
   Config::SetCurrent(Config::MAIN_VI_OVERCLOCK_ENABLE, false);
   Config::SetCurrent(Config::MAIN_SYNC_GPU_OVERCLOCK, 1.0f);
+  // Session diagnostics must not inherit optional decrypted-payload dumps.
+  Config::SetCurrent(Config::MAIN_NETWORK_SSL_DUMP_READ, false);
+  Config::SetCurrent(Config::MAIN_NETWORK_SSL_DUMP_WRITE, false);
+  Config::SetCurrent(Config::MAIN_NETWORK_SSL_DUMP_ROOT_CA, false);
+  Config::SetCurrent(Config::MAIN_NETWORK_SSL_DUMP_PEER_CERT, false);
+  Config::SetCurrent(Config::MAIN_NETWORK_DUMP_BBA, false);
 }

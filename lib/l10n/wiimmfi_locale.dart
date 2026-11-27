@@ -1,0 +1,897 @@
+import 'package:flutter/widgets.dart';
+
+abstract final class WiimmfiLocale {
+  static String text(BuildContext context, String key) =>
+      labels(Localizations.localeOf(context))[key] ?? key;
+  static Map<String, String> labels(Locale? locale) => {
+    ..._en,
+    ...?_values[locale?.languageCode == 'zh' &&
+            (locale?.scriptCode == 'Hant' ||
+                const ['TW', 'HK', 'MO'].contains(locale?.countryCode))
+        ? 'zhHant'
+        : locale?.languageCode],
+  };
+  static const _en = {
+    'enabled': 'Enable Wiimmfi',
+    'nand': 'Wii console NAND',
+    'recognized': 'Structure recognized · server authentication not tested',
+    'nandMissing': 'Console NAND missing or incomplete',
+    'importNand': 'Import BootMii backup',
+    'importHelp':
+        'Select nand.bin and keys.bin together if the keys are separate. Your current Wii saves and a backup of the previous NAND are retained. The console identity changes. ECC/HMAC integrity and Nintendo identity authenticity are not certified by this import.',
+    'imported': 'Backup imported. Test authentication in the game.',
+    'engineUnavailable': 'Wiimmfi is unavailable in this version of Dolphin.',
+    'intro':
+        'Use your own Wii console NAND and a game prepared with the official Wiimmfi patcher. No account or console identity is supplied. A successful check here does not prove online play.',
+    'diagnose': 'Run network diagnostic',
+    'unknown': 'Unknown',
+    'dns': 'DNS',
+    'website': 'Official website',
+    'authentication': 'Authentication',
+    'matchmaking': 'Matchmaking',
+    'players': 'Connected players',
+    'servers': 'Game servers',
+    'resolved': 'Resolved',
+    'reachable': 'Reachable',
+    'failed': 'Failed',
+    'notTested': 'Not tested',
+    'games': 'Games to verify',
+    'catalogHelp':
+        'Candidates only. Service compatibility, each region/revision and online play in RewindBox remain unverified. Check the official list.',
+    'officialStats': 'Official compatibility and statistics',
+    'documentation': 'Documentation and support',
+    'clear': 'Remove Wiimmfi configuration',
+    'clearHelp':
+        'Disable Wiimmfi and forget game declarations? Your NAND, games and saves are retained.',
+    'cancel': 'Cancel',
+    'continue': 'Continue',
+    'close': 'Close',
+    'reading': 'Reading NAND',
+    'extracting': 'Extracting files',
+    'patch': 'Declare this image prepared',
+    'patchHelp':
+        'Confirm that you prepared this exact image with the current official Wiimmfi patcher, including its security fixes. RewindBox records its fingerprint and native region/revision; it cannot certify the patch version. The original image is not modified. A DNS change alone is insufficient for Dolphin.',
+    'declared': 'Image declared by you · security patch not certified',
+    'launch': 'Launch with Wiimmfi',
+    'offline': 'Launch offline',
+    'error': 'The operation failed. Consult the diagnostic and official help.',
+    'keysRequired': 'Select the NAND and its 1024-byte keys.bin together.',
+    'invalidNand':
+        'Invalid, incomplete or unreadable backup. Previous NAND retained.',
+    'cancelled': 'Import cancelled. Previous NAND retained.',
+    'disabled': 'Enable Wiimmfi before this operation.',
+    'patchRequired': 'Declare your officially prepared image first.',
+    'imageChanged': 'The image changed. Prepare and declare it again.',
+    'gameUnknown': 'Wii disc identity or revision could not be read.',
+    'configurationInvalid':
+        'Wiimmfi configuration unreadable. Remove its configuration to reset it.',
+    'busy': 'Close the active Dolphin session first.',
+    'unsafePath': 'The selected path is not safe for this operation.',
+    'code': 'Wiimmfi error code',
+    'lookup': 'Explain code',
+    'activation':
+        'Activation pending. Follow the delay reported by Wiimmfi; do not change console identity.',
+    'patchOld':
+        'The service reports an outdated patch. Prepare the image again with the official tool.',
+    'patchRestart':
+        'Restart the game to obtain the update required by the service.',
+    'nandError':
+        'The service rejected the console identity. Check your real Wii BootMii import.',
+    'codeUnknown':
+        'Keep the exact code and consult the official error reference.',
+    'wiimmfiMenuHelp':
+        'The game keeps running. Cheats, states and speed changes are disabled. Leaving stops this session; reconnect from the game after relaunch.',
+    'wiimmfiSlow': 'Slow emulation',
+  };
+  static const _values = <String, Map<String, String>>{
+    'fr': {
+      'enabled': 'Activer Wiimmfi',
+      'nand': 'NAND de votre console Wii',
+      'recognized': 'Structure reconnue · authentification serveur non testée',
+      'nandMissing': 'NAND de console absente ou incomplète',
+      'importNand': 'Importer une sauvegarde BootMii',
+      'importHelp':
+          'Sélectionnez nand.bin et keys.bin ensemble si les clés sont séparées. Vos sauvegardes Wii actuelles sont conservées, ainsi qu’une copie de l’ancienne NAND. L’identité de console change. Cet import ne certifie ni l’intégrité ECC/HMAC ni l’authenticité Nintendo de l’identité.',
+      'imported': 'NAND importée. Testez l’authentification dans le jeu.',
+      'engineUnavailable':
+          'Wiimmfi est indisponible dans cette version de Dolphin.',
+      'intro':
+          'Utilisez la NAND de votre propre Wii et un jeu préparé avec le patcher officiel Wiimmfi. Aucun compte ni identité de console n’est fourni. Une vérification réussie ici ne prouve pas le jeu en ligne.',
+      'diagnose': 'Lancer le diagnostic réseau',
+      'unknown': 'Inconnu',
+      'dns': 'DNS',
+      'website': 'Site officiel',
+      'authentication': 'Authentification',
+      'matchmaking': 'Recherche d’adversaires',
+      'players': 'Joueurs connectés',
+      'servers': 'Serveurs de jeu',
+      'resolved': 'Résolu',
+      'reachable': 'Accessible',
+      'failed': 'Échec',
+      'notTested': 'Non testé',
+      'games': 'Jeux à vérifier',
+      'catalogHelp':
+          'Candidats uniquement. La compatibilité du service, de chaque région/révision et du jeu en ligne dans RewindBox reste à vérifier. Consultez la liste officielle.',
+      'officialStats': 'Compatibilité et statistiques officielles',
+      'documentation': 'Documentation et assistance',
+      'clear': 'Supprimer la configuration Wiimmfi',
+      'clearHelp':
+          'Désactiver Wiimmfi et oublier les déclarations de jeux ? Votre NAND, vos jeux et vos sauvegardes sont conservés.',
+      'cancel': 'Annuler',
+      'continue': 'Continuer',
+      'close': 'Fermer',
+      'reading': 'Lecture de la NAND',
+      'extracting': 'Extraction des fichiers',
+      'patch': 'Déclarer cette image préparée',
+      'patchHelp':
+          'Confirmez avoir préparé cette image exacte avec le patcher officiel Wiimmfi actuel et ses correctifs de sécurité. RewindBox enregistre son empreinte, sa région et sa révision natives ; il ne certifie pas la version du patch. Le fichier original reste intact. Un changement de DNS seul ne suffit pas pour Dolphin.',
+      'declared': 'Image déclarée par vous · patch de sécurité non certifié',
+      'launch': 'Lancer avec Wiimmfi',
+      'offline': 'Lancer hors ligne',
+      'error':
+          'L’opération a échoué. Consultez le diagnostic et l’aide officielle.',
+      'keysRequired':
+          'Sélectionnez la NAND et son fichier keys.bin de 1 024 octets ensemble.',
+      'invalidNand':
+          'Sauvegarde invalide, incomplète ou illisible. Ancienne NAND conservée.',
+      'cancelled': 'Import annulé. Ancienne NAND conservée.',
+      'disabled': 'Activez Wiimmfi avant cette opération.',
+      'patchRequired':
+          'Déclarez d’abord votre image préparée avec l’outil officiel.',
+      'imageChanged': 'L’image a changé. Préparez-la et déclarez-la à nouveau.',
+      'gameUnknown': 'Identité ou révision du disque Wii illisible.',
+      'configurationInvalid':
+          'Configuration Wiimmfi illisible. Supprimez sa configuration pour la réinitialiser.',
+      'busy': 'Fermez d’abord la session Dolphin active.',
+      'unsafePath': 'Le chemin choisi ne convient pas à cette opération.',
+      'code': 'Code d’erreur Wiimmfi',
+      'lookup': 'Expliquer le code',
+      'activation':
+          'Activation en attente. Respectez le délai annoncé par Wiimmfi, sans changer d’identité de console.',
+      'patchOld':
+          'Le service signale un patch obsolète. Préparez à nouveau l’image avec l’outil officiel.',
+      'patchRestart':
+          'Redémarrez le jeu pour récupérer la mise à jour demandée par le service.',
+      'nandError':
+          'Le service refuse l’identité de console. Vérifiez l’import BootMii de votre vraie Wii.',
+      'codeUnknown':
+          'Conservez le code exact et consultez la référence officielle des erreurs.',
+      'wiimmfiMenuHelp':
+          'Le jeu continue. Triches, états et changements de vitesse sont désactivés. Quitter ferme cette session ; reconnectez-vous depuis le jeu après relance.',
+      'wiimmfiSlow': 'Émulation trop lente',
+    },
+    "de": {
+      "enabled": "Wiimmfi aktivieren",
+      "nand": "NAND deiner Wii-Konsole",
+      "recognized": "Struktur erkannt · Serverauthentifizierung nicht getestet",
+      "nandMissing": "Konsolen-NAND fehlt oder ist unvollständig",
+      "importNand": "BootMii-Sicherung importieren",
+      "importHelp":
+          "Wähle nand.bin und keys.bin gemeinsam aus, wenn die Schlüssel separat vorliegen. Deine aktuellen Wii-Spielstände und eine Sicherung der bisherigen NAND bleiben erhalten. Die Konsolenidentität ändert sich. Dieser Import bestätigt weder die ECC/HMAC-Integrität noch die Echtheit der Nintendo-Identität.",
+      "imported": "Sicherung importiert. Teste die Authentifizierung im Spiel.",
+      "engineUnavailable":
+          "Wiimmfi ist in dieser Dolphin-Version nicht verfügbar.",
+      "intro":
+          "Verwende die NAND deiner eigenen Wii und ein mit dem offiziellen Wiimmfi-Patcher vorbereitetes Spiel. Es werden weder ein Konto noch eine Konsolenidentität bereitgestellt. Eine erfolgreiche Prüfung hier belegt kein funktionierendes Onlinespiel.",
+      "diagnose": "Netzwerkdiagnose starten",
+      "unknown": "Unbekannt",
+      "dns": "DNS",
+      "website": "Offizielle Website",
+      "authentication": "Authentifizierung",
+      "matchmaking": "Gegnersuche",
+      "players": "Verbundene Spieler",
+      "servers": "Spielserver",
+      "resolved": "Aufgelöst",
+      "reachable": "Erreichbar",
+      "failed": "Fehlgeschlagen",
+      "notTested": "Nicht getestet",
+      "games": "Zu prüfende Spiele",
+      "catalogHelp":
+          "Nur Kandidaten. Dienstkompatibilität, einzelne Regionen und Revisionen sowie das Onlinespiel in RewindBox sind noch nicht verifiziert. Prüfe die offizielle Liste.",
+      "officialStats": "Offizielle Kompatibilität und Statistiken",
+      "documentation": "Dokumentation und Hilfe",
+      "clear": "Wiimmfi-Konfiguration entfernen",
+      "clearHelp":
+          "Wiimmfi deaktivieren und die Angaben zu vorbereiteten Spielen vergessen? Deine NAND, Spiele und Spielstände bleiben erhalten.",
+      "cancel": "Abbrechen",
+      "continue": "Weiter",
+      "close": "Schließen",
+      "reading": "NAND wird gelesen",
+      "extracting": "Dateien werden extrahiert",
+      "patch": "Dieses Abbild als vorbereitet angeben",
+      "patchHelp":
+          "Bestätige, dass du genau dieses Abbild mit dem aktuellen offiziellen Wiimmfi-Patcher einschließlich seiner Sicherheitskorrekturen vorbereitet hast. RewindBox speichert seinen Fingerabdruck sowie die native Region und Revision; die Patchversion kann nicht bestätigt werden. Das Originalabbild bleibt unverändert. Eine DNS-Änderung allein reicht für Dolphin nicht aus.",
+      "declared":
+          "Von dir als vorbereitet angegeben · Sicherheitspatch nicht bestätigt",
+      "launch": "Mit Wiimmfi starten",
+      "offline": "Offline starten",
+      "error":
+          "Der Vorgang ist fehlgeschlagen. Prüfe die Diagnose und die offizielle Hilfe.",
+      "keysRequired":
+          "Wähle die NAND und ihre 1024 Byte große keys.bin gemeinsam aus.",
+      "invalidNand":
+          "Sicherung ungültig, unvollständig oder unlesbar. Die bisherige NAND bleibt erhalten.",
+      "cancelled": "Import abgebrochen. Die bisherige NAND bleibt erhalten.",
+      "disabled": "Aktiviere Wiimmfi vor diesem Vorgang.",
+      "patchRequired": "Gib zuerst dein offiziell vorbereitetes Abbild an.",
+      "imageChanged":
+          "Das Abbild wurde geändert. Bereite es erneut vor und gib es erneut an.",
+      "gameUnknown":
+          "Identität oder Revision der Wii-Disc konnte nicht gelesen werden.",
+      "configurationInvalid":
+          "Wiimmfi-Konfiguration unlesbar. Entferne sie, um sie zurückzusetzen.",
+      "busy": "Beende zuerst die aktive Dolphin-Sitzung.",
+      "unsafePath": "Der ausgewählte Pfad ist für diesen Vorgang nicht sicher.",
+      "code": "Wiimmfi-Fehlercode",
+      "lookup": "Code erklären",
+      "activation":
+          "Aktivierung ausstehend. Beachte die von Wiimmfi gemeldete Wartezeit und ändere die Konsolenidentität nicht.",
+      "patchOld":
+          "Der Dienst meldet einen veralteten Patch. Bereite das Abbild erneut mit dem offiziellen Werkzeug vor.",
+      "patchRestart":
+          "Starte das Spiel neu, um das vom Dienst benötigte Update abzurufen.",
+      "nandError":
+          "Der Dienst hat die Konsolenidentität abgelehnt. Prüfe den BootMii-Import deiner echten Wii.",
+      "codeUnknown":
+          "Bewahre den genauen Code auf und prüfe die offizielle Fehlerreferenz.",
+      "wiimmfiMenuHelp":
+          "Das Spiel läuft weiter. Cheats, Speicherstände des Emulators und Geschwindigkeitsänderungen sind deaktiviert. Beim Verlassen wird diese Sitzung beendet; verbinde dich nach dem Neustart erneut im Spiel.",
+      "wiimmfiSlow": "Emulation zu langsam",
+    },
+    "es": {
+      "enabled": "Activar Wiimmfi",
+      "nand": "NAND de tu consola Wii",
+      "recognized":
+          "Estructura reconocida · autenticación del servidor sin probar",
+      "nandMissing": "Falta la NAND de la consola o está incompleta",
+      "importNand": "Importar copia de BootMii",
+      "importHelp":
+          "Selecciona nand.bin y keys.bin juntos si las claves están separadas. Se conservan tus partidas actuales de Wii y una copia de la NAND anterior. La identidad de la consola cambia. Esta importación no certifica la integridad ECC/HMAC ni la autenticidad de la identidad Nintendo.",
+      "imported": "Copia importada. Prueba la autenticación dentro del juego.",
+      "engineUnavailable":
+          "Wiimmfi no está disponible en esta versión de Dolphin.",
+      "intro":
+          "Usa la NAND de tu propia Wii y un juego preparado con el parcheador oficial de Wiimmfi. No se proporciona ninguna cuenta ni identidad de consola. Superar esta comprobación no demuestra que el juego en línea funcione.",
+      "diagnose": "Ejecutar diagnóstico de red",
+      "unknown": "Desconocido",
+      "dns": "DNS",
+      "website": "Sitio oficial",
+      "authentication": "Autenticación",
+      "matchmaking": "Búsqueda de rivales",
+      "players": "Jugadores conectados",
+      "servers": "Servidores de juego",
+      "resolved": "Resuelto",
+      "reachable": "Accesible",
+      "failed": "Fallido",
+      "notTested": "Sin probar",
+      "games": "Juegos por verificar",
+      "catalogHelp":
+          "Solo candidatos. Queda por verificar la compatibilidad del servicio, de cada región y revisión, y del juego en línea en RewindBox. Consulta la lista oficial.",
+      "officialStats": "Compatibilidad y estadísticas oficiales",
+      "documentation": "Documentación y asistencia",
+      "clear": "Eliminar configuración de Wiimmfi",
+      "clearHelp":
+          "¿Desactivar Wiimmfi y olvidar las declaraciones de juegos preparados? Se conservan tu NAND, juegos y partidas.",
+      "cancel": "Cancelar",
+      "continue": "Continuar",
+      "close": "Cerrar",
+      "reading": "Leyendo NAND",
+      "extracting": "Extrayendo archivos",
+      "patch": "Declarar esta imagen preparada",
+      "patchHelp":
+          "Confirma que preparaste exactamente esta imagen con el parcheador oficial actual de Wiimmfi, incluidas sus correcciones de seguridad. RewindBox registra su huella y su región y revisión nativas; no puede certificar la versión del parche. La imagen original no se modifica. Cambiar solo el DNS no basta para Dolphin.",
+      "declared":
+          "Imagen declarada por ti · parche de seguridad no certificado",
+      "launch": "Iniciar con Wiimmfi",
+      "offline": "Iniciar sin conexión",
+      "error":
+          "La operación ha fallado. Consulta el diagnóstico y la ayuda oficial.",
+      "keysRequired":
+          "Selecciona juntos la NAND y su archivo keys.bin de 1024 bytes.",
+      "invalidNand":
+          "Copia inválida, incompleta o ilegible. Se conserva la NAND anterior.",
+      "cancelled": "Importación cancelada. Se conserva la NAND anterior.",
+      "disabled": "Activa Wiimmfi antes de esta operación.",
+      "patchRequired":
+          "Declara primero tu imagen preparada con la herramienta oficial.",
+      "imageChanged": "La imagen ha cambiado. Prepárala y declárala de nuevo.",
+      "gameUnknown":
+          "No se pudo leer la identidad o revisión del disco de Wii.",
+      "configurationInvalid":
+          "La configuración de Wiimmfi es ilegible. Elimínala para restablecerla.",
+      "busy": "Cierra primero la sesión activa de Dolphin.",
+      "unsafePath": "La ruta seleccionada no es segura para esta operación.",
+      "code": "Código de error de Wiimmfi",
+      "lookup": "Explicar código",
+      "activation":
+          "Activación pendiente. Respeta el plazo indicado por Wiimmfi y no cambies la identidad de la consola.",
+      "patchOld":
+          "El servicio indica que el parche está obsoleto. Prepara de nuevo la imagen con la herramienta oficial.",
+      "patchRestart":
+          "Reinicia el juego para obtener la actualización requerida por el servicio.",
+      "nandError":
+          "El servicio ha rechazado la identidad de la consola. Comprueba la importación de BootMii de tu Wii real.",
+      "codeUnknown":
+          "Conserva el código exacto y consulta la referencia oficial de errores.",
+      "wiimmfiMenuHelp":
+          "El juego sigue en marcha. Los trucos, estados guardados y cambios de velocidad están desactivados. Salir termina esta sesión; vuelve a conectarte desde el juego después de reiniciarlo.",
+      "wiimmfiSlow": "Emulación demasiado lenta",
+    },
+    "it": {
+      "enabled": "Attiva Wiimmfi",
+      "nand": "NAND della tua console Wii",
+      "recognized":
+          "Struttura riconosciuta · autenticazione del server non testata",
+      "nandMissing": "NAND della console assente o incompleta",
+      "importNand": "Importa backup BootMii",
+      "importHelp":
+          "Se le chiavi sono separate, seleziona insieme nand.bin e keys.bin. I salvataggi Wii attuali e una copia della NAND precedente vengono conservati. L’identità della console cambia. Questa importazione non certifica l’integrità ECC/HMAC né l’autenticità dell’identità Nintendo.",
+      "imported": "Backup importato. Prova l’autenticazione nel gioco.",
+      "engineUnavailable":
+          "Wiimmfi non è disponibile in questa versione di Dolphin.",
+      "intro":
+          "Usa la NAND della tua Wii e un gioco preparato con il patcher ufficiale Wiimmfi. Non vengono forniti account o identità di console. Il superamento di questa verifica non dimostra il funzionamento del gioco online.",
+      "diagnose": "Avvia diagnosi di rete",
+      "unknown": "Sconosciuto",
+      "dns": "DNS",
+      "website": "Sito ufficiale",
+      "authentication": "Autenticazione",
+      "matchmaking": "Ricerca avversari",
+      "players": "Giocatori connessi",
+      "servers": "Server di gioco",
+      "resolved": "Risolto",
+      "reachable": "Raggiungibile",
+      "failed": "Non riuscito",
+      "notTested": "Non testato",
+      "games": "Giochi da verificare",
+      "catalogHelp":
+          "Solo candidati. La compatibilità del servizio, di ogni regione e revisione e del gioco online in RewindBox resta da verificare. Consulta l’elenco ufficiale.",
+      "officialStats": "Compatibilità e statistiche ufficiali",
+      "documentation": "Documentazione e assistenza",
+      "clear": "Rimuovi configurazione Wiimmfi",
+      "clearHelp":
+          "Disattivare Wiimmfi e dimenticare le dichiarazioni sui giochi preparati? NAND, giochi e salvataggi vengono conservati.",
+      "cancel": "Annulla",
+      "continue": "Continua",
+      "close": "Chiudi",
+      "reading": "Lettura della NAND",
+      "extracting": "Estrazione dei file",
+      "patch": "Dichiara questa immagine preparata",
+      "patchHelp":
+          "Conferma di aver preparato esattamente questa immagine con il patcher ufficiale Wiimmfi attuale, incluse le correzioni di sicurezza. RewindBox ne registra l’impronta, la regione e la revisione native; non può certificare la versione della patch. L’immagine originale non viene modificata. La sola modifica del DNS non basta per Dolphin.",
+      "declared":
+          "Immagine dichiarata da te · patch di sicurezza non certificata",
+      "launch": "Avvia con Wiimmfi",
+      "offline": "Avvia offline",
+      "error":
+          "Operazione non riuscita. Consulta la diagnosi e l’assistenza ufficiale.",
+      "keysRequired":
+          "Seleziona insieme la NAND e il relativo file keys.bin da 1024 byte.",
+      "invalidNand":
+          "Backup non valido, incompleto o illeggibile. La NAND precedente viene conservata.",
+      "cancelled":
+          "Importazione annullata. La NAND precedente viene conservata.",
+      "disabled": "Attiva Wiimmfi prima di questa operazione.",
+      "patchRequired":
+          "Dichiara prima l’immagine preparata con lo strumento ufficiale.",
+      "imageChanged":
+          "L’immagine è cambiata. Preparala e dichiarala nuovamente.",
+      "gameUnknown":
+          "Impossibile leggere l’identità o la revisione del disco Wii.",
+      "configurationInvalid":
+          "Configurazione Wiimmfi illeggibile. Rimuovila per ripristinarla.",
+      "busy": "Chiudi prima la sessione Dolphin attiva.",
+      "unsafePath":
+          "Il percorso selezionato non è sicuro per questa operazione.",
+      "code": "Codice di errore Wiimmfi",
+      "lookup": "Spiega codice",
+      "activation":
+          "Attivazione in attesa. Rispetta il tempo indicato da Wiimmfi senza cambiare l’identità della console.",
+      "patchOld":
+          "Il servizio segnala una patch obsoleta. Prepara nuovamente l’immagine con lo strumento ufficiale.",
+      "patchRestart":
+          "Riavvia il gioco per ottenere l’aggiornamento richiesto dal servizio.",
+      "nandError":
+          "Il servizio ha rifiutato l’identità della console. Controlla l’importazione BootMii della tua Wii reale.",
+      "codeUnknown":
+          "Conserva il codice esatto e consulta il riferimento ufficiale degli errori.",
+      "wiimmfiMenuHelp":
+          "Il gioco continua. Trucchi, stati salvati e modifiche della velocità sono disattivati. Uscire termina questa sessione; riconnettiti dal gioco dopo il riavvio.",
+      "wiimmfiSlow": "Emulazione troppo lenta",
+    },
+    "pt": {
+      "enabled": "Ativar Wiimmfi",
+      "nand": "NAND da sua consola Wii",
+      "recognized":
+          "Estrutura reconhecida · autenticação no servidor não testada",
+      "nandMissing": "NAND da consola ausente ou incompleta",
+      "importNand": "Importar cópia BootMii",
+      "importHelp":
+          "Selecione nand.bin e keys.bin em conjunto se as chaves estiverem separadas. Os seus dados de jogo atuais da Wii e uma cópia da NAND anterior são preservados. A identidade da consola muda. Esta importação não certifica a integridade ECC/HMAC nem a autenticidade da identidade Nintendo.",
+      "imported": "Cópia importada. Teste a autenticação no jogo.",
+      "engineUnavailable":
+          "O Wiimmfi não está disponível nesta versão do Dolphin.",
+      "intro":
+          "Use a NAND da sua própria Wii e um jogo preparado com a ferramenta oficial de patches do Wiimmfi. Não é fornecida nenhuma conta ou identidade de consola. Uma verificação bem-sucedida aqui não comprova o funcionamento do jogo online.",
+      "diagnose": "Executar diagnóstico de rede",
+      "unknown": "Desconhecido",
+      "dns": "DNS",
+      "website": "Site oficial",
+      "authentication": "Autenticação",
+      "matchmaking": "Procura de adversários",
+      "players": "Jogadores ligados",
+      "servers": "Servidores de jogo",
+      "resolved": "Resolvido",
+      "reachable": "Acessível",
+      "failed": "Falhou",
+      "notTested": "Não testado",
+      "games": "Jogos a verificar",
+      "catalogHelp":
+          "Apenas candidatos. A compatibilidade do serviço, de cada região e revisão e do jogo online no RewindBox ainda não foi verificada. Consulte a lista oficial.",
+      "officialStats": "Compatibilidade e estatísticas oficiais",
+      "documentation": "Documentação e apoio",
+      "clear": "Remover configuração do Wiimmfi",
+      "clearHelp":
+          "Desativar o Wiimmfi e esquecer as declarações de jogos preparados? A NAND, os jogos e os dados de jogo são preservados.",
+      "cancel": "Cancelar",
+      "continue": "Continuar",
+      "close": "Fechar",
+      "reading": "A ler a NAND",
+      "extracting": "A extrair ficheiros",
+      "patch": "Declarar esta imagem preparada",
+      "patchHelp":
+          "Confirme que preparou exatamente esta imagem com a ferramenta oficial atual de patches do Wiimmfi, incluindo as correções de segurança. O RewindBox regista a impressão digital e a região e revisão nativas; não pode certificar a versão do patch. A imagem original não é modificada. Alterar apenas o DNS não basta para o Dolphin.",
+      "declared":
+          "Imagem declarada por si · patch de segurança não certificado",
+      "launch": "Iniciar com Wiimmfi",
+      "offline": "Iniciar offline",
+      "error": "A operação falhou. Consulte o diagnóstico e a ajuda oficial.",
+      "keysRequired":
+          "Selecione em conjunto a NAND e o respetivo ficheiro keys.bin de 1024 bytes.",
+      "invalidNand":
+          "Cópia inválida, incompleta ou ilegível. A NAND anterior é preservada.",
+      "cancelled": "Importação cancelada. A NAND anterior é preservada.",
+      "disabled": "Ative o Wiimmfi antes desta operação.",
+      "patchRequired":
+          "Declare primeiro a imagem preparada com a ferramenta oficial.",
+      "imageChanged": "A imagem foi alterada. Prepare-a e declare-a novamente.",
+      "gameUnknown":
+          "Não foi possível ler a identidade ou revisão do disco Wii.",
+      "configurationInvalid":
+          "Configuração do Wiimmfi ilegível. Remova-a para a repor.",
+      "busy": "Feche primeiro a sessão ativa do Dolphin.",
+      "unsafePath": "O caminho selecionado não é seguro para esta operação.",
+      "code": "Código de erro do Wiimmfi",
+      "lookup": "Explicar código",
+      "activation":
+          "Ativação pendente. Respeite o prazo indicado pelo Wiimmfi e não altere a identidade da consola.",
+      "patchOld":
+          "O serviço indica um patch desatualizado. Prepare novamente a imagem com a ferramenta oficial.",
+      "patchRestart":
+          "Reinicie o jogo para obter a atualização exigida pelo serviço.",
+      "nandError":
+          "O serviço rejeitou a identidade da consola. Verifique a importação BootMii da sua Wii real.",
+      "codeUnknown":
+          "Guarde o código exato e consulte a referência oficial de erros.",
+      "wiimmfiMenuHelp":
+          "O jogo continua. Os códigos de batota, estados guardados e alterações de velocidade estão desativados. Sair termina esta sessão; volte a ligar-se a partir do jogo depois de o reiniciar.",
+      "wiimmfiSlow": "Emulação demasiado lenta",
+    },
+    "ru": {
+      "enabled": "Включить Wiimmfi",
+      "nand": "NAND вашей консоли Wii",
+      "recognized":
+          "Структура распознана · аутентификация на сервере не проверена",
+      "nandMissing": "NAND консоли отсутствует или неполна",
+      "importNand": "Импортировать резервную копию BootMii",
+      "importHelp":
+          "Выберите nand.bin и keys.bin вместе, если ключи хранятся отдельно. Текущие сохранения Wii и резервная копия прежней NAND будут сохранены. Идентификатор консоли изменится. Импорт не подтверждает целостность ECC/HMAC или подлинность идентификационных данных Nintendo.",
+      "imported":
+          "Резервная копия импортирована. Проверьте аутентификацию в игре.",
+      "engineUnavailable": "Wiimmfi недоступен в этой версии Dolphin.",
+      "intro":
+          "Используйте NAND собственной Wii и игру, подготовленную официальным патчером Wiimmfi. Учётная запись и идентификатор консоли не предоставляются. Успешная проверка здесь не доказывает работоспособность сетевой игры.",
+      "diagnose": "Запустить диагностику сети",
+      "unknown": "Неизвестно",
+      "dns": "DNS",
+      "website": "Официальный сайт",
+      "authentication": "Аутентификация",
+      "matchmaking": "Поиск соперников",
+      "players": "Игроки в сети",
+      "servers": "Игровые серверы",
+      "resolved": "Имя разрешено",
+      "reachable": "Доступно",
+      "failed": "Ошибка",
+      "notTested": "Не проверено",
+      "games": "Игры для проверки",
+      "catalogHelp":
+          "Только кандидаты. Совместимость сервиса, каждого региона и ревизии, а также сетевая игра в RewindBox пока не проверены. Сверьтесь с официальным списком.",
+      "officialStats": "Официальная совместимость и статистика",
+      "documentation": "Документация и поддержка",
+      "clear": "Удалить конфигурацию Wiimmfi",
+      "clearHelp":
+          "Отключить Wiimmfi и забыть ваши подтверждения подготовки игр? NAND, игры и сохранения останутся.",
+      "cancel": "Отмена",
+      "continue": "Продолжить",
+      "close": "Закрыть",
+      "reading": "Чтение NAND",
+      "extracting": "Извлечение файлов",
+      "patch": "Подтвердить подготовку этого образа",
+      "patchHelp":
+          "Подтвердите, что подготовили именно этот образ текущим официальным патчером Wiimmfi, включая исправления безопасности. RewindBox записывает его отпечаток, исходный регион и ревизию, но не может подтвердить версию патча. Исходный образ не изменяется. Одной смены DNS для Dolphin недостаточно.",
+      "declared": "Подготовка заявлена вами · патч безопасности не подтверждён",
+      "launch": "Запустить с Wiimmfi",
+      "offline": "Запустить без сети",
+      "error":
+          "Операция не выполнена. Обратитесь к диагностике и официальной справке.",
+      "keysRequired":
+          "Выберите вместе NAND и соответствующий файл keys.bin размером 1024 байта.",
+      "invalidNand":
+          "Копия недействительна, неполна или не читается. Прежняя NAND сохранена.",
+      "cancelled": "Импорт отменён. Прежняя NAND сохранена.",
+      "disabled": "Включите Wiimmfi перед этой операцией.",
+      "patchRequired":
+          "Сначала подтвердите подготовку образа официальным инструментом.",
+      "imageChanged":
+          "Образ изменился. Подготовьте его заново и повторите подтверждение.",
+      "gameUnknown":
+          "Не удалось прочитать идентификатор или ревизию диска Wii.",
+      "configurationInvalid":
+          "Конфигурация Wiimmfi не читается. Удалите её для сброса.",
+      "busy": "Сначала завершите активный сеанс Dolphin.",
+      "unsafePath": "Выбранный путь небезопасен для этой операции.",
+      "code": "Код ошибки Wiimmfi",
+      "lookup": "Объяснить код",
+      "activation":
+          "Ожидание активации. Соблюдайте срок, указанный Wiimmfi; не меняйте идентификатор консоли.",
+      "patchOld":
+          "Сервис сообщает об устаревшем патче. Заново подготовьте образ официальным инструментом.",
+      "patchRestart":
+          "Перезапустите игру, чтобы получить обновление, необходимое сервису.",
+      "nandError":
+          "Сервис отклонил идентификационные данные консоли. Проверьте импорт BootMii со своей настоящей Wii.",
+      "codeUnknown":
+          "Сохраните точный код и обратитесь к официальному справочнику ошибок.",
+      "wiimmfiMenuHelp":
+          "Игра продолжает работать. Читы, состояния эмулятора и изменение скорости отключены. Выход завершает этот сеанс; после перезапуска подключитесь заново из игры.",
+      "wiimmfiSlow": "Слишком медленная эмуляция",
+    },
+    "id": {
+      "enabled": "Aktifkan Wiimmfi",
+      "nand": "NAND konsol Wii Anda",
+      "recognized": "Struktur dikenali · autentikasi server belum diuji",
+      "nandMissing": "NAND konsol tidak ada atau tidak lengkap",
+      "importNand": "Impor cadangan BootMii",
+      "importHelp":
+          "Pilih nand.bin dan keys.bin bersamaan jika kuncinya terpisah. Data simpanan Wii saat ini dan cadangan NAND sebelumnya tetap disimpan. Identitas konsol berubah. Impor ini tidak menjamin integritas ECC/HMAC ataupun keaslian identitas Nintendo.",
+      "imported": "Cadangan diimpor. Uji autentikasi di dalam game.",
+      "engineUnavailable": "Wiimmfi tidak tersedia dalam versi Dolphin ini.",
+      "intro":
+          "Gunakan NAND dari Wii milik Anda sendiri dan game yang disiapkan dengan patcher resmi Wiimmfi. Akun atau identitas konsol tidak disediakan. Pemeriksaan yang berhasil di sini tidak membuktikan bahwa permainan online berfungsi.",
+      "diagnose": "Jalankan diagnosis jaringan",
+      "unknown": "Tidak diketahui",
+      "dns": "DNS",
+      "website": "Situs resmi",
+      "authentication": "Autentikasi",
+      "matchmaking": "Pencarian lawan",
+      "players": "Pemain terhubung",
+      "servers": "Server game",
+      "resolved": "Berhasil diresolusikan",
+      "reachable": "Dapat dijangkau",
+      "failed": "Gagal",
+      "notTested": "Belum diuji",
+      "games": "Game yang perlu diverifikasi",
+      "catalogHelp":
+          "Hanya kandidat. Kompatibilitas layanan, setiap wilayah dan revisi, serta permainan online di RewindBox belum diverifikasi. Periksa daftar resmi.",
+      "officialStats": "Kompatibilitas dan statistik resmi",
+      "documentation": "Dokumentasi dan bantuan",
+      "clear": "Hapus konfigurasi Wiimmfi",
+      "clearHelp":
+          "Nonaktifkan Wiimmfi dan lupakan pernyataan kesiapan game? NAND, game, dan data simpanan Anda tetap disimpan.",
+      "cancel": "Batal",
+      "continue": "Lanjutkan",
+      "close": "Tutup",
+      "reading": "Membaca NAND",
+      "extracting": "Mengekstrak file",
+      "patch": "Nyatakan image ini telah disiapkan",
+      "patchHelp":
+          "Konfirmasikan bahwa Anda menyiapkan image persis ini dengan patcher resmi Wiimmfi terbaru, termasuk perbaikan keamanannya. RewindBox mencatat sidik jari serta wilayah dan revisi aslinya; versi patch tidak dapat dijamin. Image asli tidak diubah. Mengubah DNS saja tidak cukup untuk Dolphin.",
+      "declared":
+          "Dinyatakan siap oleh Anda · patch keamanan belum tersertifikasi",
+      "launch": "Jalankan dengan Wiimmfi",
+      "offline": "Jalankan offline",
+      "error": "Operasi gagal. Periksa diagnosis dan bantuan resmi.",
+      "keysRequired":
+          "Pilih NAND dan file keys.bin berukuran 1024 byte miliknya secara bersamaan.",
+      "invalidNand":
+          "Cadangan tidak valid, tidak lengkap, atau tidak terbaca. NAND sebelumnya tetap disimpan.",
+      "cancelled": "Impor dibatalkan. NAND sebelumnya tetap disimpan.",
+      "disabled": "Aktifkan Wiimmfi sebelum operasi ini.",
+      "patchRequired":
+          "Nyatakan terlebih dahulu image yang telah Anda siapkan dengan alat resmi.",
+      "imageChanged": "Image telah berubah. Siapkan dan nyatakan kembali.",
+      "gameUnknown": "Identitas atau revisi cakram Wii tidak dapat dibaca.",
+      "configurationInvalid":
+          "Konfigurasi Wiimmfi tidak terbaca. Hapus konfigurasinya untuk mengatur ulang.",
+      "busy": "Tutup sesi Dolphin yang aktif terlebih dahulu.",
+      "unsafePath": "Lokasi yang dipilih tidak aman untuk operasi ini.",
+      "code": "Kode kesalahan Wiimmfi",
+      "lookup": "Jelaskan kode",
+      "activation":
+          "Menunggu aktivasi. Ikuti waktu tunggu yang dilaporkan Wiimmfi; jangan ubah identitas konsol.",
+      "patchOld":
+          "Layanan melaporkan patch yang kedaluwarsa. Siapkan kembali image dengan alat resmi.",
+      "patchRestart":
+          "Mulai ulang game untuk mendapatkan pembaruan yang diperlukan layanan.",
+      "nandError":
+          "Layanan menolak identitas konsol. Periksa impor BootMii dari Wii asli Anda.",
+      "codeUnknown":
+          "Simpan kode persisnya dan periksa referensi kesalahan resmi.",
+      "wiimmfiMenuHelp":
+          "Game tetap berjalan. Cheat, save state, dan perubahan kecepatan dinonaktifkan. Keluar mengakhiri sesi ini; sambungkan kembali dari dalam game setelah memulai ulang.",
+      "wiimmfiSlow": "Emulasi terlalu lambat",
+    },
+    "ja": {
+      "enabled": "Wiimmfiを有効にする",
+      "nand": "お使いのWii本体のNAND",
+      "recognized": "構造を認識済み · サーバー認証は未検証",
+      "nandMissing": "本体のNANDがないか、不完全です",
+      "importNand": "BootMiiバックアップをインポート",
+      "importHelp":
+          "鍵が別ファイルの場合は、nand.binとkeys.binを同時に選択してください。現在のWiiセーブデータと、以前のNANDのバックアップは保持されます。本体の識別情報は変更されます。このインポートは、ECC/HMACの整合性やNintendoの本体識別情報の真正性を保証するものではありません。",
+      "imported": "バックアップをインポートしました。ゲーム内で認証を確認してください。",
+      "engineUnavailable": "このバージョンのDolphinではWiimmfiを利用できません。",
+      "intro":
+          "ご自身のWiiから取得したNANDと、公式Wiimmfiパッチャーで準備したゲームを使用してください。アカウントや本体識別情報は提供されません。ここでの確認に成功しても、オンライン対戦が動作する証明にはなりません。",
+      "diagnose": "ネットワーク診断を実行",
+      "unknown": "不明",
+      "dns": "DNS",
+      "website": "公式サイト",
+      "authentication": "認証",
+      "matchmaking": "対戦相手の検索",
+      "players": "接続中のプレイヤー",
+      "servers": "ゲームサーバー",
+      "resolved": "名前解決に成功",
+      "reachable": "到達可能",
+      "failed": "失敗",
+      "notTested": "未検証",
+      "games": "確認対象のゲーム",
+      "catalogHelp":
+          "候補のみです。サービスの対応状況、各地域・リビジョン、およびRewindBoxでのオンラインプレイは未検証です。公式リストを確認してください。",
+      "officialStats": "公式の対応状況と統計",
+      "documentation": "ドキュメントとサポート",
+      "clear": "Wiimmfi設定を削除",
+      "clearHelp": "Wiimmfiを無効にし、ゲームの準備済み申告を削除しますか？ NAND、ゲーム、セーブデータは保持されます。",
+      "cancel": "キャンセル",
+      "continue": "続ける",
+      "close": "閉じる",
+      "reading": "NANDを読み込み中",
+      "extracting": "ファイルを展開中",
+      "patch": "このイメージを準備済みとして申告",
+      "patchHelp":
+          "このイメージ自体を、セキュリティ修正を含む現行の公式Wiimmfiパッチャーで準備したことを確認してください。RewindBoxはそのフィンガープリントと元の地域・リビジョンを記録しますが、パッチのバージョンを保証できません。元のイメージは変更されません。DolphinではDNSの変更だけでは不十分です。",
+      "declared": "ユーザーが準備済みと申告 · セキュリティパッチは未認証",
+      "launch": "Wiimmfiで起動",
+      "offline": "オフラインで起動",
+      "error": "操作に失敗しました。診断と公式ヘルプを確認してください。",
+      "keysRequired": "NANDと、その1024バイトのkeys.binを同時に選択してください。",
+      "invalidNand": "バックアップが無効、不完全、または読み取り不能です。以前のNANDは保持されます。",
+      "cancelled": "インポートをキャンセルしました。以前のNANDは保持されます。",
+      "disabled": "この操作の前にWiimmfiを有効にしてください。",
+      "patchRequired": "まず、公式ツールで準備したイメージを申告してください。",
+      "imageChanged": "イメージが変更されています。再度準備して申告してください。",
+      "gameUnknown": "Wiiディスクの識別情報またはリビジョンを読み取れません。",
+      "configurationInvalid": "Wiimmfi設定を読み取れません。設定を削除して初期化してください。",
+      "busy": "先に実行中のDolphinセッションを終了してください。",
+      "unsafePath": "選択したパスは、この操作に安全に使用できません。",
+      "code": "Wiimmfiエラーコード",
+      "lookup": "コードを説明",
+      "activation": "有効化待ちです。Wiimmfiが示す待機期間に従い、本体の識別情報を変更しないでください。",
+      "patchOld": "サービスが古いパッチを検出しました。公式ツールでイメージを再度準備してください。",
+      "patchRestart": "ゲームを再起動し、サービスが要求する更新を取得してください。",
+      "nandError": "サービスが本体の識別情報を拒否しました。実際のWiiからのBootMiiインポートを確認してください。",
+      "codeUnknown": "正確なコードを控え、公式のエラー一覧を確認してください。",
+      "wiimmfiMenuHelp":
+          "ゲームは動作し続けます。チート、ステート、速度変更は無効です。終了するとこのセッションが閉じられます。再起動後、ゲーム内から再接続してください。",
+      "wiimmfiSlow": "エミュレーション速度が不足",
+    },
+    "ko": {
+      "enabled": "Wiimmfi 활성화",
+      "nand": "내 Wii 본체의 NAND",
+      "recognized": "구조 인식됨 · 서버 인증은 테스트하지 않음",
+      "nandMissing": "본체 NAND가 없거나 불완전합니다",
+      "importNand": "BootMii 백업 가져오기",
+      "importHelp":
+          "키가 별도 파일이면 nand.bin과 keys.bin을 함께 선택하세요. 현재 Wii 저장 데이터와 이전 NAND의 백업은 보존됩니다. 본체 식별 정보가 변경됩니다. 이 가져오기는 ECC/HMAC 무결성이나 Nintendo 식별 정보의 진위를 보증하지 않습니다.",
+      "imported": "백업을 가져왔습니다. 게임에서 인증을 테스트하세요.",
+      "engineUnavailable": "이 Dolphin 버전에서는 Wiimmfi를 사용할 수 없습니다.",
+      "intro":
+          "본인 소유 Wii의 NAND와 공식 Wiimmfi 패처로 준비한 게임을 사용하세요. 계정이나 본체 식별 정보는 제공되지 않습니다. 여기서 검사에 성공해도 온라인 플레이가 작동한다는 증거는 아닙니다.",
+      "diagnose": "네트워크 진단 실행",
+      "unknown": "알 수 없음",
+      "dns": "DNS",
+      "website": "공식 웹사이트",
+      "authentication": "인증",
+      "matchmaking": "상대 찾기",
+      "players": "접속 중인 플레이어",
+      "servers": "게임 서버",
+      "resolved": "이름 확인 성공",
+      "reachable": "연결 가능",
+      "failed": "실패",
+      "notTested": "테스트하지 않음",
+      "games": "확인이 필요한 게임",
+      "catalogHelp":
+          "후보 목록입니다. 서비스 호환성, 각 지역 및 리비전, RewindBox의 온라인 플레이는 아직 검증되지 않았습니다. 공식 목록을 확인하세요.",
+      "officialStats": "공식 호환성 및 통계",
+      "documentation": "문서 및 지원",
+      "clear": "Wiimmfi 설정 삭제",
+      "clearHelp":
+          "Wiimmfi를 비활성화하고 게임 준비 확인 기록을 삭제할까요? NAND, 게임 및 저장 데이터는 보존됩니다.",
+      "cancel": "취소",
+      "continue": "계속",
+      "close": "닫기",
+      "reading": "NAND 읽는 중",
+      "extracting": "파일 추출 중",
+      "patch": "이 이미지의 준비 완료 신고",
+      "patchHelp":
+          "보안 수정 사항을 포함한 현재 공식 Wiimmfi 패처로 바로 이 이미지를 준비했는지 확인하세요. RewindBox는 지문과 원래 지역 및 리비전을 기록하지만 패치 버전을 보증할 수 없습니다. 원본 이미지는 변경되지 않습니다. Dolphin에서는 DNS 변경만으로 충분하지 않습니다.",
+      "declared": "사용자가 준비 완료 신고 · 보안 패치는 미인증",
+      "launch": "Wiimmfi로 실행",
+      "offline": "오프라인으로 실행",
+      "error": "작업에 실패했습니다. 진단 결과와 공식 도움말을 확인하세요.",
+      "keysRequired": "NAND와 해당 1024바이트 keys.bin 파일을 함께 선택하세요.",
+      "invalidNand": "백업이 유효하지 않거나 불완전하거나 읽을 수 없습니다. 이전 NAND는 보존됩니다.",
+      "cancelled": "가져오기가 취소되었습니다. 이전 NAND는 보존됩니다.",
+      "disabled": "이 작업 전에 Wiimmfi를 활성화하세요.",
+      "patchRequired": "먼저 공식 도구로 준비한 이미지를 신고하세요.",
+      "imageChanged": "이미지가 변경되었습니다. 다시 준비한 후 신고하세요.",
+      "gameUnknown": "Wii 디스크의 식별 정보 또는 리비전을 읽을 수 없습니다.",
+      "configurationInvalid": "Wiimmfi 설정을 읽을 수 없습니다. 설정을 삭제하여 초기화하세요.",
+      "busy": "먼저 활성 Dolphin 세션을 종료하세요.",
+      "unsafePath": "선택한 경로는 이 작업에 안전하지 않습니다.",
+      "code": "Wiimmfi 오류 코드",
+      "lookup": "코드 설명",
+      "activation": "활성화 대기 중입니다. Wiimmfi가 안내하는 대기 시간을 따르고 본체 식별 정보를 변경하지 마세요.",
+      "patchOld": "서비스에서 오래된 패치를 보고했습니다. 공식 도구로 이미지를 다시 준비하세요.",
+      "patchRestart": "서비스에서 요구하는 업데이트를 받으려면 게임을 다시 시작하세요.",
+      "nandError": "서비스에서 본체 식별 정보를 거부했습니다. 실제 Wii의 BootMii 가져오기를 확인하세요.",
+      "codeUnknown": "정확한 코드를 기록하고 공식 오류 안내를 확인하세요.",
+      "wiimmfiMenuHelp":
+          "게임은 계속 실행됩니다. 치트, 상태 저장 및 속도 변경은 비활성화됩니다. 나가면 이 세션이 종료됩니다. 다시 실행한 뒤 게임에서 재접속하세요.",
+      "wiimmfiSlow": "에뮬레이션 속도 부족",
+    },
+    "zh": {
+      "enabled": "启用 Wiimmfi",
+      "nand": "您自己的 Wii 主机 NAND",
+      "recognized": "已识别结构 · 尚未测试服务器认证",
+      "nandMissing": "主机 NAND 缺失或不完整",
+      "importNand": "导入 BootMii 备份",
+      "importHelp":
+          "如果密钥单独存放，请同时选择 nand.bin 和 keys.bin。现有 Wii 存档和原 NAND 的备份会保留。主机身份将发生变化。此导入不保证 ECC/HMAC 完整性，也不保证 Nintendo 主机身份的真实性。",
+      "imported": "备份已导入。请在游戏中测试认证。",
+      "engineUnavailable": "此版本的 Dolphin 无法使用 Wiimmfi。",
+      "intro":
+          "请使用您自己的 Wii 主机 NAND，以及通过 Wiimmfi 官方补丁工具准备的游戏。本应用不提供账号或主机身份。此处检查成功不代表在线游戏已验证可用。",
+      "diagnose": "运行网络诊断",
+      "unknown": "未知",
+      "dns": "DNS",
+      "website": "官方网站",
+      "authentication": "认证",
+      "matchmaking": "匹配对手",
+      "players": "在线玩家",
+      "servers": "游戏服务器",
+      "resolved": "解析成功",
+      "reachable": "可访问",
+      "failed": "失败",
+      "notTested": "未测试",
+      "games": "待验证游戏",
+      "catalogHelp": "仅为候选游戏。服务兼容性、各地区与修订版，以及 RewindBox 中的在线游戏功能均尚未验证。请查看官方列表。",
+      "officialStats": "官方兼容性与统计",
+      "documentation": "文档与支持",
+      "clear": "删除 Wiimmfi 配置",
+      "clearHelp": "禁用 Wiimmfi 并清除游戏准备声明？您的 NAND、游戏和存档会保留。",
+      "cancel": "取消",
+      "continue": "继续",
+      "close": "关闭",
+      "reading": "正在读取 NAND",
+      "extracting": "正在提取文件",
+      "patch": "声明此镜像已准备",
+      "patchHelp":
+          "请确认您已使用当前的 Wiimmfi 官方补丁工具及其安全修复准备此镜像。RewindBox 会记录其指纹、原始地区和修订版，但无法保证补丁版本。原始镜像不会被修改。对于 Dolphin，仅更改 DNS 并不足够。",
+      "declared": "由您声明已准备 · 安全补丁未经认证",
+      "launch": "使用 Wiimmfi 启动",
+      "offline": "离线启动",
+      "error": "操作失败。请查看诊断结果和官方帮助。",
+      "keysRequired": "请同时选择 NAND 和对应的 1024 字节 keys.bin。",
+      "invalidNand": "备份无效、不完整或无法读取。原 NAND 已保留。",
+      "cancelled": "导入已取消。原 NAND 已保留。",
+      "disabled": "请先启用 Wiimmfi，再执行此操作。",
+      "patchRequired": "请先声明您的镜像已通过官方工具准备。",
+      "imageChanged": "镜像已更改。请重新准备并声明。",
+      "gameUnknown": "无法读取 Wii 光盘身份或修订版。",
+      "configurationInvalid": "无法读取 Wiimmfi 配置。请删除该配置以重置。",
+      "busy": "请先关闭当前 Dolphin 会话。",
+      "unsafePath": "所选路径不适合安全执行此操作。",
+      "code": "Wiimmfi 错误代码",
+      "lookup": "解释代码",
+      "activation": "正在等待激活。请遵守 Wiimmfi 提示的等待时间，不要更改主机身份。",
+      "patchOld": "服务提示补丁已过时。请使用官方工具重新准备镜像。",
+      "patchRestart": "请重启游戏，以获取服务要求的更新。",
+      "nandError": "服务拒绝了主机身份。请检查从您实际 Wii 主机导入的 BootMii 备份。",
+      "codeUnknown": "请保留准确的代码，并查阅官方错误说明。",
+      "wiimmfiMenuHelp": "游戏仍在运行。作弊码、即时存档及速度调整已禁用。退出将结束此会话；重新启动后，请从游戏中重新连接。",
+      "wiimmfiSlow": "模拟速度不足",
+    },
+    "zhHant": {
+      "enabled": "啟用 Wiimmfi",
+      "nand": "您自己的 Wii 主機 NAND",
+      "recognized": "已辨識結構 · 尚未測試伺服器驗證",
+      "nandMissing": "主機 NAND 遺失或不完整",
+      "importNand": "匯入 BootMii 備份",
+      "importHelp":
+          "若金鑰另存於獨立檔案，請同時選取 nand.bin 和 keys.bin。目前的 Wii 存檔與原 NAND 的備份都會保留。主機身分將會改變。此匯入不保證 ECC/HMAC 完整性，也不保證 Nintendo 主機身分的真實性。",
+      "imported": "備份已匯入。請在遊戲中測試驗證。",
+      "engineUnavailable": "此版本的 Dolphin 無法使用 Wiimmfi。",
+      "intro":
+          "請使用您自己的 Wii 主機 NAND，以及透過 Wiimmfi 官方修補工具準備的遊戲。本應用程式不提供帳號或主機身分。此處檢查成功不代表已確認線上遊戲可正常運作。",
+      "diagnose": "執行網路診斷",
+      "unknown": "未知",
+      "dns": "DNS",
+      "website": "官方網站",
+      "authentication": "驗證",
+      "matchmaking": "尋找對手",
+      "players": "線上玩家",
+      "servers": "遊戲伺服器",
+      "resolved": "解析成功",
+      "reachable": "可連線",
+      "failed": "失敗",
+      "notTested": "未測試",
+      "games": "待驗證遊戲",
+      "catalogHelp": "僅為候選遊戲。服務相容性、各地區與修訂版，以及 RewindBox 的線上遊戲功能均尚未驗證。請查看官方清單。",
+      "officialStats": "官方相容性與統計",
+      "documentation": "文件與支援",
+      "clear": "移除 Wiimmfi 設定",
+      "clearHelp": "停用 Wiimmfi 並清除遊戲準備聲明？您的 NAND、遊戲與存檔都會保留。",
+      "cancel": "取消",
+      "continue": "繼續",
+      "close": "關閉",
+      "reading": "正在讀取 NAND",
+      "extracting": "正在擷取檔案",
+      "patch": "聲明此映像檔已準備",
+      "patchHelp":
+          "請確認您已使用目前的 Wiimmfi 官方修補工具及其安全性修正準備這個映像檔。RewindBox 會記錄其指紋、原始地區和修訂版，但無法保證修補版本。原始映像檔不會被修改。對 Dolphin 而言，僅變更 DNS 並不足夠。",
+      "declared": "由您聲明已準備 · 安全性修補未經認證",
+      "launch": "使用 Wiimmfi 啟動",
+      "offline": "離線啟動",
+      "error": "操作失敗。請查看診斷結果與官方說明。",
+      "keysRequired": "請同時選取 NAND 與對應的 1024 位元組 keys.bin。",
+      "invalidNand": "備份無效、不完整或無法讀取。原 NAND 已保留。",
+      "cancelled": "匯入已取消。原 NAND 已保留。",
+      "disabled": "請先啟用 Wiimmfi，再執行此操作。",
+      "patchRequired": "請先聲明您的映像檔已透過官方工具準備。",
+      "imageChanged": "映像檔已變更。請重新準備並聲明。",
+      "gameUnknown": "無法讀取 Wii 光碟身分或修訂版。",
+      "configurationInvalid": "無法讀取 Wiimmfi 設定。請移除該設定以重設。",
+      "busy": "請先結束目前的 Dolphin 工作階段。",
+      "unsafePath": "所選路徑不適合安全地執行此操作。",
+      "code": "Wiimmfi 錯誤代碼",
+      "lookup": "解釋代碼",
+      "activation": "正在等待啟用。請遵守 Wiimmfi 提示的等待時間，勿變更主機身分。",
+      "patchOld": "服務提示修補版本已過時。請使用官方工具重新準備映像檔。",
+      "patchRestart": "請重新啟動遊戲，以取得服務要求的更新。",
+      "nandError": "服務拒絕了主機身分。請檢查從您實際 Wii 主機匯入的 BootMii 備份。",
+      "codeUnknown": "請保留完整且正確的代碼，並查閱官方錯誤說明。",
+      "wiimmfiMenuHelp":
+          "遊戲仍持續執行。作弊碼、即時存檔及速度調整均已停用。離開會結束此工作階段；重新啟動後，請在遊戲中重新連線。",
+      "wiimmfiSlow": "模擬速度不足",
+    },
+  };
+
+  static String errorKey(String code) {
+    if (code == '23904') return 'patchOld';
+    if (code == '23905') return 'patchRestart';
+    if (code == '23918' || code == '23934') return 'nandError';
+    if (RegExp(r'^238\d{2}$').hasMatch(code)) return 'activation';
+    return 'codeUnknown';
+  }
+}
