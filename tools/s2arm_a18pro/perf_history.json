@@ -6756,6 +6756,10 @@
     {
       "patches": "0466",
       "basis": "Zero-ARC hot-path arena_alloc(n, NULL) using cached g_cur_arena->cpu/gpu across 18 hot draw/shadow/geometry/support sites (preserving len_fill compatibility with compare_ubolen.py), cached g_ubs_cpu/g_ubs_gpu + upd_ent.cpu/ubd_ent.cpu (with NULL fallback preserving t_nvn_ubd_index.m), cached g_half_masks_gpu, POD cctx_capture() formatting only on cb.error, and lazy g_commit_blocks allocation (zero heap alloc/copy on normal submissions; rb_bi_put checks g_cb). Verified with ASan+UBSan (10,000-submission exact cctx string parity + fallback parity + 6 balanced pairs -82.82% paired median 30.648->5.269 ms), compare_ubolen.py (0436 vs 0466), all 14 portable NVN C unit tests, s2arm_engine_exports_test.py (4/4), and full 12-run 10-module bench_suite (0 regressions, 100% checksum parity). Physical iPhone FPS unmeasured."
+    },
+    {
+      "patches": "0467",
+      "basis": "Unit-test probe accounting correctness fix for patch 0462 in runtime/src/svc_mem.c: adds AMASK_PROBE_N(7) under S2A_UNIT_TEST after each 8-byte g_amask word load in query() so g_amask_probes accurately accounts for all 8 inspected host-page entries (zero cost in production builds). Restored native-test-svc_mem to 213/213 PASS on macOS-26 CI run 45945441918 while keeping 0462's 9.65x QueryMemory speedup."
     }
   ],
   "rejected_optimizations": [
@@ -6780,7 +6784,7 @@
     "First-use pipeline compilation and residency measured separately from CPU key construction",
     "Presentation queue scheduling, native frame pacing and physical iPhone 16 Pro Max 1x 60 FPS / thermal validation (unmeasured)"
   ],
-  "next_axis": "Verify 0464–0466 on macOS-15/26 CI (iPhoneOS engine build, pipeline_driver Metal shader compilation, homebrew Metal readback, offscreen 720p pacing, and thermal_gpu_checks including t_nvn_ubd_index and t_nvn_buffer_origin), then audit Metal encode-thread ObjC dispatch overhead (nvn_rec.h IMP caching / rec_flush batching) and sdx_walk/lookahead submission CPU cost on large command streams, while keeping physical iPhone 16 Pro Max 60 FPS measurements explicitly unmeasured until run on device.",
+  "next_axis": "Audit and benchmark Metal encode-thread Objective-C dispatch overhead (nvn_rec.h IMP caching / rec_flush batching) and submission lookahead CPU cost (sdx_walk, udc/fb/defer pass analysis) + GPU frametime costs, with >= 5 balanced paired measurements vs 0436 baseline and 0467 best intermediate, strict ASan+UBSan/TSan parity checks, zero degradation, and macOS-26 Metal verification. Keep physical iPhone 16 Pro Max 1x 60 FPS and thermal validation explicitly unmeasured until tested on device.",
   "legacy_note": "First 21 entries are original host summaries. Their draft patch numbers describe historical experiments; numbers may differ from integrated engine patches. Cachegrind counters are on x86. The uncalibrated projections were withdrawn. No legacy entry establishes fidelity, A18 Pro frametime, GPU time, energy, RAM or FPS.",
   "initial_reference": "0426",
   "intermediate_reference": "0436 (8be902ac0)",
@@ -6797,7 +6801,8 @@
     "consecutive_rejections_after_0463_before_0464": 0,
     "rejected_during_0464_0466_cycle": 1,
     "consecutive_rejections_at_0466": 0,
-    "last_updated": "2026-11-27T04:55:00Z"
+    "last_updated": "2026-11-27T05:47:00Z",
+    "consecutive_rejections_at_0467": 0
   },
   "device_metrics": {
     "native_fps": null,
@@ -6940,6 +6945,82 @@
       "portable_nvn_unit_tests_asan_ubsan": "14/14 passed",
       "s2arm_engine_exports_test": "4/4 passed"
     },
-    "macos_ci_status": "pending_run_on_Claude"
+    "macos_ci_status": "passed_both_macos15_and_macos26",
+    "macos_ci_run_45945441918": {
+      "url": "https://github.com/TarbleFR/RewindBox/actions/runs/45945441918",
+      "head_sha": "89c0fc3aa618d08b9e6aea95d8d24c654aee8b9f",
+      "patches_count": 463,
+      "s2arm_commit": "6b6a571553f7a687af46e03e2cdbf8ef4d77f335",
+      "xcode_macos26": "Xcode 26.6",
+      "macos15_build": {
+        "make_ios_exit": 0,
+        "make_ios_s": 542,
+        "make_ios_guest_exit": 0,
+        "make_ios_guest_s": 25
+      },
+      "macos26_build": {
+        "make_ios_exit": 0,
+        "make_ios_s": 683,
+        "make_ios_guest_exit": 0,
+        "make_ios_guest_s": 39,
+        "S2ArmEngine_framework_zip_sha256": "9a3f70d60308cb3b16347f4d81b9fe1785f7cada40c57b922417673ce063cbe5",
+        "NS2Pro_framework_zip_sha256": "8fbe5d8c7997a9237c0121d63353c4fde561b27c60cce40761ba7b08e53cd6af",
+        "restricted_exports": 153,
+        "glslang_exports": 0,
+        "undefined_s2a_rb": 0,
+        "S2ArmDirectChain": "0be3f28548fd"
+      },
+      "homebrew_metal_readback": {
+        "iphoneos_air_compiled": 3,
+        "metal_readbacks_matching_vulkan": {
+          "vk_43f00c746efd088f": "6/6 (256 B)",
+          "vk_d450c0bd06ebc4b8": "6/6 (16384 B)",
+          "vk_3a9009006b053baf": "6/6 (16384 B)"
+        }
+      },
+      "pipeline_driver_macos26_12pairs_median_ms": {
+        "iphoneos_stages_compiled": 48,
+        "fresh": 4.0322,
+        "one_fresh": 2.0553,
+        "vertex_fresh": 1.7619,
+        "crossed": 0.0662,
+        "repeated": 0.1189
+      },
+      "homebrew_offscreen_pacing_macos26_12pairs": {
+        "limit_1": {
+          "slot_wait_p50_ms": 0.887,
+          "encode_wall_p95_ms": 0.094,
+          "encode_cpu_p95_ms": 0.0904,
+          "gpu_p50_ms": 0.7774,
+          "gpu_p95_ms": 1.1857,
+          "gt_16_67ms": 5,
+          "unresolved_gpu": 0,
+          "host_completions_per_s": 936.6
+        },
+        "limit_3": {
+          "slot_wait_p50_ms": 0.277,
+          "encode_wall_p95_ms": 0.0885,
+          "encode_cpu_p95_ms": 0.083,
+          "gpu_p50_ms": null,
+          "gpu_p95_ms": null,
+          "unresolved_gpu": 56,
+          "host_completions_per_s": 2763.7
+        }
+      },
+      "thermal_gpu_checks": {
+        "c_werror_fixtures": "16/16 passed",
+        "native_test_rb_dirty_range": "passed",
+        "t_nvn_ubd_index": "passed (--rb-uniform-ranges + --inflight 0/1)",
+        "t_nvn_pso_batch": "15/15 passed",
+        "t_rb_clear_batch_metal": "passed",
+        "t_nvn_xqueue": "14/14 x 4 modes passed",
+        "t_crash": "15/15 passed",
+        "t_svc_mem": "213/213 passed (fixed by 0467)",
+        "t_far": "111/111 passed",
+        "t_nvn2": "199/199 passed",
+        "t_tdump_stress": "300/300 passed"
+      },
+      "physical_iphone_16_pro_max_status": "not measured"
+    }
   }
 }
