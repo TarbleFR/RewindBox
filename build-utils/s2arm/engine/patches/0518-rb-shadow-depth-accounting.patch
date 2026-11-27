@@ -1,0 +1,117 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index b330139..550d48b 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -10837,7 +10837,8 @@ static uint64_t att_bytes(id<MTLTexture> t, NSUInteger level) {
+     NSUInteger w = MAX(t.width >> level, 1), h = MAX(t.height >> level, 1);
+     NSUInteger bpp = t.pixelFormat == MTLPixelFormatDepth32Float_Stencil8 ? 5 : t.pixelFormat == MTLPixelFormatRGBA16Float || t.pixelFormat == MTLPixelFormatRG32Float ? 8 :
+                      t.pixelFormat == MTLPixelFormatRGBA32Float ? 16 : t.pixelFormat == MTLPixelFormatR8Unorm || t.pixelFormat == MTLPixelFormatStencil8 ? 1 :
+-                     t.pixelFormat == MTLPixelFormatRG8Unorm || t.pixelFormat == MTLPixelFormatR16Float ? 2 : 4;
++                     t.pixelFormat == MTLPixelFormatRG8Unorm || t.pixelFormat == MTLPixelFormatR16Float ||
++                     t.pixelFormat == MTLPixelFormatDepth16Unorm ? 2 : 4;
+     return (uint64_t)w * h * bpp * t.sampleCount;
+ }
+ // The render attachment selects a particular mip, while MTLTexture.width/height still describe the base level. Empty attachments do not take part in the bounds.
+@@ -11690,14 +11691,13 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+     rb_shadow_attach(pd,clear_only);
+     // A materialization-only encoder executes no draw. Drop the *untouched*
+     // sibling of a combined DS clear. Keep the original freshness decision above.
+-    int rb_kept_depth_only = 0;
+     if (clear_only == 1 && !R.rt.has_dview && !g_rlane && !g_rp_layered && R.clear_d != R.clear_s &&
+         (rb_live_on() || rb_tile_enabled(RB_TILE_CLEAR_SIBLING))) {
+         id<MTLTexture> ds = pd.depthAttachment.texture;
+         if (ds && ds == pd.stencilAttachment.texture && ds.pixelFormat == MTLPixelFormatDepth32Float_Stencil8 &&
+             rb_clear_private_texture(R.rt.depth, ds)) {
+             uint64_t bytes = att_bytes(ds, pd.depthAttachment.level) / 5;
+-            if (R.clear_d) { pd.stencilAttachment.texture = nil; rb_kept_depth_only = 1; }
++            if (R.clear_d) pd.stencilAttachment.texture = nil;
+             else pd.depthAttachment.texture = nil;
+             atomic_fetch_add_explicit(&g_rb_plane_load_bytes, R.clear_d ? bytes : 4 * bytes, memory_order_relaxed);
+         }
+@@ -11750,9 +11750,10 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+     }
+     {   // Depth and stencil planes are counted separately (combined format 5 bytes = depth 4 + stencil 1; when only one is attached only that one is counted)
+         id<MTLTexture> dt = pd.depthAttachment.texture, stt = pd.stencilAttachment.texture;
+-        uint64_t whole = att_bytes(dt ? dt : stt, dt ? pd.depthAttachment.level : pd.stencilAttachment.level);
+-        int comb = (dt ? dt : stt).pixelFormat == MTLPixelFormatDepth32Float_Stencil8;
+-        uint64_t db = dt ? (comb ? whole / 5 * 4 : whole) : 0, sb = stt && stt != dt ? (comb ? whole / 5 : whole) : stt ? whole - db : 0;
++        uint64_t db = att_bytes(dt, pd.depthAttachment.level);
++        uint64_t sb = att_bytes(stt, pd.stencilAttachment.level);
++        if (dt.pixelFormat == MTLPixelFormatDepth32Float_Stencil8) db = db / 5 * 4;
++        if (stt.pixelFormat == MTLPixelFormatDepth32Float_Stencil8) sb /= 5;
+         if (dt) { natt++; g_bw_store += db; if (pd.depthAttachment.loadAction == MTLLoadActionLoad) { g_bw_load += db; nload++; } }
+         if (stt) { natt += !dt; g_bw_store += sb; if (pd.stencilAttachment.loadAction == MTLLoadActionLoad) { g_bw_load += sb; nload += !dt; } }
+         if (dt) PD("P %llu d ser=%llu fmt=%lu %lux%lu %s", g_stat_pass + 1, R.rt.depth->serial, (unsigned long)dt.pixelFormat,
+@@ -11776,8 +11777,9 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+             c.storeAction = MTLStoreActionUnknown; }
+         id<MTLTexture> dt = pd.depthAttachment.texture, stt = pd.stencilAttachment.texture;
+         uint64_t db = att_bytes(dt, pd.depthAttachment.level), sb = 0;
+-        if (stt) { int comb = stt.pixelFormat == MTLPixelFormatDepth32Float_Stencil8; sb = att_bytes(stt, pd.stencilAttachment.level) / (comb ? 5 : 1); if (stt == dt) db -= sb; }   // Combined format 5 bytes = depth 4 + stencil 1 (when only stencil is attached, only 1 is counted)
+-        if (rb_kept_depth_only) db = db / 5 * 4;
++        sb = att_bytes(stt, pd.stencilAttachment.level);
++        if (dt.pixelFormat == MTLPixelFormatDepth32Float_Stencil8) db = db / 5 * 4;
++        if (stt.pixelFormat == MTLPixelFormatDepth32Float_Stencil8) sb /= 5;
+         if (dt) { g_sd[g_nsd] = (sd_att){0}; g_sd[g_nsd].ser = R.rt.depth->serial; g_sd[g_nsd].bytes = db; g_sd[g_nsd].lv = (uint32_t)pd.depthAttachment.level; g_sd[g_nsd].sl = (uint32_t)pd.depthAttachment.slice; g_sd[g_nsd].idx = -1; g_sd[g_nsd].depth = 1; g_sd[g_nsd].load = pd.depthAttachment.loadAction == MTLLoadActionLoad; g_sd[g_nsd].wrote = R.clear_d != 0; g_nsd++;
+                   pd.depthAttachment.storeAction = MTLStoreActionUnknown; }
+         if (stt) { g_sd[g_nsd] = (sd_att){0}; g_sd[g_nsd].ser = R.rt.depth->serial; g_sd[g_nsd].bytes = sb; g_sd[g_nsd].lv = (uint32_t)pd.stencilAttachment.level; g_sd[g_nsd].sl = (uint32_t)pd.stencilAttachment.slice; g_sd[g_nsd].idx = -1; g_sd[g_nsd].depth = 2; g_sd[g_nsd].load = pd.stencilAttachment.loadAction == MTLLoadActionLoad; g_sd[g_nsd].wrote = R.clear_s != 0; g_nsd++;
+@@ -11854,7 +11856,12 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+         }
+         g_rb_shadow_renders++;
+     }
+-    gp_render_source(g_enc,g_rb_shadow_native ? "shadow-caster-0.75" : g_rb_clear_expected ? "batched-clear" : clear_only==1 ? "guest-clear" : "guest-draw");
++    const char *profile_source = clear_only == 1 ? "guest-clear" : "guest-draw";
++    if (g_gp_cur >= 0 && g_gp_lab[g_gp_cur].depth && !g_gp_lab[g_gp_cur].nc)
++        profile_source = clear_only == 1 ? "guest-depth-only-clear" : "guest-depth-only";
++    if (g_rb_clear_expected) profile_source = "batched-clear";
++    if (g_rb_shadow_native) profile_source = "shadow-caster-0.75";
++    gp_render_source(g_enc, profile_source);
+     args_dirty_pass_begin();
+     g_stat_pass++;
+     rb_passdiag_begin(pd);
+@@ -19578,6 +19585,7 @@ static void pool_session_reset(void) {
+ }
+ // Snapshot substitution for same-pass feedback sampling (registered by fb_prepare, used by encode_args; see the notes before draw)
+ static uint64_t g_draw_seq, g_fb_seq, g_fb_count; static int g_fb_n, g_fb_rebind;
++static uint64_t g_fb_depth_bytes;   // logical payload, not DRAM traffic
+ static uint64_t g_fb_depth, g_fb_depth_reuse;   // draws that sampled their own pass's depth attachment and read a new copy / an earlier copy of unchanged depth (#387)
+ static uint64_t g_fb_hits, g_fb_bytes;   // draws found sampling a color attachment of their own pass / bytes copied into snapshots (fb_report)
+ static __unsafe_unretained id<MTLTexture> g_fb_src[4]; static __strong id<MTLTexture> g_fb_use[4]; static uint64_t g_fb_rid[4];
+@@ -24014,8 +24022,26 @@ static int rb_fb_dirty_narrow_on(void) {
+     }
+     return v;
+ }
++static int rb_depth_option(_Atomic int *mode, const char *name) {
++    int cached = atomic_load_explicit(mode, memory_order_relaxed);
++    if (!cached) {
++        const char *value = getenv(name);
++        cached = value && !strcmp(value, "1") ? 2 : 1;
++        atomic_store_explicit(mode, cached, memory_order_relaxed);
++    }
++    return cached == 2;
++}
++
+ static void fb_report(uint64_t frame) {   // every 300 frames: hits per layer and what the copies cost
+     static uint64_t h0, a0, b0, c0, d0, y0;
++    static uint64_t depth0, reused0, bytes0;
++    static _Atomic int mode;
++    if (rb_depth_option(&mode, "S2A_RB_SHADOW_TRACE") &&
++        (depth0 != g_fb_depth || reused0 != g_fb_depth_reuse)) {
++        MLOG("[rb-depth] frame=%llu snapshots=%llu reused=%llu logical_bytes=%llu",
++             frame, g_fb_depth - depth0, g_fb_depth_reuse - reused0, g_fb_depth_bytes - bytes0);
++    }
++    depth0 = g_fb_depth; reused0 = g_fb_depth_reuse; bytes0 = g_fb_depth_bytes;
+     if (g_fb_hits == h0) return;
+     static uint64_t e0, f0;
+     MLOG("same-pass feedback sampling up to frame %llu: %llu draws sampled their own pass's attachment: ① narrowed view %llu, ② read memory as it was %llu, ③ pass ended first %llu, ④ snapshot %llu (%.1f MB copied), ⑤ read on-chip, pass kept %llu (of them before the pass drew the slot, read as loaded %llu; widen push dropped on %llu)",
+@@ -24295,7 +24321,10 @@ static void fb_prepare_(NvProg *pr) {   // RewindBox (patch 0324): the body; fb_
+             id<MTL4ComputeCommandEncoder> e = blit();
+             for (NSUInteger l = 0; l < nl; l++) { NSUInteger w = mip_extent(base.width, tl + l), h = mip_extent(base.height, tl + l);
+                 enc_b_copy_texture(e, base, ts, tl + l, MTLOriginMake(0, 0, 0), MTLSizeMake(w, h, 1), snap, 0, l, MTLOriginMake(0, 0, 0));   // the view's own layer (audit P2-247: was layer 0)
+-                g_fb_bytes += (uint64_t)w * h * (uint64_t)MAX(mtl_pf_bytes(base.pixelFormat), 1u); }
++                uint64_t logical_bytes = att_bytes(base, tl + l);
++                g_fb_bytes += logical_bytes;
++                g_fb_depth_bytes += logical_bytes;
++            }
+             id<MTLTexture> use = nil;
+             // IPA 796 took 1,938 depth snapshots in 300 frames at 1x; Zelda 844 took 2,953.
+             // RewindBox (patch 0424): unlock direct exact depth snapshot for all titles (matching color snapshots).

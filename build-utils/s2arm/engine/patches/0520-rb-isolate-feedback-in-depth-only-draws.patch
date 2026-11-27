@@ -1,0 +1,16 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 839a0f8..4c698b2 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -24247,7 +24247,10 @@ static void fb_prepare_(NvProg *pr) {   // RewindBox (patch 0324): the body; fb_
+     if (!g_enc) memset(g_fb_dirty, 0, sizeof g_fb_dirty);   // no pass open: the last one ended and its writes are in memory (g_fb_dirty is only reset when a pass opens; a stale 1 sent the first self-sampling draw of the next pass to ④)
+     if (g_fbc.forcing) { g_fbt.on = 1; memcpy(g_fbt.fx, g_fbc.fx, sizeof g_fbt.fx); g_fbt.fbmask = g_fbc.fbmask; memcpy(g_fbt.lmap, g_fbc.lmap, 8); g_fbt.fn = g_fbc.fn; return; }   // 双画检查的第二遍：强制 ⑤
+     if (g_fb_rebind) { if (!rb_fb_dirty_narrow_on()) args_dirty_all(); g_fb_rebind = 0; }   // the previous draw had a substituted binding: re-encode with the original bindings this time. RewindBox (patch 0324): by fb_prepare, the fragment stage, when the substitution changed
+-    if (!pr || !pr->sh[1] || !R.rt.n || g_fz.active || g_defer_replaying) return;
++    if (!pr || !pr->sh[1] || g_fz.active || g_defer_replaying) return;
++    static _Atomic int depth_only_feedback;
++    if (!R.rt.n && (!R.rt.depth ||
++        !rb_pacing_setting(&depth_only_feedback, "S2A_RB_SHADOW_DEPTH_FEEDBACK"))) return;
+     NvShader *fs = pr->sh[1]; int listed = fb_want(fs->key); if (g_fb_off) return;
+     id<MTLTexture> cbase[4] = {nil}, csnap[4] = {nil}; NSUInteger ckey[4][4]; int ncopy = 0, settled = 0;   // ④ copies of this draw by real subresource (base, levels, slices); clears landed
+     // 贴图槽表是 0..NTEX-1（256）：原先只查 128 号以下，从 128 号以上读自己附件的绘制（#839：一款动作游戏的 FXAA 从 128 号槽读正在写的场景图）不换快照、原地边读边写，

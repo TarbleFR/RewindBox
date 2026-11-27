@@ -1,0 +1,103 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 550d48b..90055c8 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -24114,6 +24114,19 @@ static void dsnap_stale_tex_planes(const tex_t *t, int depth_wrote, int stencil_
+                              t ? t->L.size : 0, depth_wrote, stencil_wrote);
+ }
+ static void dsnap_stale_tex(const tex_t *t) { dsnap_stale_tex_planes(t, 1, 1); }
++// Invoked only for native, explicitly indexed depth clears after extent validation.
++static void dsnap_stale_depth_clear(const tex_t *t, id<MTLTexture> base,
++                                    uint32_t level, uint32_t first, uint32_t count) {
++    dsnap_flush_after();
++    uint64_t lo = (uint64_t)(uintptr_t)t->mem;
++    for (int i = 0; i < RB_DSNAP_SLOTS; ++i) {
++        rb_dsnap_slot *s = &g_dsnap.m[i];
++        if (rb_dsnap_outside_write(s, t->serial, (uintptr_t)(__bridge const void *)base, level, first, count))
++            continue;
++        if (rb_dsnap_tex_stales(s->ser, s->lo, s->hi, t->serial, lo, t->L.size))
++            s->depth_valid = s->stencil_valid = 0;
++    }
++}
+ static void dsnap_stale_set_rt(const p_set_rt *r) {
+     dsnap_flush_after();
+     if (rb_dsnap_strict()) { dsnap_stale(); return; }
+@@ -27642,12 +27655,26 @@ static unsigned mtl_pf_chmask(MTLPixelFormat pf) {
+ // Whole level and whole face, all four channels written -> open one clear-only render pass per layer / depth slice (the hardware converts the clear value by the texture format, including integer and depth);
+ // A single-sample 2D colour region / channel mask uses the same typed clear triangle as attachment clears; unsupported targets and formats report a failure.
+ static void clear_tex_tri(const p_clear_tex *c, id<MTLTexture> t, unsigned level, unsigned layer);
+-static void clear_tex(const p_clear_tex *c) {
++static void clear_tex_impl(const p_clear_tex *c, int track_depth) {
++    if (track_depth && (g_nlc || R.clear_d || R.clear_s)) {
++        dsnap_stale_tex(c->tex);
++        track_depth = 0;
++    }
+     if (!(c->mask & 0xf) || !c->r.width || !c->r.height) return;
+     if (fold_copy_skip(c->tex, "texture clear")) return;
+     rp_flush();   // Land pending attachment clears before this write, including before an upgrade copies the old texture.
+     if (c->tex) zskip_del(c->tex->serial);
+     id<MTLTexture> t = tex_mtl(c->tex);
++    const int exact_depth = track_depth && t && (t.pixelFormat == MTLPixelFormatDepth32Float ||
++        t.pixelFormat == MTLPixelFormatDepth16Unorm || t.pixelFormat == MTLPixelFormatDepth32Float_Stencil8) &&
++        (t.textureType == MTLTextureType2D || t.textureType == MTLTextureType2DArray) &&
++        !(c->has_view && c->view.set_format) && (t.usage & MTLTextureUsageRenderTarget) &&
++        !t.parentTexture && !t.isSparse && !t.heap && !t.buffer && !t.iosurface && !t.framebufferOnly &&
++        t.sampleCount == 1 && t.storageMode == MTLStorageModePrivate &&
++        c->tex->mem && c->tex->L.size && !c->tex->has_layout &&
++        !(c->tex->pool && (c->tex->pool->flags & NVN_MEMORY_POOL_FLAGS_VIRTUAL)) &&
++        !g_wd && rs_of(t) == 1.0;
++    if (track_depth && !exact_depth) dsnap_stale_tex(c->tex);
+     // double 精确表示所有 int32/uint32 值；不能先经过 float 或把负数按 uint32 解释。
+     MTLClearColor color = c->value_type == CLEAR_TEX_UINT ? MTLClearColorMake(c->c.u[0], c->c.u[1], c->c.u[2], c->c.u[3]) :
+                           c->value_type == CLEAR_TEX_INT ? MTLClearColorMake(c->c.i[0], c->c.i[1], c->c.i[2], c->c.i[3]) :
+@@ -27716,6 +27743,8 @@ static void clear_tex(const p_clear_tex *c) {
+         return;
+     }
+     rb_rp_end_at(__func__, __LINE__); if (g_blit) { enc_b_end(g_blit); g_blit = nil; }
++    if (exact_depth)
++        dsnap_stale_depth_clear(c->tex, t, lv, l0 + (uint32_t)c->r.zoffset, (uint32_t)nz);
+     for (int z = 0; z < nz; z++) {
+         MTL4RenderPassDescriptor *rp = pass_desc();
+         MTLRenderPassAttachmentDescriptor *a = depth ? rp.depthAttachment : stencil ? rp.stencilAttachment : rp.colorAttachments[0];
+@@ -27730,6 +27759,14 @@ static void clear_tex(const p_clear_tex *c) {
+     }
+ }
+ 
++static void clear_tex(const p_clear_tex *c) { clear_tex_impl(c, 0); }
++static void clear_tex_replay(const p_clear_tex *c) {
++    static _Atomic int mode;
++    int precise = !rb_dsnap_strict() && rb_depth_option(&mode, "S2A_RB_SHADOW_MIP_CACHE");
++    if (!precise) dsnap_stale_tex(c->tex);
++    clear_tex_impl(c, precise);
++}
++
+ // Context description of one submit (nvn_be_sub_commit takes one per submit and prints it into the failure line when the command buffer errors): for the GPU memory fault on the first frame entering Travincal, the failure line had only the sequence number and error code, and it was impossible to tell what was in that submit
+ static rb_cctx_t cctx_capture(void) {
+     static uint64_t p_pass, p_up, p_reup, p_ser; uint64_t up = 0, reup = 0; nvn_be_pkg_stats(&up, &reup);
+@@ -28415,7 +28452,7 @@ void nvn_be_exec(const uint8_t *p) {
+             case OP_COPY_T2T: dsnap_stale_tex(((const p_copy_t2t *)a)->dst); copy_t2t(a); break;
+             case OP_DLSS: dlss_eval(a, h.size); break;   // NVN2 EvaluateDlss → MetalFX temporal upscale (nvn_dlss.inc)
+             case OP_PUSH_CONST: case OP_PUSH_CONST_PTR: state_op(h.op, a, h.size); break;
+-            case OP_CLEAR_TEX: dsnap_stale_tex(((const p_clear_tex *)a)->tex); clear_tex(a); break;   // it may clear the depth texture the copy was taken from (audit P2-247)
++            case OP_CLEAR_TEX: clear_tex_replay(a); break;
+             case OP_DISPATCH: dsnap_stale(); g_rb_cont_mem_gen++; dispatch(a); break;
+             case OP_BARRIER: { if (!g_m3 && producer_cover_on()) main_barrier_reset(); int32_t bits; memcpy(&bits, a, 4);   // ordered at the next draw pass (barrier_game); inside a pass with shader writes, the pass ends first (swrite_note)
+                 int split = g_enc && g_pass_swrite && (bits & (NVN_BARRIER_ORDER_FRAGMENTS_BIT | NVN_BARRIER_ORDER_FRAGMENTS_TILED_BIT));
+diff --git a/graphics/nvn/gfx/nvn/rb_dsnap_rule.h b/graphics/nvn/gfx/nvn/rb_dsnap_rule.h
+index 13b6127..fbf4d6d 100644
+--- a/graphics/nvn/gfx/nvn/rb_dsnap_rule.h
++++ b/graphics/nvn/gfx/nvn/rb_dsnap_rule.h
+@@ -135,3 +135,13 @@ static inline void rb_dsnap_cache_stale_tex(rb_dsnap_slot slots[RB_DSNAP_SLOTS],
+         }
+     }
+ }
++
++
++// Exact write into a known native texture subresource. A different texture
++// identity still goes through the guest backing-range alias check.
++static inline int rb_dsnap_outside_write(const rb_dsnap_slot *s, uint64_t ser, uintptr_t base,
++                                         uint32_t level, uint32_t first, uint32_t count) {
++    return ser && base && count && s->ser == ser && s->base == base && s->nl &&
++           (level < s->tl || level - s->tl >= s->nl ||
++            s->ts < first || s->ts - first >= count);
++}

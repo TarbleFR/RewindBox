@@ -590,6 +590,19 @@ jobs:
               exit "$result"
             fi
           done
+      - name: Compare depth atlas snapshots and final depth/stencil planes
+        if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-shadow-checks]')
+        working-directory: ${{ runner.temp }}/s2arm
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/proof"
+          clang -std=c11 -O2 -Wall -Wextra -Werror graphics/nvn/tests/t_rb_dsnap_rule.c -o "$RUNNER_TEMP/shadow-rule"
+          "$RUNNER_TEMP/shadow-rule" | tee "$GITHUB_WORKSPACE/proof/shadow-rule.txt"
+          make -j4 -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/host-tests.mk" build/tests/t_nvn_feedback_snapshot
+          for mode in 0 1; do
+            NXGAL_BE=mtl3 S2A_RB_SHADOW_MIP_CACHE=$mode build/tests/t_nvn_feedback_snapshot --shadow-atlas \
+              | tee "$GITHUB_WORKSPACE/proof/shadow-atlas-$mode.txt"
+          done
       - name: Verify hosted render options and sparse tile decode
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-render-stream]')
         working-directory: ${{ runner.temp }}/s2arm

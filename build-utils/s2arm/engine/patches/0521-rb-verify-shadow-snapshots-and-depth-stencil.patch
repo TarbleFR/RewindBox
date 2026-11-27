@@ -1,0 +1,148 @@
+diff --git a/graphics/nvn/tests/t_nvn_feedback_snapshot.m b/graphics/nvn/tests/t_nvn_feedback_snapshot.m
+index d1b8828..286fef7 100644
+--- a/graphics/nvn/tests/t_nvn_feedback_snapshot.m
++++ b/graphics/nvn/tests/t_nvn_feedback_snapshot.m
+@@ -16,6 +16,7 @@ static NSString *const source = @"#include <metal_stdlib>\nusing namespace metal
+ "vertex float4 triangle(uint i [[vertex_id]]) { const float2 p[3] = {float2(-1,-1),float2(3,-1),float2(-1,3)}; return float4(p[i],0,1); }\n"
+ "struct Result { float4 c [[color(2)]]; };\n"
+ "fragment Result colors(constant Inputs &t [[buffer(0)]]) { float4 a=t.a.read(uint2(0)), b=t.b.read(uint2(0)); Result o; o.c=float4(a.r,b.r,a.g,1); return o; }\n"
++"fragment void depth_only(constant Inputs &t [[buffer(0)]]) { if (t.a.read(uint2(0)).r > 0.5) discard_fragment(); }\n"
+ "fragment float4 self_colors(constant Inputs &t [[buffer(0)]]) { float4 a=t.a.read(uint2(0)), b=t.b.read(uint2(0)); return float4(a.r,b.r,a.g,1); }\n";
+ 
+ static NvShader *shader(id<MTLLibrary> library, NSString *name, int stage) {
+@@ -195,9 +196,85 @@ static void depth_case(NvProg *reader, prog_t *reader_p, tex_t *depth, tex_t *b,
+     CHECK(d0==0.75f,"pending depth clear then same-pass sampling: the copy holds the cleared depth (read %g, expected 0.75)",d0);
+ }
+ 
++static void clear_mip(tex_t *depth, unsigned level, float value, unsigned stencil) {
++    struct { op_hdr header; p_clear_tex clear; op_hdr end; } cmd = {
++        .header={OP_CLEAR_TEX,sizeof(op_hdr)+sizeof(p_clear_tex)}, .end={OP_END,sizeof(op_hdr)},
++        .clear={.tex=depth,.view={.set_levels=1,.base_level=level},.has_view=1,
++                .value_type=CLEAR_TEX_FLOAT,.r={0,0,0,4>>level,4>>level,1},.mask=0xf},
++    };
++    cmd.clear.c.f[0]=value; cmd.clear.c.u[1]=stencil;
++    nvn_be_exec((const uint8_t *)&cmd);
++}
++
++static void verify_depth_mip(id<MTLTexture> texture, unsigned level, float depth, uint8_t stencil) {
++    REQUIRE(texture);
++    unsigned w=4>>level;
++    id<MTLBuffer> buffer=[g_dev newBufferWithLength:512 options:MTLResourceStorageModeShared];
++    id<MTLCommandQueue> queue=[g_dev newCommandQueue];
++    id<MTLCommandBuffer> cb=[queue commandBuffer];
++    id<MTLBlitCommandEncoder> copy=[cb blitCommandEncoder];
++    REQUIRE(buffer && copy);
++    [copy copyFromTexture:texture sourceSlice:0 sourceLevel:level sourceOrigin:MTLOriginMake(0,0,0)
++        sourceSize:MTLSizeMake(w,w,1) toBuffer:buffer destinationOffset:0
++        destinationBytesPerRow:w*4 destinationBytesPerImage:w*w*4 options:MTLBlitOptionDepthFromDepthStencil];
++    [copy copyFromTexture:texture sourceSlice:0 sourceLevel:level sourceOrigin:MTLOriginMake(0,0,0)
++        sourceSize:MTLSizeMake(w,w,1) toBuffer:buffer destinationOffset:256
++        destinationBytesPerRow:w destinationBytesPerImage:w*w options:MTLBlitOptionStencilFromDepthStencil];
++    [copy endEncoding]; [cb commit]; [cb waitUntilCompleted];
++    REQUIRE(cb.status==MTLCommandBufferStatusCompleted);
++    const float *depths=buffer.contents;
++    const uint8_t *stencils=(const uint8_t *)buffer.contents+256;
++    for (unsigned i=0;i<w*w;++i) {
++        REQUIRE(depths[i]==depth);
++        REQUIRE(stencils[i]==stencil);
++    }
++    CHECK(1,"mip %u: all %u depth and stencil values match",level,w*w);
++}
++
++static void shadow_atlas(id<MTLLibrary> library, NvProg *reader, tex_t *depth, tex_t *out,
++                         const p_draw *triangle) {
++    NvProg *caster=[NvProg new];
++    caster->sh[0]=reader->sh[0];
++    caster->sh[1]=shader(library,@"depth_only",1);
++    strlcpy(caster->sh[1]->key,"dddddddddddddddd_b",sizeof caster->sh[1]->key);
++    caster->sh[1]->rf.color_mask=0;
++    prog_t p={.magic=MAGIC('P','R','O','G'),.serial=nvn_new_serial()};
++    serial_put(p.serial,caster);
++    nvn_be_sub_begin(); state_reset(); S.prog=&p;
++    S.tex[1][0]=4; S.tex[1][1]=2;
++    targets(NULL,NULL,out); R.rt.n=0; R.rt.color[2]=NULL; R.rt.depth=depth;
++    view_t view={.set_levels=1,.base_level=0,.nlevels=1};
++    R.rt.dview=view; R.rt.has_dview=1;
++    nvn_be_reg_tex(4,depth,&view);
++    clear_mip(depth,0,0.25f,0x15);
++    uint64_t copies=g_fb_depth, bytes=g_fb_depth_bytes;
++    draw(triangle,NULL);
++    binding("depth-only fragment attachment",caster->sh[1],depth,1);
++    REQUIRE(g_fb_depth-copies==1);
++    const char *setting=getenv("S2A_RB_SHADOW_MIP_CACHE");
++    const int precise=setting && !strcmp(setting,"1") && !rb_dsnap_strict();
++    for (unsigned i=0;i<16;++i) {
++        clear_mip(depth,1,0.75f,(uint8_t)(0x20+i));
++        draw(triangle,NULL);
++    }
++    CHECK(g_fb_depth-copies==(precise ? 1 : 17),
++          "depth copies=%llu logical_snapshot_bytes=%llu after 16 disjoint clears",
++          (unsigned long long)(g_fb_depth-copies),(unsigned long long)(g_fb_depth_bytes-bytes));
++    clear_mip(depth,0,0.375f,0x42);
++    uint64_t before_overlap=g_fb_depth;
++    draw(triangle,NULL);
++    CHECK(g_fb_depth-before_overlap==1,"overlapping clear refreshes the snapshot");
++    id<MTLTexture> snapshot=g_dsnap.use.parentTexture ?: g_dsnap.use;
++    finish();
++    verify_depth_mip(snapshot,0,0.375f,0x42);
++    verify_depth_mip(tex_mtl(depth),0,0.375f,0x42);
++    verify_depth_mip(tex_mtl(depth),1,0.75f,0x2f);
++}
++
+ int main(int argc, char **argv) {
+     int all=argc==2 && !strcmp(argv[1],"--snap-all");
+-    REQUIRE(argc==1 || all);
++    int atlas=argc==2 && !strcmp(argv[1],"--shadow-atlas");
++    REQUIRE(argc==1 || all || atlas);
+     @autoreleasepool {
+         char map[]="/tmp/t_feedback_map_XXXXXX"; int fd=mkstemp(map); REQUIRE(fd>=0); close(fd);
+         char user[]="/tmp/t_feedback_user_XXXXXX"; fd=mkstemp(user); REQUIRE(fd>=0); close(fd);
+@@ -228,13 +305,14 @@ int main(int argc, char **argv) {
+         p_draw triangle={.prim=NVN_DRAW_PRIMITIVE_TRIANGLES, .count=3, .instances=1};
+ 
+         if (!all) {
+-            automatic_cases(program,&p,self,&self_p,&a,&b,&first,&triangle);
++            if (!atlas) automatic_cases(program,&p,self,&self_p,&a,&b,&first,&triangle);
+             tex_t depth; memset(&depth,0,sizeof depth); depth.magic=MAGIC('T','E','X',0); depth.serial=nvn_new_serial();
+-            depth.d=(nvn_texdesc){.target=NVN_TEXTURE_TARGET_2D, .format=NVN_FORMAT_DEPTH32F_STENCIL8, .width=4, .height=4, .depth=1, .levels=1};
++            depth.d=(nvn_texdesc){.target=NVN_TEXTURE_TARGET_2D, .format=NVN_FORMAT_DEPTH32F_STENCIL8, .width=4, .height=4, .depth=1, .levels=atlas ? 2 : 1};
+             depth.pool=pool; depth.off=262144; depth.mem=pool->mem+262144; nvn_tex_layout(&depth.d,&depth.L); nvn_be_tex_init(&depth);
+             REQUIRE(tex_mtl(&depth) && tex_mtl(&depth).pixelFormat==MTLPixelFormatDepth32Float_Stencil8);
+             nvn_be_reg_tex(4,&depth,NULL);
+-            depth_case(program,&p,&depth,&b,&first,&triangle);
++            if (atlas) shadow_atlas(library,program,&depth,&first,&triangle);
++            else depth_case(program,&p,&depth,&b,&first,&triangle);
+         } else {
+         nvn_be_sub_begin(); state_reset(); S.prog=&p; S.tex[1][0]=1; S.tex[1][1]=2;
+         clear(&a,32,64,96); clear(&b,160,192,224); clear(&first,0,0,0); clear(&second,0,0,0);
+diff --git a/graphics/nvn/tests/t_rb_dsnap_rule.c b/graphics/nvn/tests/t_rb_dsnap_rule.c
+index d6b99dd..df92d27 100644
+--- a/graphics/nvn/tests/t_rb_dsnap_rule.c
++++ b/graphics/nvn/tests/t_rb_dsnap_rule.c
+@@ -37,6 +37,26 @@ int main(void) {
+     rb_dsnap_draw off = draw(1, 0, 0, 0xff, 0xff, REPLACE), mask0 = draw(1, 0, 1, 0, 0, REPLACE);
+     assert(!rb_dsnap_stales(&off, 0, 1) && !rb_dsnap_stales(&off, 1, 1));
+     assert(!rb_dsnap_stales(&mask0, 0, 1) && !rb_dsnap_stales(&mask0, 1, 1));
++    unsigned cases = 0;
++    for (uint32_t level = 0; level < 5; ++level)
++        for (uint32_t levels = 1; levels <= 5 - level; ++levels)
++            for (uint32_t slice = 0; slice < 6; ++slice)
++                for (uint32_t write_level = 0; write_level < 5; ++write_level)
++                    for (uint32_t first = 0; first < 6; ++first)
++                        for (uint32_t count = 1; count <= 6 - first; ++count) {
++                            rb_dsnap_slot slot = {.ser=7,.base=8,.tl=level,.ts=slice,.nl=levels};
++                            int miss = write_level < level || write_level >= level + levels ||
++                                       slice < first || slice >= first + count;
++                            assert(rb_dsnap_outside_write(&slot, 7, 8, write_level, first, count) == miss);
++                            assert(!rb_dsnap_outside_write(&slot, 9, 8, write_level, first, count));
++                            assert(!rb_dsnap_outside_write(&slot, 7, 9, write_level, first, count));
++                            cases++;
++                        }
++    rb_dsnap_slot edge = {.ser=7,.base=8,.tl=UINT32_MAX-1,.ts=UINT32_MAX,.nl=2};
++    assert(!rb_dsnap_outside_write(&edge, 7, 8, UINT32_MAX, UINT32_MAX-1, 2));
++    assert(rb_dsnap_outside_write(&edge, 7, 8, 0, 0, 1));
++    assert(!rb_dsnap_outside_write(&edge, 7, 8, 0, 0, 0));
++    printf("Depth mip and face validation: %u region combinations, two alias controls per combination\n", cases);
+     puts("t_rb_dsnap_rule: ok");
+     return 0;
+ }
