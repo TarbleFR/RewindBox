@@ -19,6 +19,15 @@ Rappel : iOS 26 tourne sur **Metal 3** (`nvn_be.h`, `ios26x`), le chemin à opti
 2. Axe fences abandonné (27/11, analyse) : 14 = 7 encodeurs × (wait+update) ; chaque paire ordonne upload→rendu, rendu→rendu
    ou rendu→relecture, accès bindless non suivis par Metal → aucune paire prouvable sans dépendance. Ne pas rouvrir.
    Arène : 677 allocs ≈ minimum 256 o (173 Ko/image), transfert négligeable → pas un goulet GPU.
-   Si 0477/0478 verts et fidèles : axes GPU du rejeu synthétique épuisés (load 0, stores requis, 1 encodeur/passe,
-   liaisons dédupliquées) → désactiver la tâche après validation, sauf nouvelle preuve de goulet.
+   **Ne pas désactiver la relance** (consigne du 27/11, relance toutes les 5 min, tâche `scheduled-task:3bf356cf-…`) : si 0477/0478
+   sont verts et fidèles, le banc synthétique actuel est épuisé, pas la mission GPU → passer au point 4.
 3. Ne pas refaire : coupures 0/4/16/64, vidage des tables de ressources (retiré), comparaisons de temps mural du runner (bruit ±30 %).
+4. Diversifier les charges (une par itération, compteurs exacts + pixels/état, puis correctif générique si goulet prouvé) :
+   - rejeu NVN : textures échantillonnées avec mips et formats compressés (BC/ASTC → chemins de décompression et de téléversement),
+     MSAA + résolution, ombres en cascade (tableaux de textures, plusieurs passes profondeur), particules instanciées avec fort overdraw et
+     fusion, rendu à résolution réduite puis mise à l’échelle, calcul asynchrone entre passes, mises à jour de tampons uniformes en cours de passe,
+     copies texture→texture et effacements partiels ;
+   - corpus shaders (AIR + GPU) : shaders longs à forte pression de registres, boucles d’échantillonnage de textures, accès mémoire indexés,
+     dérivées, discard ; banc `gpu_ab.py` pour les variantes de traduction à coût soutenu ;
+   - chercher pour chaque charge : octets chargés/stockés, passes, coupures, copies, téléversements, résidence, liaisons, instructions AIR.
+
