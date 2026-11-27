@@ -55,6 +55,12 @@ print(f"baseline digests across its runs: state {'stable' if st_ok else 'UNSTABL
 moving = [k for k in keys if not stable(base_runs, k)]
 if moving:
     print("baseline metrics that change between its own runs: " + ", ".join(f"{k} {sorted({r[k] for r in base_runs})}" for k in moving))
+def passes_of(name):   # the PASSES line of the variant's first log: attachments of every pass of the last frame
+    try:
+        return next((l[6:].strip() for l in (out / f"{name}.0.log").read_text().splitlines() if l.startswith("PASSES")), "")
+    except OSError:
+        return ""
+print("baseline passes (last frame, tN:WxH[d] L load 0 dont-care 1 load 2 clear, S store 0 dont-care 1 store): " + passes_of("baseline"))
 def first_split(a, b):   # first line where two traces differ: (line number, line of a, line of b), or None
     try:
         la, lb = (out / a).read_text().splitlines(), (out / b).read_text().splitlines()
@@ -86,6 +92,9 @@ for name, rs in runs.items():
     diff = [f"{k} {base[k]:g}{spread(k, base_runs)} -> {m[k]:g}{spread(k, rs)}" + (f" ({(m[k] - base[k]) / base[k] * 100:+.1f}%)" if base[k] else "")
             for k in keys if m[k] != base[k] or not stable(rs, k)]
     print(f"\n### {name} ({len(rs)}/{repeats} runs)\npixels {'identical' if same_px else 'DIFFERENT'}, state at draws {same_st}")
+    pl = passes_of(name)
+    if pl and pl != passes_of("baseline"):
+        print(f"passes (last frame, tN:WxH[d] L load S store): {pl}")
     for d in diff:
         print(f"- {d}")
     for k in range(len(rs)):
