@@ -342,6 +342,7 @@ jobs:
         run: |
           set -euo pipefail
           test -f "$PWD/build/dsx/libdsx.dylib" || make -C graphics/dsx "$PWD/build/dsx/libdsx.dylib"
+          test -f translator/dmsh_xlate/bin/Release/net10.0/dmsh_xlate || dotnet build translator/dmsh_xlate/dmsh_xlate.csproj -c Release --nologo
           test -f graphics/tools/direct/tests/dsh_cmp/bin/Release/net10.0/dsh_cmp.dll || dotnet build graphics/tools/direct/tests/dsh_cmp/dsh_cmp.csproj -c Release --nologo
           mkdir -p "$GITHUB_WORKSPACE/proof"
           rc=0
