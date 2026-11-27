@@ -1351,7 +1351,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
         if (self.wiimmfiLastGame) status[@"lastGame"] = self.wiimmfiLastGame;
         if (supported && self.wiimmfiLastCoreConfigured) {
           NSArray<NSString*>* fields = @[@"dnsResolved", @"dnsFailed", @"socketsOpened", @"socketErrors",
-            @"tlsHandshakes", @"tlsCertificateErrors", @"tlsOtherErrors", @"timeouts"];
+            @"tlsHandshakes", @"tlsCertificateErrors", @"tlsOtherErrors", @"timeouts", @"networkProfiles"];
           NSMutableDictionary* events = [NSMutableDictionary dictionaryWithCapacity:fields.count];
           for (NSUInteger index = 0; index < fields.count; index++)
             events[fields[index]] = @(DOLWiimmfiDiagnostic(static_cast<int32_t>(index)));

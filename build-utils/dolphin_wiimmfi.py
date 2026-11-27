@@ -249,6 +249,32 @@ extern "C" bool neostation_dolphin_wiimmfi_tls_files_valid(const std::string& ro
 #endif''')
 
 
+    # A physical Wii NAND can retain WLAN credentials, a fixed address or a
+    # proxy. Dolphin reports LINK_WIRED and uses host sockets, so expose the
+    # matching automatic wired profile to this online session only.
+    config = 'Core/IOS/Network/NCD/WiiNetConfig.cpp'
+    declaration(config, 'namespace IOS::HLE::Net\n{', 'bool neostation_dolphin_wiimmfi_network_allowed()')
+    declaration(config, 'namespace IOS::HLE::Net\n{', 'void neostation_dolphin_wiimmfi_observe(s32 event)')
+    anchor = '  memory.CopyToEmu(address, &m_data, sizeof(m_data));'
+    insert(config, anchor, '''#ifdef IPHONEOS
+  if (neostation_dolphin_wiimmfi_network_allowed())
+  {
+    ConfigData session{};
+    session.version = m_data.version;
+    session.linkTimeout = m_data.linkTimeout;
+    session.nwc24Permission = m_data.nwc24Permission;
+    session.connType = ConfigData::IF_WIRED;
+    session.connection[0].flags =
+        ConnectionSettings::WIRED_IF | ConnectionSettings::DNS_DHCP | ConnectionSettings::IP_DHCP |
+        ConnectionSettings::CONNECTION_TEST_OK | ConnectionSettings::CONNECTION_SELECTED;
+    memory.CopyToEmu(address, &session, sizeof(session));
+    neostation_dolphin_wiimmfi_observe(8);
+    return;
+  }
+#endif
+''' + anchor)
+
+
 def patch_nand_importer(root: Path) -> None:
     header = root / 'Source/Core/DiscIO/NANDImporter.h'
     source = root / 'Source/Core/DiscIO/NANDImporter.cpp'

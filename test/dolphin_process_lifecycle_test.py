@@ -60,7 +60,7 @@ std::atomic<bool> g_wiimmfi_network_allowed{false};
 std::atomic<bool> g_wiimmfi_boot_interrupted{false};
 std::string g_wiimmfi_previous_nand_root;
 std::atomic<int32_t> g_wiimmfi_nand_stage{0};
-std::array<std::atomic<uint32_t>, 8> g_wiimmfi_network_events{};
+std::array<std::atomic<uint32_t>, 9> g_wiimmfi_network_events{};
 constexpr int D_WIIROOT_IDX=0;
 constexpr int D_SESSION_WIIROOT_IDX=1;
 namespace File {

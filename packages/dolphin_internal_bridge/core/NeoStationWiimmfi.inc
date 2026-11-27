@@ -13,7 +13,7 @@ namespace
 std::atomic<bool> g_wiimmfi_cancel{false};
 std::atomic<int> g_wiimmfi_progress{0}; // reading 0..100, extracting 1000..1100
 std::atomic<int32_t> g_wiimmfi_nand_stage{0}; // 1 armed, 2 verified before IOS, negative: refused
-std::array<std::atomic<uint32_t>, 8> g_wiimmfi_network_events{};
+std::array<std::atomic<uint32_t>, 9> g_wiimmfi_network_events{};
 
 bool DOLWiimmfiNANDReady(const std::string& root)
 {

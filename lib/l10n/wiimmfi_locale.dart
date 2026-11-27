@@ -12,6 +12,7 @@ abstract final class WiimmfiLocale {
         : locale?.languageCode],
   };
   static const _en = {
+    "networkStartup": "The Wii network could not start. Restart the online session and export the Wiimmfi diagnostic if the error persists.",
     "officialPatcher": "Open the official patcher",
     "prepareGameHelp": "On a computer, patch a copy of your ISO or WBFS. If you have an RVZ, convert a separate copy to ISO in Dolphin first. Import the patcher output into RewindBox and register that copy.",
     "tlsFilesAccepted": "Wii TLS files recognized by Dolphin",
@@ -115,6 +116,7 @@ abstract final class WiimmfiLocale {
   };
   static const _values = <String, Map<String, String>>{
     'fr': {
+      "networkStartup": "La connexion réseau de la Wii n’a pas démarré. Relance la session en ligne et exporte le diagnostic Wiimmfi si l’erreur persiste.",
       "officialPatcher": "Ouvrir le patcher officiel",
       "prepareGameHelp": "Sur ordinateur, applique le patch à une copie ISO ou WBFS. Pour un RVZ, convertis d’abord une copie en ISO dans Dolphin. Importe dans RewindBox le fichier produit par le patcher, puis déclare cette copie.",
       "tlsFilesAccepted": "Fichiers TLS Wii reconnus par Dolphin",
@@ -224,6 +226,7 @@ abstract final class WiimmfiLocale {
       'wiimmfiSlow': 'Émulation trop lente',
     },
     "de": {
+      "networkStartup": "Das Wii-Netzwerk konnte nicht gestartet werden. Starte die Online-Sitzung neu und exportiere bei erneutem Fehler die Wiimmfi-Diagnose.",
       "officialPatcher": "Offiziellen Patcher öffnen",
       "prepareGameHelp": "Patche am Computer eine ISO- oder WBFS-Kopie. Konvertiere bei RVZ zuerst eine Kopie in Dolphin zu ISO. Importiere das Ergebnis in RewindBox und registriere diese Kopie.",
       "tlsFilesAccepted": "Dolphin erkennt die Wii-TLS-Dateien",
@@ -335,6 +338,7 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "Emulation zu langsam",
     },
     "es": {
+      "networkStartup": "No se pudo iniciar la red de Wii. Reinicia la sesión en línea y exporta el diagnóstico de Wiimmfi si el error persiste.",
       "officialPatcher": "Abrir el parcheador oficial",
       "prepareGameHelp": "En un ordenador, parchea una copia ISO o WBFS. Si tienes un RVZ, convierte primero una copia a ISO en Dolphin. Importa el resultado en RewindBox y registra esa copia.",
       "tlsFilesAccepted": "Dolphin reconoce los archivos TLS de Wii",
@@ -446,6 +450,7 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "Emulación demasiado lenta",
     },
     "it": {
+      "networkStartup": "La rete Wii non si è avviata. Riavvia la sessione online ed esporta la diagnostica Wiimmfi se l’errore persiste.",
       "officialPatcher": "Apri il patcher ufficiale",
       "prepareGameHelp": "Su un computer, applica la patch a una copia ISO o WBFS. Per un RVZ, converti prima una copia in ISO con Dolphin. Importa il risultato in RewindBox e registra quella copia.",
       "tlsFilesAccepted": "Dolphin riconosce i file TLS Wii",
@@ -560,6 +565,7 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "Emulazione troppo lenta",
     },
     "pt": {
+      "networkStartup": "A rede Wii não iniciou. Reinicia a sessão online e exporta o diagnóstico Wiimmfi se o erro persistir.",
       "officialPatcher": "Abrir o patcher oficial",
       "prepareGameHelp": "Num computador, aplica o patch a uma cópia ISO ou WBFS. Se tens um RVZ, converte primeiro uma cópia para ISO no Dolphin. Importa o resultado no RewindBox e regista essa cópia.",
       "tlsFilesAccepted": "O Dolphin reconhece os ficheiros TLS da Wii",
@@ -669,6 +675,7 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "Emulação demasiado lenta",
     },
     "ru": {
+      "networkStartup": "Не удалось запустить сеть Wii. Перезапустите сетевой сеанс и экспортируйте диагностику Wiimmfi, если ошибка повторится.",
       "officialPatcher": "Открыть официальный патчер",
       "prepareGameHelp": "На компьютере примените патч к копии ISO или WBFS. Для RVZ сначала преобразуйте копию в ISO в Dolphin. Импортируйте результат в RewindBox и зарегистрируйте эту копию.",
       "tlsFilesAccepted": "Dolphin распознал файлы TLS Wii",
@@ -781,6 +788,7 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "Слишком медленная эмуляция",
     },
     "id": {
+      "networkStartup": "Jaringan Wii tidak dapat dimulai. Mulai ulang sesi daring dan ekspor diagnostik Wiimmfi jika kesalahan berlanjut.",
       "officialPatcher": "Buka patcher resmi",
       "prepareGameHelp": "Di komputer, terapkan patch pada salinan ISO atau WBFS. Untuk RVZ, konversikan salinan ke ISO di Dolphin terlebih dahulu. Impor hasilnya ke RewindBox dan daftarkan salinan tersebut.",
       "tlsFilesAccepted": "Dolphin mengenali berkas TLS Wii",
@@ -888,6 +896,7 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "Emulasi terlalu lambat",
     },
     "ja": {
+      "networkStartup": "Wiiのネットワークを開始できませんでした。オンラインセッションを再起動し、エラーが続く場合はWiimmfiの診断をエクスポートしてください。",
       "officialPatcher": "公式パッチャーを開く",
       "prepareGameHelp": "PCでISOまたはWBFSのコピーにパッチを適用してください。RVZは先にDolphinでコピーをISOに変換し、作成されたファイルをRewindBoxにインポートして登録してください。",
       "tlsFilesAccepted": "DolphinがWiiのTLSファイルを認識しました",
@@ -980,6 +989,7 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "エミュレーション速度が不足",
     },
     "ko": {
+      "networkStartup": "Wii 네트워크를 시작할 수 없습니다. 온라인 세션을 다시 시작하고 오류가 계속되면 Wiimmfi 진단을 내보내세요.",
       "officialPatcher": "공식 패처 열기",
       "prepareGameHelp": "컴퓨터에서 ISO 또는 WBFS 사본에 패치를 적용하세요. RVZ는 먼저 Dolphin에서 사본을 ISO로 변환하세요. 결과를 RewindBox로 가져와 해당 사본을 등록하세요.",
       "tlsFilesAccepted": "Dolphin이 Wii TLS 파일을 인식했습니다",
@@ -1073,6 +1083,7 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "에뮬레이션 속도 부족",
     },
     "zh": {
+      "networkStartup": "Wii 网络无法启动。请重新启动在线会话；如果错误仍然存在，请导出 Wiimmfi 诊断。",
       "officialPatcher": "打开官方补丁工具",
       "prepareGameHelp": "在电脑上给 ISO 或 WBFS 副本打补丁。如果是 RVZ，先在 Dolphin 中将副本转换为 ISO。把补丁工具生成的文件导入 RewindBox 并登记该副本。",
       "tlsFilesAccepted": "Dolphin 已识别 Wii 的 TLS 文件",
@@ -1163,6 +1174,7 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "模拟速度不足",
     },
     "zhHant": {
+      "networkStartup": "Wii 網路無法啟動。請重新啟動線上連線；如果錯誤仍然存在，請匯出 Wiimmfi 診斷。",
       "officialPatcher": "開啟官方修補工具",
       "prepareGameHelp": "在電腦上修補 ISO 或 WBFS 副本。如果是 RVZ，先在 Dolphin 將副本轉為 ISO。將修補工具產生的檔案匯入 RewindBox 並登記該副本。",
       "tlsFilesAccepted": "Dolphin 已識別 Wii 的 TLS 檔案",
@@ -1256,6 +1268,7 @@ abstract final class WiimmfiLocale {
   };
 
   static String errorKey(String code) {
+    if (code == '50130') return 'networkStartup';
     if (code == '23901') return 'maintenance';
     if (code == '86030') return 'matchmakingDns';
     if (code == '86420') return 'matchmakingNat';

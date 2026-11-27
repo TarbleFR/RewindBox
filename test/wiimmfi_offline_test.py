@@ -12,10 +12,83 @@ def function(source, signature):
     return source[start:source.index('\n}', start) + 2]
 
 
+
+def check_session_network_config(root):
+    header = (root / 'Source/Core/Core/IOS/Network/NCD/WiiNetConfig.h').read_text()
+    source = (root / 'Source/Core/Core/IOS/Network/NCD/WiiNetConfig.cpp').read_text()
+    program = r'''
+#include <cassert>
+#include <cstring>
+#include <array>
+#include <string>
+#include "Common/CommonTypes.h"
+bool online=false;
+unsigned profiles=0;
+extern "C" bool neostation_dolphin_wiimmfi_network_allowed() { return online; }
+extern "C" void neostation_dolphin_wiimmfi_observe(s32 event) {
+  assert(event==8 && online); ++profiles;
+}
+'''
+    # Use the real packed config layout. Expose its data only to this fixture.
+    program += header.replace('#pragma once', '').replace('private:', 'public:')
+    program += r'''
+namespace Memory {
+class MemoryManager {
+public:
+  mutable std::string data;
+  void CopyToEmu(u32 address,const void* source,size_t length) {
+    assert(address==16); data.assign(static_cast<const char*>(source),length);
+  }
+};
+}
+namespace IOS::HLE::Net {
+WiiNetConfig::WiiNetConfig() = default;
+'''
+    program += function(source, 'void WiiNetConfig::WriteToMem(') + '\n}\n'
+    program += r'''
+int main() {
+  using namespace IOS::HLE::Net;
+  WiiNetConfig config;
+  auto& original=config.m_data;
+  std::memset(&original,0xa5,sizeof original); // Old Wi-Fi / proxy / static IP profile
+  original.connType=WiiNetConfig::ConfigData::IF_WIFI;
+  const auto backup=original;
+  Memory::MemoryManager memory;
+  for (unsigned i=0;i<100;++i) {
+    online=false; config.WriteToMem(memory,16);
+    assert(memory.data.size()==sizeof original &&
+           std::memcmp(memory.data.data(),&backup,sizeof backup)==0);
+    online=true; config.WriteToMem(memory,16);
+    WiiNetConfig::ConfigData expected{};
+    expected.version=original.version;
+    expected.linkTimeout=original.linkTimeout;
+    expected.nwc24Permission=original.nwc24Permission;
+    expected.connType=WiiNetConfig::ConfigData::IF_WIRED;
+    expected.connection[0].flags=ConnectionSettings::WIRED_IF | ConnectionSettings::DNS_DHCP |
+        ConnectionSettings::IP_DHCP | ConnectionSettings::CONNECTION_SELECTED |
+        ConnectionSettings::CONNECTION_TEST_OK;
+    assert(memory.data.size()==sizeof expected &&
+           std::memcmp(memory.data.data(),&expected,sizeof expected)==0);
+    assert(std::memcmp(&original,&backup,sizeof backup)==0);
+    assert(profiles==i+1);
+  }
+}
+'''
+    with tempfile.TemporaryDirectory() as temp:
+        cpp=Path(temp)/'network_config.cpp'
+        cpp.write_text(program)
+        binary=Path(temp)/'network_config'
+        compiler=shutil.which('clang++') or shutil.which('c++')
+        subprocess.run([compiler,'-std=c++20','-Wall','-Wextra','-Werror','-DIPHONEOS',
+                        '-I',str(root/'Source/Core'),str(cpp),'-o',str(binary)],check=True)
+        subprocess.run([str(binary)],check=True)
+    print('PASS: actual Wii network config, session-only wired DHCP profile, 100 online/offline cycles')
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--upstream', type=Path, required=True)
     root = parser.parse_args().upstream
+    check_session_network_config(root)
     top = (root / 'Source/Core/Core/IOS/Network/IP/Top.cpp').read_text()
     socket = (root / 'Source/Core/Core/IOS/Network/Socket.cpp').read_text()
     ioctl = function(top, 'std::optional<IPCReply> NetIPTopDevice::IOCtl(')

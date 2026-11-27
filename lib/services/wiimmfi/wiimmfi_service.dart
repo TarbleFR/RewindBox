@@ -394,6 +394,7 @@ abstract final class WiimmfiService {
             'tlsCertificateErrors',
             'tlsOtherErrors',
             'timeouts',
+            'networkProfiles',
           ])
             if (net[key] is int) key: net[key],
         },
