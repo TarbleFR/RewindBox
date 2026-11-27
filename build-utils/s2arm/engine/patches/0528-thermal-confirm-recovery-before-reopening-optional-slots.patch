@@ -1,0 +1,38 @@
+diff --git a/graphics/nvn/gfx/nvn/rb_energy_predict.h b/graphics/nvn/gfx/nvn/rb_energy_predict.h
+index 0013897..e936133 100644
+--- a/graphics/nvn/gfx/nvn/rb_energy_predict.h
++++ b/graphics/nvn/gfx/nvn/rb_energy_predict.h
+@@ -18,7 +18,7 @@ enum {
+ typedef struct {
+     uint64_t seen_ns, last_ns, busy_since_ns, state_ns;
+     uint64_t reference_ns, calibration_min_ns, calibration_max_ns, calibration_sum_ns;
+-    unsigned calibration_count, rises, slow, light, calm;
++    unsigned calibration_count, rises, slow, light, calm, recovery;
+     unsigned ratio_permille;
+     int trend_permille_s, state;
+ } rb_energy_predictor;
+@@ -88,7 +88,7 @@ static inline int rb_energy_predict_update(rb_energy_predictor *s, uint64_t now,
+
+     if (work != RB_ENERGY_WORK_BUSY) {
+         s->busy_since_ns = 0;
+-        s->calibration_count = s->rises = s->slow = s->calm = 0;
++        s->calibration_count = s->rises = s->slow = s->calm = s->recovery = 0;
+         s->trend_permille_s = 0;
+         if (work == RB_ENERGY_WORK_LIGHT) {
+             s->last_ns = submitted;
+@@ -132,10 +132,14 @@ static inline int rb_energy_predict_update(rb_energy_predictor *s, uint64_t now,
+         if (s->rises < 2) ++s->rises;
+     } else s->rises = 0;
+
++    if (s->state == RB_ENERGY_SLOW && s->ratio_permille <= 1250) ++s->recovery;
++    else s->recovery = 0;
++
+     if (s->slow == 2) {
+         rb_energy_predict_state(s, RB_ENERGY_SLOW, now);
+     } else if (s->state == RB_ENERGY_SLOW) {
+-        if (s->ratio_permille <= 1250) rb_energy_predict_state(s, RB_ENERGY_RECOVER, now);
++        // A single unusually fast probe must not reopen the second lane.
++        if (s->recovery == 2) rb_energy_predict_state(s, RB_ENERGY_RECOVER, now);
+     } else if (s->state == RB_ENERGY_PREVENT || s->state == RB_ENERGY_RECOVER) {
+         if (s->calm == 2)
+             rb_energy_predict_state(s, s->state == RB_ENERGY_PREVENT ? RB_ENERGY_RECOVER : RB_ENERGY_NORMAL, now);

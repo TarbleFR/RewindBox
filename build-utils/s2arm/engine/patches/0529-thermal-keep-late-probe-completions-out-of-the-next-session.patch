@@ -1,0 +1,60 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 57e97ac..3aabdea 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -7567,14 +7567,12 @@ static int rb_energy_mode(void) {
+     return 0;
+ #endif
+ }
+-static int rb_energy_observe(uint64_t generation, uint64_t frame, uint64_t duration, uint64_t submitted,
+-                             int publish_duration) {
+-    if (!submitted) return 0;
++static int rb_energy_observe(uint64_t generation, uint64_t frame, uint64_t duration, uint64_t submitted) {
+     pthread_mutex_lock(&g_rb_energy_mu);
+     int valid = generation == atomic_load(&g_rb_probe_generation);
+     if (valid) {
+-        g_rb_energy_sample = (typeof(g_rb_energy_sample)){generation, submitted, frame, duration};
+-        if (publish_duration) atomic_store(&g_probe_ns, duration);
++        atomic_store(&g_probe_ns, duration);
++        if (submitted) g_rb_energy_sample = (typeof(g_rb_energy_sample)){generation, submitted, frame, duration};
+     }
+     pthread_mutex_unlock(&g_rb_energy_mu);
+     return valid;
+@@ -30915,23 +30913,21 @@ static double rb_gpu_probe_sample(uint64_t frame) {
+             if (c.status == MTLCommandBufferStatusCompleted && generation == atomic_load(&g_rb_probe_generation)) {
+                 double start = c.GPUStartTime, end = c.GPUEndTime;
+                 double span_ns = (end - start) * 1e9;
+-                if (advanced) {
+-                    // A valid command buffer can still report unavailable timestamps.
+-                    if (start > 0 && end <= CACurrentMediaTime() + 0.001 &&
+-                        span_ns >= RB_ENERGY_PROBE_MIN_NS && span_ns <= RB_ENERGY_PROBE_MAX_NS &&
+-                        rb_energy_observe(generation, frame, (uint64_t)span_ns, energy_submitted, 1) && trace) {
+-                        int64_t queue = start >= issued ? (int64_t)((start - issued) * 1e9) : -1;
+-                        MLOG("[RB-ENERGY-PROBE] observed_ns=%llu completed_ns=%llu frame=%llu gpu_ns=%llu enqueue_to_gpu_ns=%lld encode_cpu_ns=%llu",
+-                             (unsigned long long)energy_submitted, (unsigned long long)bp_now(),
+-                             (unsigned long long)frame, (unsigned long long)span_ns,
+-                             (long long)queue, (unsigned long long)encode_cpu);
+-                    }
+-                } else if (end > start) {
++                // Guard both consumers against unavailable/malformed timestamps.
++                if (start > 0 && span_ns > 0 && span_ns < 0x1p64 && end <= CACurrentMediaTime() + 0.001) {
+                     uint64_t elapsed = (uint64_t)span_ns;
+-                    atomic_store(&g_probe_ns, elapsed);
+-                    rb_energy_observe(generation, frame, elapsed, energy_submitted, 0);
+-                    if (rb_probe_every()>0) MLOG("[rb-gpu-probe] frame=%llu scheduled_ns=%llu completed_ns=%llu gpu_ns=%llu every=%d fixed_work=16384x4096-fma units=duration-not-MHz",
+-                        (unsigned long long)frame,(unsigned long long)scheduled,(unsigned long long)now_ns(),(unsigned long long)elapsed,rb_probe_every());
++                    if (advanced) {
++                        if (rb_energy_probe_valid(elapsed) && rb_energy_observe(generation, frame, elapsed, energy_submitted) && trace) {
++                            int64_t queue = start >= issued ? (int64_t)((start - issued) * 1e9) : -1;
++                            MLOG("[RB-ENERGY-PROBE] observed_ns=%llu completed_ns=%llu frame=%llu gpu_ns=%llu enqueue_to_gpu_ns=%lld encode_cpu_ns=%llu",
++                                 (unsigned long long)energy_submitted, (unsigned long long)bp_now(),
++                                 (unsigned long long)frame, (unsigned long long)elapsed,
++                                 (long long)queue, (unsigned long long)encode_cpu);
++                        }
++                    } else if (rb_energy_observe(generation, frame, elapsed, energy_submitted) && rb_probe_every()>0) {
++                        MLOG("[rb-gpu-probe] frame=%llu scheduled_ns=%llu completed_ns=%llu gpu_ns=%llu every=%d fixed_work=16384x4096-fma units=duration-not-MHz",
++                            (unsigned long long)frame,(unsigned long long)scheduled,(unsigned long long)now_ns(),(unsigned long long)elapsed,rb_probe_every());
++                    }
+                 }
+             }
+             atomic_store(&g_probe_busy, 0); }];

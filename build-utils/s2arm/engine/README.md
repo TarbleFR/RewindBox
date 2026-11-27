@@ -931,3 +931,7 @@ Un mot de 64 bits par fichier réunit la position et la longueur du chemin. La l
 - **0527** complète les gardes de fraîcheur, protège le premier PSO et couvre les deux backends directs.
 
 [Audit, mesures et réception](../../../docs/evidence/s2arm-thermal-0524-0527.md).
+
+### 0528–0529 — reprise du gouverneur et propriété de la sonde
+
+0528 attend deux relevés indépendants en récupération. 0529 protège la publication de la durée de la sonde par la génération de session et filtre les horodatages Metal invalides. [Contre-expertise et rejeu](../../../docs/evidence/s2arm-thermal-0528-0529.md).
