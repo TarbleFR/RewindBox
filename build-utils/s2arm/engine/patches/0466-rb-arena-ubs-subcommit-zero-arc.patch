@@ -41,7 +41,7 @@ index 3cec1ab27..4edac8c82 100644
      if (!(g_enc_mtk_tab & 1u)) { enc_r_table(en, g_vt, MTLRenderStageMesh); g_enc_mtk_tab |= 1u; }
      if (ts) {
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
-index 4d49f6fbf..2ce613df7 100644
+index 4d49f6fbf..255843406 100644
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
 @@ -152,7 +152,7 @@ int nvn_rb_bench_memory(uint64_t *allocated) {
@@ -110,7 +110,7 @@ index 4d49f6fbf..2ce613df7 100644
      g_half_mask_sent = mask;
  }
  static void udc_encode(void);   // every draw encode: the unwritten-attachment ledger (see udc_note_draw)
-@@ -2802,7 +2809,7 @@ void mtl_sub_copy(uint64_t src, uint64_t dst, uint64_t n) {
+@@ -2802,16 +2809,19 @@ void mtl_sub_copy(uint64_t src, uint64_t dst, uint64_t n) {
  
  // Inline uniform update (UpdateUniformBuffer): the data is copied into the host's own shared ring at encode time, then copied in order to the destination.
  // Previously it was read from command memory only when the GPU executed - if the game recycles command memory before the GPU runs, it reads the bytes of the next batch of commands (SMBW's fountain water wave simulation got the wrong coefficients and diverged to ±65504).
@@ -119,8 +119,12 @@ index 4d49f6fbf..2ce613df7 100644
  // Inline updates inside an open render pass are deferred instead of ending the pass. Metal cannot copy into a buffer inside a render pass, so each update used to end it: all attachments stored,
  // reloaded by the next pass, new encoders (Metroid Dread about 246 times a frame, Tears of the Kingdom about 50). NVN applies the update in command order, so the draws after it in the pass must
  // read the new data: a draw whose uniform binding overlaps a deferred update reads a shadow. When the updates deferred in this pass cover all of the binding the shader can read, the shadow is
-@@ -2811,7 +2818,7 @@ static id<MTLBuffer> g_ubs_buf; static size_t g_ubs_off, g_ubs_size;
+ // made of them alone, latest first per byte (exactly what the GPU would read, whatever earlier frames still have in flight); when they cover only part of it, the rest comes from memory (ubp_get).
+ // The real copies are encoded in order when the pass ends (rp_end), so later passes and the CPU see them as before. The pass still ends before a draw that would need more: a partly covered binding
  // whose rest memory cannot give, or a read of the deferred data through a vertex, index, indirect or storage buffer (ubd_conflict). Also on in TBDR mode (see ubd_on). DM_NVN_UB_DEFER=0 turns it off
++@interface NvArena : NSObject { @public id<MTLBuffer> buf; uint8_t *cpu; uint64_t gpu, fence, sfence; size_t used, len; } @end   // cpu: buf.contents, len: buf.length, kept so an allocation and its writes send no message (upstream (MIT) #1070)
++@implementation NvArena @end
++static NvArena *g_cur_arena;
  static size_t arena_alloc(size_t n, __strong id<MTLBuffer> *buf); static inline void args_dirty_all(void); static inline void args_dirty_pass_begin(void); static void ubd_dirty(uint64_t lo, uint64_t hi);
  static uint64_t g_rb_cont_ubo_gen[6][16], g_rb_cont_tex_gen[6], g_rb_cont_img_gen[6], g_rb_cont_pool_gen, g_rb_cont_mem_gen;   // RewindBox (patch 0425): generation counters for rb_cont_reads_rt_memo
 -typedef struct { uint64_t lo, hi, gpu; size_t off; __unsafe_unretained id<MTLBuffer> buf; uint32_t seq; } ubd_ent;   // data at buf + off (the ubs ring; a ring block replaced meanwhile lives until this submission completes); seq: order deferred
@@ -128,7 +132,7 @@ index 4d49f6fbf..2ce613df7 100644
  enum { UBD_MAX = 512 };
  static ubd_ent g_ubd[UBD_MAX]; static int g_nubd;   // in the order deferred (ubd_flush lands them so)
  // The same entries sorted by start (equal starts in the order deferred), and g_ubx_hi[i] = the largest end among g_ubx[0..i]. Every update overlapping [lo, hi) starts before hi,
-@@ -2840,18 +2847,21 @@ static int ubx_ub(uint64_t a) { int l = 0, h = g_nubd; while (l < h) { int m = (
+@@ -2840,18 +2850,21 @@ static int ubx_ub(uint64_t a) { int l = 0, h = g_nubd; while (l < h) { int m = (
  static void ubx_fix(int from) { uint64_t m = from ? g_ubx_hi[from - 1] : 0; for (int i = from; i < g_nubd; i++) { if (g_ubx[i].hi > m) m = g_ubx[i].hi; g_ubx_hi[i] = m; } }
  // A new deferred update [lo, hi) (mtl_sub_update): the ones it covers whole never need to land (the same landing writes these bytes after them, and the draws that read them hold
  // their ring copies, ubd_shadow) and leave both lists; then it joins them. Games rewrite one block before every draw group (Breath of the Wild: the same 64 bytes), so this keeps the list short
@@ -152,7 +156,7 @@ index 4d49f6fbf..2ce613df7 100644
  static int ubd_hits(uint64_t lo, uint64_t hi) {
      if (hi <= lo || !g_nubd) return 0;
      int j = ubx_lb(hi); return j > 0 && g_ubx_hi[j - 1] > lo;   // some entry starting before hi ends after lo
-@@ -2873,7 +2883,10 @@ static int ubd_overlaps(uint64_t lo, uint64_t hi, const ubd_ent **ov, int cap, c
+@@ -2873,7 +2886,10 @@ static int ubd_overlaps(uint64_t lo, uint64_t hi, const ubd_ent **ov, int cap, c
  // [lo, hi) into d as the deferred updates leave it: each overlapping one laid over in the order deferred, so each byte ends with the newest write (bytes none of them covers are left alone)
  static void ubd_lay1(const ubd_ent *e, uint64_t lo, uint64_t hi, uint8_t *d) {
      uint64_t a = e->lo > lo ? e->lo : lo, b = e->hi < hi ? e->hi : hi;
@@ -164,7 +168,7 @@ index 4d49f6fbf..2ce613df7 100644
  }
  static void ubd_lay(uint64_t lo, uint64_t hi, uint8_t *d, const ubd_ent *const *ov, int n) {
      if (n < 0) { for (int i = 0; i < g_nubd; i++) ubd_lay1(&g_ubd[i], lo, hi, d); return; }   // many overlap: the whole list, which is in that order
-@@ -2884,9 +2897,9 @@ enum { UBD_OV = 32 };
+@@ -2884,9 +2900,9 @@ enum { UBD_OV = 32 };
  static uint64_t ubd_shadow(uint64_t lo, uint64_t hi) {
      const ubd_ent *ov[UBD_OV], *e; int n = ubd_overlaps(lo, hi, ov, UBD_OV, &e);
      if (e && e->lo <= lo && hi <= e->hi) { uint64_t g = e->gpu + (lo - e->lo); if (!(g & 15)) return g; }
@@ -176,7 +180,7 @@ index 4d49f6fbf..2ce613df7 100644
  }
  // Encode the deferred copies in order (rp_end, once the pass has ended)
  static void ubd_flush(void) {
-@@ -3090,7 +3103,7 @@ static int ubp_get(uint64_t lo, uint64_t hi, uint64_t *gpu, const uint8_t **cpu)
+@@ -3090,7 +3106,7 @@ static int ubp_get(uint64_t lo, uint64_t hi, uint64_t *gpu, const uint8_t **cpu)
              versioned = 1;
          }
      }
@@ -185,7 +189,7 @@ index 4d49f6fbf..2ce613df7 100644
      int big = len >= UBQ_ASYNC;   // smaller ones are always copied here: handing a copy to the worker costs more than making it (see UBQ_ASYNC)
      if (UBQ_N - (g_ubq_tail - g_ubq_head) < (uint64_t)nk + (live ? nc + 1 : 1)) ubq_flush();   // a shadow's copies never straddle a forced flush
      if (versioned) {
-@@ -3111,7 +3124,8 @@ static int ubp_get(uint64_t lo, uint64_t hi, uint64_t *gpu, const uint8_t **cpu)
+@@ -3111,7 +3127,8 @@ static int ubp_get(uint64_t lo, uint64_t hi, uint64_t *gpu, const uint8_t **cpu)
      } else ubq_put(d, c ? c->cpu : (const uint8_t *)(uintptr_t)lo, (size_t)len, big, c != NULL);   // the previous shadow's own copies are queued before these
      for (int i = nk - 1; i >= 0; i--) { int e = g_ubp_idx[i]; const upd_ent *u = &g_upd[g_pend_upd[e] - 1];   // oldest first: each byte ends with the newest write
          uint64_t x = g_pend_lo[e] > lo ? g_pend_lo[e] : lo, y = g_pend_hi[e] < hi ? g_pend_hi[e] : hi;
@@ -195,7 +199,7 @@ index 4d49f6fbf..2ce613df7 100644
      g_ubp_made++;
      g_ubp_nd = -1; g_ubp_prevq = c ? c->q : 0;
      if (c && nk <= UBP_DMAX) {   // continued from c: it differs from c only where the kept writes land (insertion sort, then merge the overlapping)
-@@ -3123,7 +3137,7 @@ static int ubp_get(uint64_t lo, uint64_t hi, uint64_t *gpu, const uint8_t **cpu)
+@@ -3123,7 +3140,7 @@ static int ubp_get(uint64_t lo, uint64_t hi, uint64_t *gpu, const uint8_t **cpu)
                                                   else { g_ubp_d[2 * m] = g_ubp_d[2 * i]; g_ubp_d[2 * m + 1] = g_ubp_d[2 * i + 1]; m++; } }
          g_ubp_nd = m; }
      if (!c) c = &g_ubpc[g_ubpc_i++ % UBP_CACHE];
@@ -204,7 +208,7 @@ index 4d49f6fbf..2ce613df7 100644
      c->pq = g_ubp_prevq; c->nd = g_ubp_nd; if (g_ubp_nd > 0) memcpy(c->d, g_ubp_d, 2 * (size_t)g_ubp_nd * sizeof *g_ubp_d);
      *gpu = c->gpu; *cpu = d; g_ubp_q = g_ubq_tail; return 1;
  }
-@@ -3149,13 +3163,15 @@ void mtl_sub_update(const void *data, uint64_t dst, uint64_t n) {
+@@ -3149,13 +3166,15 @@ void mtl_sub_update(const void *data, uint64_t dst, uint64_t n) {
          g_ubs_size = MAX((size_t)1 << 20, need);
          g_ubs_buf = [g_dev newBufferWithLength:g_ubs_size options:MTLResourceStorageModeShared];
          if (!g_ubs_buf) MDIE("uniform update ring allocation failed %#zx", g_ubs_size);
@@ -224,7 +228,7 @@ index 4d49f6fbf..2ce613df7 100644
      else { g_rb_cont_mem_gen++; enc_b_copy_buffer(blit_buf(0, 0, dst, dst + n), g_ubs_buf, g_ubs_off, (__bridge id<MTLBuffer>)db, dof, n); }
      g_ubs_off += need;
  }
-@@ -3932,7 +3948,9 @@ static void rt_keep_state(void);
+@@ -3932,7 +3951,9 @@ static void rt_keep_state(void);
  static void ghost_finish_submission(void);
  static void alias_dead_views(void);
  static void snp_maint(void);   // RewindBox (patch 0071 review): the snapshot pools' sweep and pressure release (defined with fb_prepare)
@@ -235,7 +239,7 @@ index 4d49f6fbf..2ce613df7 100644
  static void lc_land(void); static int g_nlc;   // lazy clears waiting (lc_push; fb_prepare lands them before a feedback read)
  static _Atomic int g_seg_inflight;   // main command buffers committed and not reported back yet (sub_cut)
  // 诊断开关 DM_TEST_GPU_HANG=<帧号>（只为验证 GPU 安全停，玩家包不设）：到这一帧往旧队列交一个死循环计算核，人为造出本进程的 GPU 挂死；
-@@ -4967,7 +4985,8 @@ uint64_t nvn_be_sub_commit(void) {
+@@ -4967,7 +4988,8 @@ uint64_t nvn_be_sub_commit(void) {
      // CPU-visible effects after completion: copy the op table into the callback
      int n = g_npost; post_op *ops = n ? malloc(n * sizeof *ops) : NULL;
      if (n) memcpy(ops, g_post, n * sizeof *ops);
@@ -245,7 +249,7 @@ index 4d49f6fbf..2ce613df7 100644
      NSArray<NSString *> *qsus = quar_take();   // this commit's suspects for a GPU error (quar_fault)
      id o = fb_new();
      rb_fx_commit_feedback(o, atomic_load(&g_cur_frame), g_seg, "submission");
-@@ -4976,7 +4995,7 @@ uint64_t nvn_be_sub_commit(void) {
+@@ -4976,7 +4998,7 @@ uint64_t nvn_be_sub_commit(void) {
      //   to submissions was 0.15 to 0.26 of a core in IPA 765. S2A_RB_ONE_HANDLER=0 adds two as before
      static int one_fb = -1; if (one_fb < 0) { const char *e = getenv("S2A_RB_ONE_HANDLER"); one_fb = !(e && !strcmp(e, "0")); }
      int one = one_fb;
@@ -254,7 +258,7 @@ index 4d49f6fbf..2ce613df7 100644
      uint64_t gpu_f = atomic_load(&g_cur_frame); double gpu_sub = gpu_tag_begin(gpu_f);
      // RewindBox (patch 0059): this piece's GPU-written words go to its handler, which reads them once the piece has run
      int fsn = 0; uint64_t *fsa = NULL; uint32_t *fsq = NULL; fsig_wx *fsx = NULL;   // RewindBox (patch 0067): fsx, each word's record, frame, stride and kind
-@@ -4986,14 +5005,14 @@ uint64_t nvn_be_sub_commit(void) {
+@@ -4986,14 +5008,14 @@ uint64_t nvn_be_sub_commit(void) {
      int mcn = 0; rb_mdxchk *mcl = NULL;   // RewindBox (patch 0067): this piece's multi-draw counts as the masking kernel read them (mdx_run)
      if (g_mdxchk_n && (mcl = malloc((size_t)g_mdxchk_n * sizeof *mcl))) { mcn = g_mdxchk_n; memcpy(mcl, g_mdxchk, (size_t)mcn * sizeof *mcl); }
      g_mdxchk_n = 0;
@@ -272,7 +276,7 @@ index 4d49f6fbf..2ce613df7 100644
          for (int i = 0; i < n; i++) {
              if (ops[i].kind == 1) { if (ops[i].mode == 1) *ops[i].val += ops[i].v; else *ops[i].val = ops[i].v; evs_landed(ops[i].val); }
              else if (ops[i].kind == 3) {   // Samples passed: the sum of all slots since the reset (the folded part + the slots not yet completed at the report)
-@@ -11942,11 +11961,11 @@ static void rb_bi_put(uint64_t ind, int el, uint64_t cnt, int i) {   // the repl
+@@ -11942,11 +11964,11 @@ static void rb_bi_put(uint64_t ind, int el, uint64_t cnt, int i) {   // the repl
      uint64_t f = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
      if (!g_rbb_cur || g_rbb_fence != g_fence || g_rbb_cur->frame != f || g_rbb_cur->n >= RBB_CAP) {   // another submission (g_fence moves at each commit) or frame: a new piece
          g_rbb_cur = NULL;
@@ -286,7 +290,7 @@ index 4d49f6fbf..2ce613df7 100644
          g_rbb_cur = p; g_rbb_fence = g_fence;
          if (f >= g_rbb_win + 300) { if (g_rbb_win) rb_bi_window(f); g_rbb_win = f; }
      }
-@@ -14601,7 +14620,7 @@ static id<MTLTexture> tbuf_expand(int tid, int rows2d, uint64_t *rid) {   // row
+@@ -14601,7 +14623,7 @@ static id<MTLTexture> tbuf_expand(int tid, int rows2d, uint64_t *rid) {   // row
      // exact (rows2d 2): rows sized to the element count when they fit; otherwise the fixed rows, whose tail this copy zero-fills, so a read past the buffer still reads 0
      if (rows2d) { if (!(rows2d == 2 && nvn_tbuf_rows_exact(n, (uint32_t)db, (uint32_t)al, &w, &h, &rw)) && !nvn_tbuf_rows((uint32_t)n, (uint32_t)db, (uint32_t)al, &w, &h, &rw)) { RED_ONCE(133, "buffer texture ser=%llu (format %#x, %llu elements) has no 2D-row form for a wrapped 1D fetch: the slot reads 0", (unsigned long long)t->serial, f, (unsigned long long)n); return nil; } row = rw; }
      size_t total = row * h;
@@ -295,7 +299,18 @@ index 4d49f6fbf..2ce613df7 100644
      memset(d, 0, total);
      for (uint32_t y = 0; y < h; y++) {   // one row of w elements at a time (a texture buffer is one row of n)
          uint64_t i0 = (uint64_t)y * w; if (i0 >= n) break;
-@@ -14706,7 +14725,7 @@ static uint64_t g_arena_bytes, g_arena_seg, g_seg_fence_n, g_seg_done, g_arena_w
+@@ -14689,9 +14711,7 @@ static inline __attribute__((always_inline)) void *samp_fast(int sid) {
+ //   mid-submission, that segment's own number (sfence, against g_seg_done). Without the segment number a submission's blocks waited for the whole submission:
+ //   10-31 Xenoblade 3's opening submission ran over 16000 draws through the geometry emulation (geo_draw takes up to 256 MiB of scratch a draw) and piled
+ //   1679 MB of scratch into one submission, filling the host's address room on the Mac's iPhone address model (frame 1897, "cannot allocate ... of frame scratch")
+-@interface NvArena : NSObject { @public id<MTLBuffer> buf; uint8_t *cpu; uint64_t gpu, fence, sfence; size_t used, len; } @end   // cpu: buf.contents, len: buf.length, kept so an allocation and its writes send no message (upstream (MIT) #1070)
+-@implementation NvArena @end
+-static NSMutableArray<NvArena *> *g_arenas; static NvArena *g_cur_arena; static NSMutableArray<NvArena *> *g_sub_arenas;
++static NSMutableArray<NvArena *> *g_arenas; static NSMutableArray<NvArena *> *g_sub_arenas;
+ static id<MTLBuffer> arena_find(const uint8_t *p, NSUInteger *off, NSUInteger *len) {   // 本次提交的块，再找已分段交出的块（影子按 g_arena_gen 复用，可能在后者里）
+     for (NSArray<NvArena *> *list in @[g_sub_arenas ?: @[], g_arenas ?: @[]]) for (NvArena *a in list) if (p >= a->cpu && p < a->cpu + a->len) { *off = (NSUInteger)(p - a->cpu); *len = a->len; return a->buf; }
+     return nil;
+@@ -14706,7 +14726,7 @@ static uint64_t g_arena_bytes, g_arena_seg, g_seg_fence_n, g_seg_done, g_arena_w
  static uint64_t arena_bytes(void) { return g_arena_bytes; }
  static uint64_t arena_waits(void) { return g_arena_waits; }
  static int arena_free(NvArena *it, size_t minimum) {
@@ -304,7 +319,7 @@ index 4d49f6fbf..2ce613df7 100644
  }
  static NvArena *arena_new(size_t minimum) {   // caller holds g_mu
      for (int waited = 0;; waited = 1) {
-@@ -14769,7 +14788,7 @@ static size_t arena_alloc(size_t n, __strong id<MTLBuffer> *buf) {
+@@ -14769,7 +14789,7 @@ static size_t arena_alloc(size_t n, __strong id<MTLBuffer> *buf) {
          pthread_mutex_lock(&g_mu); g_cur_arena = arena_new(n); pthread_mutex_unlock(&g_mu);
          [g_sub_arenas addObject:g_cur_arena];
      }
@@ -313,7 +328,7 @@ index 4d49f6fbf..2ce613df7 100644
  }
  // Keep the logical vertex-zero pointer inside a real MTLBuffer. Only the payload
  // is populated; vertex_id still includes first/baseVertex and skips the prefix.
-@@ -14780,11 +14799,11 @@ static size_t arena_alloc_origin(size_t n, uint64_t prefix, __strong id<MTLBuffe
+@@ -14780,11 +14800,11 @@ static size_t arena_alloc_origin(size_t n, uint64_t prefix, __strong id<MTLBuffe
      size_t start = ((size_t)prefix + 255) & ~(size_t)255, size = (n + 255) & ~(size_t)255; g_arena_seg += size;
      if (start > limit || size > limit - start) MDIE("buffer-origin scratch exceeds Metal buffer limit (%llu + %zu > %llu)", (unsigned long long)prefix, n, (unsigned long long)limit);
      size_t off = g_cur_arena ? MAX(g_cur_arena->used, start) : start;
@@ -327,7 +342,7 @@ index 4d49f6fbf..2ce613df7 100644
  }
  
  // ---------- Draw state ----------
-@@ -14896,7 +14915,7 @@ static void bind_vbufs(id<MTL4RenderCommandEncoder> en) {
+@@ -14896,7 +14916,7 @@ static void bind_vbufs(id<MTL4RenderCommandEncoder> en) {
              vbuf_zero(en, -1); uint64_t zero_gpu = g_vbuf_zero_gpu;
              enc_r_vbuf_raw(en, 30, zero_gpu);
              if (wd_push_nz) {
@@ -336,7 +351,7 @@ index 4d49f6fbf..2ce613df7 100644
                  g_rb_vbuf_push_was_nz = 1;
              } else {
                  enc_r_vbuf_raw(en, PUSH_SLOT, zero_gpu);
-@@ -14923,7 +14942,7 @@ static void bind_vbufs(id<MTL4RenderCommandEncoder> en) {
+@@ -14923,7 +14943,7 @@ static void bind_vbufs(id<MTL4RenderCommandEncoder> en) {
      vbuf_zero(en, -1); uint64_t zero_gpu = g_vbuf_zero_gpu;
      enc_r_vbuf_raw(en, 30, zero_gpu);
      if (g_wd_push[0] != 0 || g_wd_push[1] != 0 || g_wd_push[2] != 0 || g_wd_push[3] != 0) {   // S2Arm widen edge push (see g_wd_push): zero reads the zero buffer
@@ -345,7 +360,7 @@ index 4d49f6fbf..2ce613df7 100644
      } else enc_r_vbuf_raw(en, PUSH_SLOT, zero_gpu);
  }
  // Size of an attachment-less pass (rp_begin_ex_): the far corner of viewport 0, else of the scissor, clamped to Metal's 1..16384
-@@ -19494,7 +19513,7 @@ static uint64_t gml_take(id<MTLBuffer> map, NSData *cpu) {
+@@ -19494,7 +19514,7 @@ static uint64_t gml_take(id<MTLBuffer> map, NSData *cpu) {
      if (!b) { b = [g_dev newBufferWithLength:GML_BYTES options:MTLResourceStorageModeShared]; if (!b) MDIE("raw global memory: failed to create a write log"); res_add(b); res_commit(); }
      memset(b.contents, 0, GML_BYTES);
      g_gml_on = 1; uint64_t fence = g_fence + 1;   // this submission's fence (nvn_be_sub_commit)
@@ -354,7 +369,7 @@ index 4d49f6fbf..2ce613df7 100644
      return b.gpuAddress;
  }
  static id<MTLBuffer> zero_bank(void) { static __strong id<MTLBuffer> b; if (!b) { b = [g_dev newBufferWithLength:65536 options:MTLResourceStorageModeShared]; res_add(b); } return b; }
-@@ -19507,8 +19526,8 @@ static struct { uint64_t ver, gen, gpu; } g_push_copy[2][NVN2_PUSH_SLOTS];
+@@ -19507,8 +19527,8 @@ static struct { uint64_t ver, gen, gpu; } g_push_copy[2][NVN2_PUSH_SLOTS];
  static uint64_t push_gpu(int c, int slot) {
      if (!S.push_ver[c][slot]) return zero_bank_gpu();
      if (g_push_copy[c][slot].ver == S.push_ver[c][slot] && g_push_copy[c][slot].gen == g_arena_gen) return g_push_copy[c][slot].gpu;
@@ -365,7 +380,7 @@ index 4d49f6fbf..2ce613df7 100644
      return g_push_copy[c][slot].gpu;
  }
  // Bindless handle (TEXU / SAMPU): the 32-bit word at byte offset off of uniform slot reg = the low 32 bits of the NVN handle the game wrote there (low 20 bits texture ID, high 12 bits sampler ID).
-@@ -19680,8 +19699,8 @@ static uint64_t lb_fill(NvShader *sh, int nvn_stage) {
+@@ -19680,8 +19700,8 @@ static uint64_t lb_fill(NvShader *sh, int nvn_stage) {
          q[b->aid] = g_sreg[sid].lod_bias;
      }
      if (top < 0) return zero_gpu;
@@ -376,7 +391,7 @@ index 4d49f6fbf..2ce613df7 100644
  }
  // #1204 T1 bounds hardening (gal_spvx.m direct form): the two length tables the shader clamps its indices with, from this draw's bindings. Caller holds g_rmu (encode_args)
  //   NVN_RB_UBOLEN (gal_ubo_len): uint[NVN uniform slot] = vec4 count of the bound buffer (rounded up, capped at 4096, the declared vec4 data[4096]); unbound 0 (the slot reads the zero bank).
-@@ -19842,7 +19861,7 @@ static void se_bind(id en, NvShader *sh, int nvn_stage) {
+@@ -19842,7 +19862,7 @@ static void se_bind(id en, NvShader *sh, int nvn_stage) {
          if (se_entry(sid, e) && e->q[3] != 0) { e->s0 = samp_border_rid(sid, 0); e->s1 = samp_border_rid(sid, 1); if (!e->s0 || !e->s1) e->q[3] = 0; }
      }
      pthread_mutex_unlock(&g_rmu);
@@ -385,7 +400,7 @@ index 4d49f6fbf..2ce613df7 100644
      if (nvn_stage == 5) enc_c_args(en, gpu, RED_SLOT);
      else enc_r_args(en, MTLRenderStageFragment, gpu, RED_SLOT);
  }
-@@ -22530,13 +22549,13 @@ static void fz_check_run(const fuse_t *fz) {
+@@ -22530,13 +22550,13 @@ static void fz_check_run(const fuse_t *fz) {
          enc_b_copy_texture_buffer(b, c, 0, 0, MTLOriginMake(0, 0, 0), MTLSizeMake(W, H, 1), b1, 0, W * bpp, W * H * bpp);
          enc_b_copy_texture_buffer(b, t, 0, 0, MTLOriginMake(0, 0, 0), MTLSizeMake(W, H, 1), b2, 0, W * bpp, W * H * bpp);
          unsigned long long ser = sers[a], pass = g_stat_pass, frame = atomic_load(&g_cur_frame); NSUInteger nb = W * H * bpp;
@@ -401,7 +416,7 @@ index 4d49f6fbf..2ce613df7 100644
      }
      }
  out:
-@@ -23599,14 +23618,14 @@ static void draw_top(const p_draw *dw, const p_draw_idx *di) {
+@@ -23599,14 +23619,14 @@ static void draw_top(const p_draw *dw, const p_draw_idx *di) {
          enc_b_copy_texture_buffer(blit(), c, 0, 0, MTLOriginMake(0, 0, 0), MTLSizeMake(W, H, 1), b1, 0, W * bpp, W * H * bpp);   // 经后端 blit()，不直写 MTL4 类型（mtl4_baseline）
          enc_b_copy_texture_buffer(blit(), t, 0, 0, MTLOriginMake(0, 0, 0), MTLSizeMake(W, H, 1), b2, 0, W * bpp, W * H * bpp);
          unsigned long long ser = g_fbc.ser[a], pass = g_stat_pass, frame = atomic_load(&g_cur_frame); NSUInteger nb = W * H * bpp;
@@ -418,7 +433,7 @@ index 4d49f6fbf..2ce613df7 100644
      }
      for (int a = 0; a < n; a++) { g_fbc.att[a] = nil; g_fbc.s0[a] = nil; } g_fbc.fn = nil;
  }
-@@ -24232,7 +24251,7 @@ static void ixc_run(const p_draw *dw, const p_draw_idx *di) {
+@@ -24232,7 +24252,7 @@ static void ixc_run(const p_draw *dw, const p_draw_idx *di) {
      for (int i = 0; i < n && lg > 0; i++) { const ixc_ent *e = &g_ixc[n0 + i]; if (!e->args) continue; lg--;
          const uint32_t *src = (const uint32_t *)(uintptr_t)e->ind, *arg = (const uint32_t *)((const uint8_t *)ab.contents + ao + 32 * (size_t)i);
          int prim = e->prim, it = e->itype; unsigned long long fr = (unsigned long long)atomic_load(&g_cur_frame), pass = g_stat_pass, splits = g_ixc_splits; id<MTLBuffer> keep = ab;
@@ -427,7 +442,7 @@ index 4d49f6fbf..2ce613df7 100644
  }
  // ---------- 8-bit indices written by the GPU earlier in the submission ----------
  // Metal has no 8-bit index type, so draw widens 8-bit indices to 16-bit on the CPU at replay. When a buffer write encoded earlier in this submission (copy / update / fill,
-@@ -25090,8 +25109,8 @@ static int lc_keeps(uint32_t op) {
+@@ -25090,8 +25110,8 @@ static int lc_keeps(uint32_t op) {
  //   (SetAlphaRef, OP_ALPHA_REF), written per draw through the argument table (the deferred encoder records table writes, no new encoder method); draws without the test bind nothing
  static void alpha_ref_bind(id en, NvShader *fs) {
      int af = (int)S.color.alpha_func; if (!fs || !fs->has_atms || af < 1 || af > 7) return;
@@ -438,7 +453,7 @@ index 4d49f6fbf..2ce613df7 100644
  }
  static int draw_pass_state(id en, NvShader *fs) {   // en: the render encoder (typed id: enc_r_dss and friends take the Metal 4 type; naming it here would add an unguarded Metal 4 symbol, tools/avail_count.sh)
      static id<MTLDepthStencilState> cur_ds; static uint64_t cur_ds_pass;
-@@ -25498,7 +25517,7 @@ static void draw_tex(const p_draw_tex *t) {
+@@ -25498,7 +25518,7 @@ static void draw_tex(const p_draw_tex *t) {
      if (!drawn) return;   // empty scissor
      id<MTLBuffer> pb; size_t po = arena_alloc(16, &pb);
      if (!pb) return;
@@ -447,7 +462,7 @@ index 4d49f6fbf..2ce613df7 100644
      enc_r_pso(en, ps); g_enc_pso = ps; g_pso_dirty = 1;
      enc_r_table(en, g_dt_tab, MTLRenderStageFragment);
      tab_tex(g_dt_tab, tx, 0); tab_samp(g_dt_tab, sp, 0); tab_buf(g_dt_tab, pb, po, 0);
-@@ -26093,9 +26112,9 @@ static void draw_emit(id en, MTLPrimitiveType mp, int prim, const p_draw *dw, co
+@@ -26093,9 +26113,9 @@ static void draw_emit(id en, MTLPrimitiveType mp, int prim, const p_draw *dw, co
              enc_r_draw_indexed(en, mp, (NSUInteger)nt * 3, MTLIndexTypeUInt32, prim == 7 ? g_quad_gpu : g_fan_gpu, prim == 7 ? g_quad_ib.length : g_fan_ib.length, dw->instances > 0 ? dw->instances : 1, dw->first, dw->base_instance);
          } else {   // more than they cover (audit #846 F-nvn-shared-ib): this draw's own list in the frame arena, as for indexed fans / quads
              if ((uint64_t)nt * 12 > g_dev.maxBufferLength) { RED_ONCE(130, "%s draw of %d vertices needs %llu bytes of indices, more than a Metal buffer holds: skipped", prim == 7 ? "quad" : "triangle fan", dw->count, (unsigned long long)nt * 12); return; }
@@ -460,7 +475,7 @@ index 4d49f6fbf..2ce613df7 100644
          }
      } else if (dw) {
          if (dw->count && (dw->instances > 1 || dw->base_instance)) enc_r_draw_instanced(en, mp, dw->first, dw->count, dw->instances > 0 ? dw->instances : 1, dw->base_instance);
-@@ -26110,9 +26129,9 @@ static void draw_emit(id en, MTLPrimitiveType mp, int prim, const p_draw *dw, co
+@@ -26110,9 +26130,9 @@ static void draw_emit(id en, MTLPrimitiveType mp, int prim, const p_draw *dw, co
              if (!nvn_be_addr(di->ibuf, (uint64_t)di->count * isz, &mb, &mo) || !(src = [(__bridge id<MTLBuffer>)mb contents])) { RED_ONCE(22, "index buffer is in no memory pool"); return; }
              if (pend_hits(di->ibuf, (uint64_t)di->count * isz)) RED_ONCE(73, "triangle fan / quad index buffer has GPU-side writes in this submission: expanded from the current content");
              src += mo;
@@ -473,7 +488,7 @@ index 4d49f6fbf..2ce613df7 100644
              if (g_rt_range_pending) { PD("j rt_level_range pass=%llu vc=%u", g_stat_pass, (unsigned)di->count); g_rt_range_pending = 0; }
              return;
          }
-@@ -26130,8 +26149,8 @@ static void draw_emit(id en, MTLPrimitiveType mp, int prim, const p_draw *dw, co
+@@ -26130,8 +26150,8 @@ static void draw_emit(id en, MTLPrimitiveType mp, int prim, const p_draw *dw, co
              void *mb; uint64_t mo; const uint8_t *src;
              if (!nvn_be_addr(di->ibuf, di->count, &mb, &mo) || !(src = [(__bridge id<MTLBuffer>)mb contents])) { RED_ONCE(22, "index buffer is in no memory pool"); return; }
              if (pend_hits(di->ibuf, di->count)) RED_ONCE(48, "8-bit index buffer has GPU-side writes in this submission and the GPU expansion failed: expanded from the current content");
@@ -484,7 +499,7 @@ index 4d49f6fbf..2ce613df7 100644
              for (int32_t i = 0; i < di->count; i++) d[i] = src[i] == rv ? 0xFFFF : src[i];
              enc_r_draw_indexed(en, mp, di->count, MTLIndexTypeUInt16, g_cur_arena->gpu + off, (NSUInteger)di->count * 2, di->instances ? di->instances : 1, di->base_vertex, di->base_instance);
              if (g_rt_range_pending) { PD("j rt_level_range pass=%llu vc=%u", g_stat_pass, (unsigned)di->count); g_rt_range_pending = 0; }
-@@ -26142,9 +26161,9 @@ static void draw_emit(id en, MTLPrimitiveType mp, int prim, const p_draw *dw, co
+@@ -26142,9 +26162,9 @@ static void draw_emit(id en, MTLPrimitiveType mp, int prim, const p_draw *dw, co
              void *sb; uint64_t so; const uint8_t *src;
              if (nvn_be_addr(di->ibuf, (uint64_t)di->count * isz, &sb, &so) && (src = [(__bridge id<MTLBuffer>)sb contents]) && strip_rst_fix(src + so, isz, (uint32_t)di->count, rv, NULL)) {
                  if (pend_hits(di->ibuf, (uint64_t)di->count * isz)) RED_ONCE(132, "strip index buffer has GPU-side writes in this submission: primitive restart rewritten from the current content");
@@ -497,7 +512,7 @@ index 4d49f6fbf..2ce613df7 100644
                  if (g_rt_range_pending) { PD("j rt_level_range pass=%llu vc=%u", g_stat_pass, (unsigned)di->count); g_rt_range_pending = 0; }
                  return;
              }
-@@ -26686,7 +26705,7 @@ static void dispatch(const p_dispatch *dp) {
+@@ -26686,7 +26706,7 @@ static void dispatch(const p_dispatch *dp) {
          uint64_t bytes = n * cs->spill;
          if (!n) { if (own) enc_c_end(ce); return; }
          if (bytes > (512ull << 20)) { RED_ONCE(118, "compute shader %s: %llu threadgroups × %u spilled bytes exceed 512 MiB, dispatch skipped", cs->key, (unsigned long long)n, cs->spill); if (own) enc_c_end(ce); return; }
@@ -506,7 +521,7 @@ index 4d49f6fbf..2ce613df7 100644
          static int once; if (!once++) MLOG("compute shared-memory spill: first dispatch of %s (%u bytes per threadgroup, %llu threadgroups)", cs->key, cs->spill, (unsigned long long)n);
      }
      if (dp->ind) {   // The shader reads the group counts from c0 + 0x200: copy the GPU-written ones there first (Metal 4 orders nothing inside an encoder without a barrier)
-@@ -27319,13 +27338,16 @@ static void clear_tex(const p_clear_tex *c) {
+@@ -27319,13 +27339,16 @@ static void clear_tex(const p_clear_tex *c) {
  }
  
  // Context description of one submit (nvn_be_sub_commit takes one per submit and prints it into the failure line when the command buffer errors): for the GPU memory fault on the first frame entering Travincal, the failure line had only the sequence number and error code, and it was impossible to tell what was in that submit
@@ -529,7 +544,7 @@ index 4d49f6fbf..2ce613df7 100644
  }
  // When the game itself asks for 30 fps (pacing by the game's present interval, interval 2, hle_nvn.c) the display link runs at 30 Hz too: games whose logic counts frames, such as Engage, are not pulled up to 60 fps by the display link on iOS
  __attribute__((weak)) int nvn_game_fps(void) { return 60; }   // hle_nvn.c provides the strong definition
-@@ -27523,7 +27545,7 @@ static void clr_tri(id<MTL4RenderCommandEncoder> en, id<MTLRenderPipelineState>
+@@ -27523,7 +27546,7 @@ static void clr_tri(id<MTL4RenderCommandEncoder> en, id<MTLRenderPipelineState>
      if (!ft) { NSError *e = nil;
          vt = rec_table(tab_new(1, 0, 0, &e)); ft = vt ? rec_table(tab_new(1, 0, 0, &e)) : nil;
          if (!ft) { vt = nil; static int n; if (!n++) MLOG("【红】 cannot create the clear-triangle argument table: %s; this clear is skipped", e.localizedDescription.UTF8String); return; } }
