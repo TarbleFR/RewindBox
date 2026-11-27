@@ -542,6 +542,20 @@
       {
         "commit": "025a688f0621831edf1f11883816bc3b258b1aa7",
         "note": "Afficher les versions des moteurs dans les playlists, différé explicitement à848 par847."
+      },
+      {
+        "commit": "2372080fbee42e0340189bbcb41f6db093f076ce",
+        "paths": [
+          "build-utils/s2arm/engine/benchmarks/run_cpu.py"
+        ],
+        "note": "Restore the deferred parent of the benchmark driver before its reviewed0468 update; measurement tooling, no app runtime change."
+      },
+      {
+        "commit": "fc0017a965edf0afaf3f472d86dfc2f525791bb4",
+        "paths": [
+          "build-utils/s2arm/engine/benchmarks/run_cpu.py"
+        ],
+        "note": "Restore the deferred parent of the benchmark driver before its reviewed0468 update; measurement tooling, no app runtime change."
       }
     ]
   },

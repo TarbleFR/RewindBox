@@ -54,6 +54,8 @@ XENIA_BRIDGE_PODSPEC = "packages/xenia_internal_bridge/ios/xenia_internal_bridge
 LEGAL_ASSETS_REVIEW = "docs/evidence/legal-assets-declarations-2026-11-12.json"
 LEGAL_ASSETS_ADDED = ["assets/legal/engines/", "assets/legal/melonx/", "assets/legal/xenios/"]
 LIBRETRO_PODSPEC = "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec"
+DOLPHIN_PODSPEC = "packages/dolphin_internal_bridge/ios/dolphin_internal_bridge.podspec"
+WIIMMFI_DECLARATIONS_REVIEW = "docs/evidence/wiimmfi-playlist-declarations-2026-11-27.json"
 XENIOS_CORE_PIN = "build-utils/xenia/core-pin.json"
 XENIOS_CORE_RECIPE = (
     "build-utils/xenia/build_core.sh",
@@ -91,6 +93,7 @@ SOURCE_EVIDENCE = (
     "rpcs3-retroachievements-declarations-2026-11-02.json",
     "rewindbox-glacier-declarations-2026-11-02.json",
     "pocket-originals-declarations-2026-11-03.json",
+    "wiimmfi-playlist-declarations-2026-11-27.json",
 )
 
 
@@ -105,6 +108,26 @@ def read_input(root: Path, path: Path) -> bytes:
     if not data:
         raise SystemExit(f"Empty source evidence: {path.relative_to(root)}")
     return data
+
+
+def check_wiimmfi_declarations(root: Path, pubspec_lock_sha256: str, declarations: dict) -> None:
+    """Two local podspec changes, chained after their existing session/disc-reader declarations."""
+    review = json.loads(read_input(root, root / WIIMMFI_DECLARATIONS_REVIEW))
+    baselines = {"docs/evidence/retro-achievements-session-declarations-2026-11-01.json", RA_DISC_READER_REVIEW}
+    if (review.get("schema") != 1 or set(review.get("baseline_inventories", {})) != baselines or
+            any(review["baseline_inventories"][name] != sha256(read_input(root, root / name)) for name in baselines) or
+            review.get("pubspec_lock_sha256") != pubspec_lock_sha256 or
+            review.get("complete_corresponding_source_attested") is not False or
+            review.get("dependency_changes") != {"external_packages_added": [], "external_packages_removed": [],
+                                                   "system_frameworks_added": {DOLPHIN_PODSPEC: ["Network"]}}):
+        raise SystemExit("Wiimmfi/playlist declaration review has a different baseline or dependency scope")
+    updates = review.get("declarations", {})
+    if set(updates) != {DOLPHIN_PODSPEC, LIBRETRO_PODSPEC}:
+        raise SystemExit("Wiimmfi/playlist declaration review scope changed")
+    for name, update in updates.items():
+        if update.get("before") != declarations.get(name) or update.get("after") != sha256(read_input(root, root / name)):
+            raise SystemExit(f"Wiimmfi/playlist source/license declaration changed since review: {name}")
+        declarations[name] = update["after"]
 
 
 def check_ra_disc_reader(root: Path, pubspec_lock_sha256: str, declarations: dict) -> None:
@@ -132,7 +155,10 @@ def check_ra_disc_reader(root: Path, pubspec_lock_sha256: str, declarations: dic
         # b06888a9's disc reader was never promoted into a delivery) compiles no libchdr; that previous declaration
         # stands and nothing else is accepted. The shipped notices then cover more than is compiled, never less.
         return
-    if update.get("after") != current:
+    forwarded = {}
+    if (root / WIIMMFI_DECLARATIONS_REVIEW).is_file():
+        forwarded = json.loads(read_input(root, root / WIIMMFI_DECLARATIONS_REVIEW)).get("declarations", {}).get(LIBRETRO_PODSPEC, {})
+    if update.get("after") != current and not (forwarded.get("before") == update.get("after") and forwarded.get("after") == current):
         raise SystemExit(f"Disc reader source/license declaration changed since review: {LIBRETRO_PODSPEC}")
     declarations[LIBRETRO_PODSPEC] = update["after"]
     vendored_root = vendored.get("path", "")
@@ -279,16 +305,20 @@ def check_review_chain(root: Path, package_audit: dict, declarations: dict) -> N
     later_armsx2 = (root / PS2_POCKET_REVIEW).is_file()
     # The disc reader review overlay moves the libretro bridge podspec on (vendored libchdr).
     later_libretro = (root / RA_DISC_READER_REVIEW).is_file()
+    later_wiimmfi = (root / WIIMMFI_DECLARATIONS_REVIEW).is_file()
     for name, update in updates.items():
         if update.get("before") != declarations.get(name):
             raise SystemExit(f"Wrong previous declaration identity: {name}")
         if not (later_pubspec and name == "pubspec.yaml") and not (later_armsx2 and name == ARMSX2_PODSPEC) and \
                 not (later_libretro and name == LIBRETRO_PODSPEC) and \
+                not (later_wiimmfi and name == DOLPHIN_PODSPEC) and \
                 update.get("after") != sha256(read_input(root, root / name)):
             raise SystemExit(f"Session source/license declaration changed since review: {name}")
         declarations[name] = update["after"]
     if later_libretro:
         check_ra_disc_reader(root, package_audit["pubspec_lock_sha256"], declarations)
+    if later_wiimmfi:
+        check_wiimmfi_declarations(root, package_audit["pubspec_lock_sha256"], declarations)
     # Build611: PS3 RetroAchievements through RPCS3. The RPCS3 bridge compiles a
     # vendored rcheevos copy, byte-identical to the declared libretro copy. This
     # overlay starts at the session review's exact postimage and may change only

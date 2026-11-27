@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "review_date": "2026-11-27",
+  "scope": "Local Dolphin Wiimmfi bridge: private DOLWiimmfi.h and Apple Network framework. Libretro bridge: description updated for embedded engine versions. Licenses and external packages unchanged.",
+  "baseline_inventories": {
+    "docs/evidence/retro-achievements-session-declarations-2026-11-01.json": "7d341d4f57dfdfc4abe32a6b8f6845ba4d6236f32615fc0eed848c9b9679ad1e",
+    "docs/evidence/ra-disc-reader-declarations-2026-11-12.json": "6d2b6b32c2d287b164cb547fb72ee060cf708206795ba7c83705397c3fb64963"
+  },
+  "pubspec_lock_sha256": "6ceb0c3787c1c35c844950338e99e408ff548dbc4aacfff0270c5b1ddd285a8e",
+  "declarations": {
+    "packages/dolphin_internal_bridge/ios/dolphin_internal_bridge.podspec": {
+      "before": "c9680e341ef31c6f4710ee46fc9483afd824ad3b0b0c31b59400456cd969eb12",
+      "after": "5eda8ad6b0d12e58ea9ef0f300e3a590e235a94e75c79c0e2abda33c3c9ff962"
+    },
+    "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec": {
+      "before": "11ae877f20731ea9b2dda5a23b036a5ed1cd8320cad1869e2e4cbebb46d5c33d",
+      "after": "14977385adb8e2b404bf7ffe3e3cf86120ceaa25be0855fa2224f496951c0c4d"
+    }
+  },
+  "dependency_changes": {
+    "external_packages_added": [],
+    "external_packages_removed": [],
+    "system_frameworks_added": {
+      "packages/dolphin_internal_bridge/ios/dolphin_internal_bridge.podspec": [
+        "Network"
+      ]
+    }
+  },
+  "host_license": "GPL-3.0; both podspec license declarations unchanged.",
+  "complete_corresponding_source_attested": false
+}
