@@ -1,0 +1,64 @@
+diff --git a/runtime/src/svc_mem.c b/runtime/src/svc_mem.c
+--- a/runtime/src/svc_mem.c
++++ b/runtime/src/svc_mem.c
+@@ -273,6 +273,50 @@
+ #define AMASK_PROBE_N(n) ((void)0)
+ #endif
+ static uint8_t *amask_at(uint64_t a) { AMASK_PROBE(); if (!g_amask) g_amask = calloc(L.alias_size / HPG, 1); return g_amask + (a - L.alias_base) / HPG; }
++
++// Count newly mapped 4 KiB pages while holding g_mu. Each bitmap byte
++// contains one bit per 4 KiB page in a 16 KiB group.
++static uint64_t phys_new_bytes(uint64_t a, uint64_t size) {
++    if (size == 0x1000)
++        return (*amask_at(a) & (1u << ((a & (HPG - 1)) >> 12))) ? 0 : size;
++
++    static int fast = -1;
++    if (fast < 0) {
++        const char *e = getenv("S2A_RB_PHYS_COUNT");
++        fast = !(e && !strcmp(e, "0"));
++    }
++    if (!fast) {
++        uint64_t add = 0;
++        for (uint64_t p = a; p < a + size; p += 0x1000)
++            if (!(*amask_at(p) & (1u << ((p & (HPG - 1)) >> 12)))) add += 0x1000;
++        return add;
++    }
++
++    const uint8_t *mask = amask_at(a);
++    uint64_t left = size;
++    uint64_t mapped = 0;
++    unsigned first = (unsigned)((a & (HPG - 1)) >> 12);
++    if (first) {
++        uint64_t head = HPG - (a & (HPG - 1));
++        if (head > left) head = left;
++        unsigned bits = ((1u << (head >> 12)) - 1u) << first;
++        mapped += __builtin_popcount(*mask++ & bits);
++        left -= head;
++    }
++    while (left >= 8 * HPG) {
++        uint64_t word;
++        memcpy(&word, mask, sizeof word);
++        mapped += __builtin_popcountll(word);
++        mask += sizeof word;
++        left -= 8 * HPG;
++    }
++    while (left >= HPG) {
++        mapped += __builtin_popcount(*mask++);
++        left -= HPG;
++    }
++    if (left) mapped += __builtin_popcount(*mask & ((1u << (left >> 12)) - 1u));
++    return size - (mapped << 12);
++}
+ 
+ // ---------- TLR：窗口 TLS/IO 区里按 0x200 一格分配（§5）----------
+ static uint64_t g_tlr_next; static void *g_tlr_free;
+@@ -1777,8 +1821,7 @@
+         GMU_LOCK();
+         if (num == 0x2C) {
+             if (phys_limit_on()) {   // 先数这次真正新增的子页（已映射的不重复记账，同 Ryujinx「remainingSize = size − mappedSize」），超池即拒、什么都不改
+-                uint64_t add = 0;
+-                for (uint64_t p = a; p < a + size; p += 0x1000) if (!(*amask_at(p) & (uint8_t)(1u << ((p & (HPG - 1)) >> 12)))) add += 0x1000;
++                uint64_t add = phys_new_bytes(a, size);
+                 if (g_heap_cur + pool_fixed() + add > APP_POOL) {
+                     static int said; if (!said++) LOG("物理映射到应用池上限：堆 %llu MB + 代码 %llu MB + 主线程栈 %llu KB + SystemResourceSize %llu MB + 已物理映射 %llu MB，本次再要 %llu KB > 池 %llu MB，回 ResLimitExceeded（同 Switch；只打第一次）",
+                         (unsigned long long)(g_heap_cur >> 20), (unsigned long long)(code_bytes() >> 20), (unsigned long long)(g_mstack >> 10), (unsigned long long)(L.sys_resource_size >> 20), (unsigned long long)(g_phys >> 20), (unsigned long long)(add >> 10), (unsigned long long)(APP_POOL >> 20));

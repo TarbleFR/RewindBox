@@ -1,0 +1,25 @@
+diff --git a/runtime/src/far.c b/runtime/src/far.c
+--- a/runtime/src/far.c
++++ b/runtime/src/far.c
+@@ -100,10 +100,20 @@
+ //   影子页原保护只有两种来源——给过（读写）、没给 / 还回（不可访问），但一次请求里两种可以交错，只能逐段取。持 g_mu
+ typedef struct { uint64_t h, n; int prot; } far_run;
+ static int old_runs(uint64_t a, uint64_t n, far_run **out, int *cnt) {   // 0 成功；取不到原保护 / 分配失败回 -1（什么都没改）
++    static int skip_empty = -1;   // s2a_far_map holds g_mu.
+     far_run *v = NULL; int m = 0, cap = 0;
+     for (uint64_t p = a; p < a + n;) {
+         uint8_t *h = g2h(p, NULL, NULL);
+-        if (!h) { p += FPG; continue; }   // 新块里的页另管
++        if (!h) {
++            if (a + n - p <= FPG) break;
++            if (skip_empty < 0) {
++                const char *e = getenv("S2A_RB_FAR_SKIP_EMPTY");
++                skip_empty = !(e && !strcmp(e, "0"));
++            }
++            // The directory has one entry for the entire 2 MiB block.
++            p += skip_empty ? CHUNK - ((p - g_lo) & (CHUNK - 1)) : FPG;
++            continue;
++        }
+         vm_address_t r = (vm_address_t)h; vm_size_t sz = 0; vm_region_basic_info_data_64_t in; mach_msg_type_number_t ct = VM_REGION_BASIC_INFO_COUNT_64; mach_port_t ob = MACH_PORT_NULL;
+         kern_return_t kr = vm_region_64(mach_task_self(), &r, &sz, VM_REGION_BASIC_INFO_64, (vm_region_info_t)&in, &ct, &ob);
+         if (ob != MACH_PORT_NULL) mach_port_deallocate(mach_task_self(), ob);
