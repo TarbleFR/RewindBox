@@ -6,6 +6,10 @@ d'ipa c'est une autre session qui la fera ». Cette session n'a lancé aucune li
 *La collection précédente, `LibretroCores-6cd6a89b…` (id 14839590544, étape 0 de DeSmuME), est livrée dans
 l'IPA 827. Celle-ci la remplace ; elle est livrée dans l'IPA 828.*
 
+## Après la 848 : Azahar à 10×, deuxième série (Azahar seul)
+
+*27 novembre 2026, branche `Claude`.* Journal du mainteneur (Mario Kart 7 à 9×, 600 images) : `fps=57.8`, `folded=0.00 flushed=1.48` : la première série ne pliait aucun effacement. Correctif `82b6a4d9` (43 fichiers) : effacements gardés jusqu'à leur passe, cibles gardées à travers un remplissage, stockage RGBA8 réservé aux ombres (compression sans perte Metal), répartition rapide arm64 dans dynarmic, mesures. Détail, champs nouveaux de `[rb-perf]`, ligne `[rb-jit] azahar cpu`, pistes écartées et protocole iPhone : `native/azahar/README.md`. Seul `azahar_libretro` change ; la collection compilée par le job `source-cores` de ce commit est à adopter par une livraison (autre session). Rien de mesuré sur iPhone.
+
 ## Après la 835 : 3DS à 10×, passes de rendu adaptées au GPU à tuiles (Azahar seul)
 
 *24 novembre 2026, session « RetroArch MetalFX et JIT ».* Retour du mainteneur (Mario Kart 7 à 10×, image remise

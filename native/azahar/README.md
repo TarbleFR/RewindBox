@@ -1,6 +1,6 @@
 # Azahar 2127.0-rc5 avec le JIT de RewindBox
 
-Correctif `rewindbox-jit.patch` (32 fichiers, +1061/−132) appliqué à la source officielle 2127.0-rc5, révision `6f293a24`
+Correctif `rewindbox-jit.patch` (43 fichiers, +1781/−192) appliqué à la source officielle 2127.0-rc5, révision `6f293a24`
 (tête de `master` au 21 novembre 2026).
 
 - **Source.** Archive « unified source » de la release, avec tous les sous-modules, vérifiée par son SHA-256 :
@@ -137,6 +137,103 @@ Les valeurs sont des moyennes par image :
 | Une image de sortie partagée (avant) | relecture puis copie GPU vers Metal | 2 (2 × 76,8 Mo à 10×) |
 | Une image par trame (ce correctif) | image du cœur prêtée telle quelle à Metal | 0 |
 
+## Performances à 10× : deuxième série (27 novembre 2026)
+
+**Point de départ mesuré sur iPhone.** Journal du mainteneur (Mario Kart 7, A18 Pro, iOS 27, 10× demandé mais
+mesure à 9× sur 600 images) : `fps=57.8 out=3600x4320 passes=1.1 folded=0.00 flushed=1.48 partial=0.12 copies=0.8
+blits=2.5 transfers=2.46 fills=3.19 submits=1.0 sync_ms=0.97`. Le JIT est actif (`cpu=dynarmic`, `shader=jit`). Le
+`used=134217728` de la ligne `[rb-jit] arena=` du frontend est la réservation de l'arène (Azahar en prend toute la
+capacité en un seul `allocate`, d'où `blocks=1`, `LibretroJitArena.m`), pas le remplissage des caches de code.
+Aucune mesure à 10× soutenue dans ce journal.
+
+**Goulets retenus (lecture du code, pas de mesure sur appareil) :**
+
+1. **Aucun effacement pris par la passe** (`folded=0`) : le report d'effacement de la première série ne servait à
+   rien sur ce jeu. Toute commande enregistrée entre l'effacement reporté et la passe (envoi de texture, copie de
+   validation d'une texture rendue, barrière d'une image neuve) l'écrivait à part, puis la passe relisait l'image.
+2. **Cibles de rendu réallouées à chaque image (hypothèse forte).** Un remplissage mémoire qui couvre toute une cible
+   la rendait entièrement invalide ; le cache la désinscrivait (condamnée jusqu'à ce que le GPU ait fini) et la
+   première passe suivante en allouait une neuve : couleur et profondeur des deux écrans, environ 150 Mio par image
+   à 10× quand le GPU a une image de retard. Mesuré désormais par `created` et `created_mb`.
+3. **Pas de compression sans perte des cibles RGBA8.** Toute surface RGBA8 recevait l'usage stockage et un format
+   modifiable (vue R32Uint), au cas où elle servirait plus tard d'ombre. MoltenVK en fait
+   `MTLTextureUsageShaderWrite | MTLTextureUsagePixelFormatView` (`MVKPixelFormats::getMTLTextureUsage`) ; la
+   documentation d'Apple (« Optimizing texture data ») exclut de la compression sans perte toute texture qui a l'un de
+   ces usages. Les cibles couleur, les écrans de destination des transferts et leur lecture par la composition
+   circulaient donc à plein débit (38,4 Mo par écran du haut à 10×, plusieurs fois par image).
+4. **Branchements indirects du CPU invité.** Le dorsal arm64 de dynarmic n'implémente pas `FastDispatchHint`
+   (« TODO », aussi dans la tête d'`azahar-emu/dynarmic`) : chaque branchement indirect qui n'est pas un retour
+   (BX/BLX registre, MOV/LDR vers PC, tables de sauts) repassait par le répartiteur C++ (appel, calcul du descripteur,
+   recherche dans la table de hachage).
+
+**Changements :**
+
+| Chantier | Fichiers | Effet attendu |
+| --- | --- | --- |
+| Effacements gardés jusqu'à leur passe | `vk_scheduler.h` (`RecordIndependent`), `vk_render_manager`, `vk_texture_runtime` | Les envois, copies, blits, effacements partiels, copies de rétroaction et barrières d'images neuves n'écrivent que les effacements de **leurs** images ; les autres attendent la passe qui les prend en chargement `CLEAR`. Ordre GPU inchangé pour chaque image. |
+| Cibles gardées à travers un remplissage | `rasterizer_cache.h` (`InvalidateRegion`) | Une cible de rendu (couleur ou profondeur, pas une texture) entièrement couverte par un remplissage reste inscrite, invalide : la passe suivante la revalide depuis le remplissage (effacement, plié) sur les mêmes images et le même framebuffer. |
+| Stockage seulement pour les ombres | `vk_texture_runtime` (`EnsureShaderStorage`, `ImageUsage`, `ImageFlags`), `surface_base.h`, `framebuffer_base.h`, `rasterizer_cache.h`, `vk_rasterizer.cpp` | Les surfaces RGBA8 naissent sans usage stockage ni format modifiable, donc compressibles. Celles créées pour un rendu d'ombre (ou une texture d'ombre) les ont dès la création ; une surface qui en a besoin plus tard (vue R32, conversion D24S8 → RGBA8) reçoit de nouvelles images avec une copie de son contenu, les anciennes sont gardées jusqu'à la fin du GPU (`Retire`), et `view_generation`, dans la clé des framebuffers, empêche de réutiliser leurs vues. |
+| Répartition rapide arm64 | dynarmic `address_space`, `a32_address_space`, `emit_arm64_a32.cpp`, `emit_arm64.h` | Table directe de 65 536 entrées (1 Mio par instance de JIT, hors arène) remplie par le répartiteur ; le code d'un branchement indirect vérifie le budget de cycles, lit la case (EOR, UBFX, ADD, LDP), compare l'emplacement et saute. Vidée avec le cache et à chaque invalidation. |
+| Mesures | `vk_rewindbox_perf.h`, `renderer_vulkan.cpp`, `arm_dynarmic.cpp`, dynarmic `a32.h` (`GetCacheStats`) | Ligne `[rb-perf]` complétée ; nouvelle ligne `[rb-jit] azahar cpu` par cœur et par minute. |
+
+Divers : `ScaleUp` ne détruit plus immédiatement une image encore utilisée par des commandes enregistrées (retraite) ;
+les images de copie de rétroaction et MSAA ne prennent plus l'usage stockage.
+
+**Nouveaux champs de `[rb-perf]`** (moyennes par image, ajoutés en fin de ligne) :
+- `deferred`, `replaced` : effacements reportés, remplacés par un effacement suivant ;
+- `touched` : effacements écrits avant un transfert de leur propre image ;
+- `held` : transferts enregistrés pendant que des effacements d'autres images attendaient (gain du chantier 1) ;
+- `missed` : effacements d'une pièce jointe que sa passe n'a pas pu prendre (zone ou taille différente) ;
+- `retained` : cibles gardées à travers un remplissage ; `created`, `created_mb` : surfaces allouées ;
+- `migrated` : surfaces passées au stockage après coup ; `fb_copies` : copies d'une cible entière (rétroaction,
+  mélange émulé) ;
+- `worker_ms` : attente du fil Vulkan à chaque fin d'image (`TickFrame`) ;
+- `frame_ms_p50`, `p95`, `p99`, `max` : temps entre deux images du jeu.
+
+**Ligne `[rb-jit] azahar cpu`** (une par cœur et par minute, quand l'arène RewindBox est installée) :
+`cache_kb=utilisé/capacité` (prélude compris), `live_blocks`, `compiled=+N`, `avg_bytes`, `compile_ms=+…`,
+`clears=+N` (vidages entiers), `full=+N` (dont cache plein), `invalidated=+N` (blocs invalidés par une écriture de
+code), `dispatch_per_s` (retours au répartiteur).
+
+**Dimensionnement de l'arène.** Inchangé : 2 × 32 Mio d'application, 2 × 2 Mio inactifs, 16 Mio de shaders, 8 Mio de
+marge (Old 3DS : 92 Mio sur 128). Rien ne montre encore que 32 Mio soit un goulet ; `full=+N` non nul sur une
+longue course le montrerait, et 36 Mio restent libres dans l'arène pour l'agrandir alors. La réserve universelle
+partagée n'est pas touchée.
+
+**MetalFX.** Sans effet à 9× et 10× : `LibretroMetalFXOutputSize` refuse une image du cœur plus grande que sa place
+à l'écran (`[rb-metalfx] standard picture METALFX_RATIO` dans le journal), la composition finale est un
+échantillonnage linéaire. Le réglage n'a donc ni coût ni bénéfice à ces résolutions ; rien n'est changé.
+
+**Écartés ou laissés :**
+- *Ne plus écrire la profondeur en fin de passe* : il faudrait savoir que le prochain usage est un effacement ; une
+  erreur corromprait la profondeur d'une image. Écarté.
+- *Composer à la taille de l'écran au lieu de 4000 × 4800* : économiserait environ 150 Mo par image, mais le cœur ne
+  connaît pas la taille d'affichage ; demande une interface avec le frontend partagé. Laissé.
+- *Supprimer le `WaitWorker` de chaque `TickFrame`* : protège le ramasse-miettes du cache ; d'abord mesurer
+  `worker_ms`.
+- *Table de pages à décalage absolu (une instruction de moins par accès mémoire)* : 8 Mio de table en plus par
+  processus pour un gain faible ; *fastmem* : demande un miroir de 4 Gio de la mémoire invitée et un gestionnaire
+  d'exceptions que l'intégration iOS a remplacé. Écartés.
+- *Agrandir les caches de code* : sans preuve de saturation. Écarté pour l'instant.
+
+## Protocole de vérification sur iPhone (60 images/s à 10×)
+
+1. Collection compilée par le job `source-cores` de ce commit, adoptée par une IPA privée (autre session).
+2. Mario Kart 7, même circuit et même départ (contre-la-montre 150 cc, Circuit Mario par exemple), MetalFX laissé
+   tel quel, appareil froid (`thermal=0` en début de journal), luminosité et Mode économie identiques.
+3. Pour chaque facteur 1×, 6×, 8×, 9×, 10× : changer la résolution au menu, reprendre, attendre une ligne
+   `[rb-perf]` complète (600 images, environ 10 s), puis courir 3 tours ; cinq répétitions par facteur.
+4. Relever dans `session.log` : `fps`, `frame_ms_p50/p95/p99/max`, `sync_ms`, `worker_ms`, `folded` contre
+   `deferred`, `flushed`, `missed`, `created`/`created_mb`, `retained`, `fb_copies`, `transfers`, et les lignes
+   `[rb-jit] azahar cpu` (`full`, `compile_ms`, `dispatch_per_s`) ; `thermal=` et `footprint=` des lignes `system:`.
+5. 60 images/s à 10× : `fps` ≥ 59,5 et `frame_ms_p99` ≤ 20 sur toutes les lignes d'une course, sans montée de
+   `thermal` au-delà de 1 sur 3 tours. Le journal doit garder `vulkan: frames reach Metal directly` après chaque
+   changement de résolution et chaque retour du menu.
+6. Lecture : `sync_ms` haut avec `fps` bas = GPU ou présentation ; `worker_ms` haut = encodage Vulkan/MoltenVK sur le
+   fil du cœur ; `compile_ms` ou `full` non nuls en course = cache de code ; `fps` à 10× proche de 8× = limite CPU.
+7. Contrôle d'image : HUD, carte de l'écran du bas, ombres, rétroviseur, menus ; un ou deux autres jeux 3DS (un jeu
+   à ombres PICA, un jeu qui relit la profondeur) pour les surfaces passées au stockage (`migrated`).
+
 ## Arène demandée
 
 128 Mio, tout résident :
@@ -170,7 +267,27 @@ Vérifié pour le rendu par tuiles :
   (`vk_blit_helper`, `vk_pipeline_cache`, `vk_graphics_pipeline`, `libretro_vk`), sans nouvel avertissement ;
 - application du correctif sur l'archive rc5, arbre obtenu identique à l'arbre vérifié.
 
+Vérifié pour la deuxième série (27 novembre 2026, hôte Linux x86-64, 2 cœurs) :
+- application du correctif sur l'archive rc5 téléchargée (SHA-256 contrôlé), arbre identique à l'arbre de travail ;
+  le correctif d'avant se régénère octet pour octet par la même commande (`git diff`, abréviation 7) ;
+- compilation hôte (clang 18, `-Werror` du projet) de `video_core` entière (Vulkan, OpenGL, cache), de dynarmic
+  (dorsal x64) et d'`arm_dynarmic.cpp` ;
+- vérification syntaxique pour AArch64 des fichiers du dorsal arm64 touchés et de leurs voisins ;
+- séquence de recherche émise par oaknut, désassemblée par `llvm-mc` : 13 instructions attendues, case identique à
+  `FastDispatchIndex` ;
+- dynarmic arm64 compilé pour Linux AArch64 (GCC 13) et exécuté sous `qemu-aarch64` : 23 cas A32 de dynarmic
+  passés, dont 4 cas écrits pour cette vérification et laissés hors du dépôt (pas de nouveau test pour les cœurs) :
+  résultat identique avec et sans la table, **5 retours au répartiteur au lieu de 20 004** pour 20 000 appels
+  indirects, passage ARM → Thumb, aucune entrée périmée après `InvalidateCacheRange` ou `ClearCache`, arrêt en fin de
+  tranche de temps sur une boucle de sauts indirects. Le cas « ASIMD Decoder » (ordre des tables), très long sous
+  qemu, n'a pas été relancé. Ni le temps sous qemu ni ce décompte ne mesurent le gain sur l'A18 Pro.
+
 Pas encore vérifié :
+- la compilation iOS de la deuxième série (job `source-cores`) ;
+- sur iPhone : `folded` proche de `deferred`, `created` proche de 0 en course, `retained` non nul, image identique
+  (effacements, HUD, ombres de jeux qui en ont, effets lisant la profondeur), FPS et `frame_ms_p95` à 9× et 10×,
+  `dispatch_per_s` et `full` dans `[rb-jit] azahar cpu` ; la compression sans perte elle-même n'est pas observable
+  dans le journal (seulement par le débit mémoire dans Instruments ou par les FPS) ;
 - la compilation iOS sur rc5 (demandée au job `source-cores`) ;
 - le fonctionnement sur iPhone ;
 - la fréquence des vidages de cache à 24–32 Mio et le nombre réel de shaders par jeu. Les lignes `[rb-jit]` du

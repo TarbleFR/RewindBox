@@ -13,7 +13,7 @@
     "root": "azahar-unified-source-2127.0-rc5"
   },
   "patch": "native/azahar/rewindbox-jit.patch",
-  "patchSHA256": "fc51c9feefbead719dcb9f69fc899ffb533b057f0b519f627171ab96a83cd213",
+  "patchSHA256": "82b6a4d943da8893d6442e1380dcd8ee386b328ddf8fde677e102db2e34bcc03",
   "abiHeader": "packages/libretro_internal_bridge/ios/Classes/RewindBoxLibretroJit.h",
   "abiHeaderSHA256": "84c59f2484336fa3c64bc68b51177211094083fd411f0b488fee6b79bda6bc22",
   "abiHeaderInTree": "src/citra_libretro/RewindBoxLibretroJit.h",

@@ -12,11 +12,95 @@ index b234cd2..495cd2b 100644
  elseif (APPLE)
      find_path(MACH_EXC_DEFS_DIR "mach/mach_exc.defs")
      if (NOT MACH_EXC_DEFS_DIR)
+diff --git a/externals/dynarmic/src/dynarmic/backend/arm64/a32_address_space.cpp b/externals/dynarmic/src/dynarmic/backend/arm64/a32_address_space.cpp
+index bbdf925..afa8cb5 100644
+--- a/externals/dynarmic/src/dynarmic/backend/arm64/a32_address_space.cpp
++++ b/externals/dynarmic/src/dynarmic/backend/arm64/a32_address_space.cpp
+@@ -158,6 +158,11 @@ static void* EmitExclusiveWriteCallTrampoline(oaknut::CodeGenerator& code, const
+ A32AddressSpace::A32AddressSpace(const A32::UserConfig& conf)
+         : AddressSpace(conf.code_cache_size)
+         , conf(conf) {
++    if (conf.HasOptimization(OptimizationFlag::FastDispatch)) {
++        // RewindBox: 1 MiB per JIT instance, cleared with the code cache.
++        fast_dispatch_table = std::make_unique<FastDispatchEntry[]>(fast_dispatch_table_size);
++        ClearFastDispatchTable();
++    }
+     EmitPrelude();
+ }
+ 
+@@ -323,7 +328,12 @@ void A32AddressSpace::EmitPrelude() {
+         code.BR(X0);
+ 
+         const auto fn = [](A32AddressSpace& self, A32JitState& context) -> CodePtr {
+-            return self.GetOrEmit(context.GetLocationDescriptor());
++            const IR::LocationDescriptor location = context.GetLocationDescriptor();
++            const CodePtr code_ptr = self.GetOrEmit(location);
++            // RewindBox: the next indirect branch to this location jumps straight to it.
++            self.StoreFastDispatch(location.Value(), code_ptr);
++            self.stat_dispatcher_lookups++;
++            return code_ptr;
+         };
+ 
+         code.align(8);
+@@ -409,6 +419,7 @@ EmitConfig A32AddressSpace::GetEmitConfig() {
+         .state_exclusive_state_offset = offsetof(A32JitState, exclusive_state),
+ 
+         .coprocessors = conf.coprocessors,
++        .fast_dispatch_table_pointer = mcl::bit_cast<u64>(fast_dispatch_table.get()),
+ 
+         .very_verbose_debugging_output = conf.very_verbose_debugging_output,
+     };
+diff --git a/externals/dynarmic/src/dynarmic/backend/arm64/a32_interface.cpp b/externals/dynarmic/src/dynarmic/backend/arm64/a32_interface.cpp
+index 6b38c41..a34d274 100644
+--- a/externals/dynarmic/src/dynarmic/backend/arm64/a32_interface.cpp
++++ b/externals/dynarmic/src/dynarmic/backend/arm64/a32_interface.cpp
+@@ -126,6 +126,10 @@ struct Jit::Impl final {
+         ASSERT_FALSE("Unimplemented");
+     }
+ 
++    AddressSpace::CacheStats GetCacheStats() const {
++        return current_address_space.GetCacheStats();
++    }
++
+ private:
+     void PerformRequestedCacheInvalidation(HaltReason hr) {
+         if (Has(hr, HaltReason::CacheInvalidation)) {
+@@ -180,6 +184,22 @@ void Jit::ClearCache() {
+     impl->ClearCache();
+ }
+ 
++Jit::CacheStats Jit::GetCacheStats() const {
++    const auto stats = impl->GetCacheStats();
++    return CacheStats{
++        .capacity = stats.capacity,
++        .used = stats.used,
++        .live_blocks = stats.live_blocks,
++        .compiled_blocks = stats.compiled_blocks,
++        .compiled_bytes = stats.compiled_bytes,
++        .compile_ns = stats.compile_ns,
++        .clears = stats.clears,
++        .full_clears = stats.full_clears,
++        .invalidated_blocks = stats.invalidated_blocks,
++        .dispatcher_lookups = stats.dispatcher_lookups,
++    };
++}
++
+ void Jit::InvalidateCacheRange(std::uint32_t start_address, std::size_t length) {
+     impl->InvalidateCacheRange(start_address, length);
+ }
 diff --git a/externals/dynarmic/src/dynarmic/backend/arm64/address_space.cpp b/externals/dynarmic/src/dynarmic/backend/arm64/address_space.cpp
-index 2c7ae77..029799c 100644
+index 2c7ae77..26efb63 100644
 --- a/externals/dynarmic/src/dynarmic/backend/arm64/address_space.cpp
 +++ b/externals/dynarmic/src/dynarmic/backend/arm64/address_space.cpp
-@@ -23,7 +23,7 @@ namespace Dynarmic::Backend::Arm64 {
+@@ -3,6 +3,7 @@
+  * SPDX-License-Identifier: 0BSD
+  */
+ 
++#include <chrono>
+ #include <cstdio>
+ 
+ #include <mcl/bit_cast.hpp>
+@@ -23,7 +24,7 @@ namespace Dynarmic::Backend::Arm64 {
  AddressSpace::AddressSpace(size_t code_cache_size)
          : code_cache_size(code_cache_size)
          , mem(code_cache_size)
@@ -25,7 +109,72 @@ index 2c7ae77..029799c 100644
          , fastmem_manager(exception_handler) {
      ASSERT_MSG(code_cache_size <= 128 * 1024 * 1024, "code_cache_size > 128 MiB not currently supported");
  
-@@ -136,7 +136,7 @@ void AddressSpace::Link(EmittedBlockInfo& block_info) {
+@@ -65,12 +66,47 @@ CodePtr AddressSpace::GetOrEmit(IR::LocationDescriptor descriptor) {
+         return block_entry;
+     }
+ 
++    const auto start = std::chrono::steady_clock::now();
+     IR::Block ir_block = GenerateIR(descriptor);
+     const EmittedBlockInfo block_info = Emit(std::move(ir_block));
++    stat_compiled_blocks++;
++    stat_compiled_bytes += block_info.size;
++    stat_compile_ns += static_cast<u64>(std::chrono::duration_cast<std::chrono::nanoseconds>(
++                                            std::chrono::steady_clock::now() - start)
++                                            .count());
+     return block_info.entry_point;
+ }
+ 
++void AddressSpace::ClearFastDispatchTable() {
++    if (!fast_dispatch_table) {
++        return;
++    }
++    // ~0 is no location (a PC never has its low bit set), so the slot never matches.
++    for (size_t i = 0; i < fast_dispatch_table_size; i++) {
++        fast_dispatch_table[i] = FastDispatchEntry{~u64{0}, nullptr};
++    }
++}
++
++AddressSpace::CacheStats AddressSpace::GetCacheStats() const {
++    return CacheStats{
++        .capacity = code_cache_size,
++        .used = static_cast<size_t>(code.offset()),
++        .live_blocks = block_entries.size(),
++        .compiled_blocks = stat_compiled_blocks,
++        .compiled_bytes = stat_compiled_bytes,
++        .compile_ns = stat_compile_ns,
++        .clears = stat_clears,
++        .full_clears = stat_full_clears,
++        .invalidated_blocks = stat_invalidated_blocks,
++        .dispatcher_lookups = stat_dispatcher_lookups,
++    };
++}
++
+ void AddressSpace::InvalidateBasicBlocks(const tsl::robin_set<IR::LocationDescriptor>& descriptors) {
++    // The fast dispatch table may point into the blocks removed below.
++    ClearFastDispatchTable();
++    stat_invalidated_blocks += descriptors.size();
++
+     UnprotectCodeMemory();
+ 
+     for (const auto& descriptor : descriptors) {
+@@ -90,6 +126,8 @@ void AddressSpace::InvalidateBasicBlocks(const tsl::robin_set<IR::LocationDescri
+ }
+ 
+ void AddressSpace::ClearCache() {
++    ClearFastDispatchTable();
++    stat_clears++;
+     block_entries.clear();
+     reverse_block_entries.clear();
+     block_infos.clear();
+@@ -109,6 +147,7 @@ size_t AddressSpace::GetRemainingSize() {
+ 
+ EmittedBlockInfo AddressSpace::Emit(IR::Block block) {
+     if (GetRemainingSize() < 1024 * 1024) {
++        stat_full_clears++;
+         ClearCache();
+     }
+ 
+@@ -136,7 +175,7 @@ void AddressSpace::Link(EmittedBlockInfo& block_info) {
      using namespace oaknut::util;
  
      for (auto [ptr_offset, target] : block_info.relocations) {
@@ -34,7 +183,7 @@ index 2c7ae77..029799c 100644
          c.set_xptr(reinterpret_cast<u32*>(block_info.entry_point + ptr_offset));
  
          switch (target) {
-@@ -276,7 +276,7 @@ void AddressSpace::LinkBlockLinks(const CodePtr entry_point, const CodePtr targe
+@@ -276,7 +315,7 @@ void AddressSpace::LinkBlockLinks(const CodePtr entry_point, const CodePtr targe
      using namespace oaknut::util;
  
      for (auto [ptr_offset, type] : block_relocations_list) {
@@ -43,6 +192,165 @@ index 2c7ae77..029799c 100644
          c.set_xptr(reinterpret_cast<u32*>(entry_point + ptr_offset));
  
          switch (type) {
+diff --git a/externals/dynarmic/src/dynarmic/backend/arm64/address_space.h b/externals/dynarmic/src/dynarmic/backend/arm64/address_space.h
+index 835566b..775f6c0 100644
+--- a/externals/dynarmic/src/dynarmic/backend/arm64/address_space.h
++++ b/externals/dynarmic/src/dynarmic/backend/arm64/address_space.h
+@@ -6,6 +6,7 @@
+ #pragma once
+ 
+ #include <map>
++#include <memory>
+ #include <optional>
+ 
+ #include <mcl/stdint.hpp>
+@@ -45,6 +46,36 @@ public:
+ 
+     void DumpDisassembly() const;
+ 
++    /// RewindBox: direct-mapped cache of the dispatcher's lookups, read by the code of indirect
++    /// branches (FastDispatchHint terminals) before they fall back to the dispatcher.
++    struct FastDispatchEntry {
++        u64 location;
++        CodePtr code_ptr;
++    };
++    static_assert(sizeof(FastDispatchEntry) == 16);
++    static constexpr size_t fast_dispatch_table_bits = 16;
++    static constexpr size_t fast_dispatch_table_size = size_t{1} << fast_dispatch_table_bits;
++    /// Slot of a location: the emitted lookup (EmitA32Terminal, FastDispatchHint) computes the
++    /// same value with EOR and UBFX.
++    static constexpr size_t FastDispatchIndex(u64 location) {
++        return static_cast<size_t>(((location ^ (location >> 32)) >> 1) & (fast_dispatch_table_size - 1));
++    }
++
++    /// RewindBox: code cache statistics (counters are cumulative).
++    struct CacheStats {
++        size_t capacity;
++        size_t used;
++        size_t live_blocks;
++        u64 compiled_blocks;
++        u64 compiled_bytes;
++        u64 compile_ns;
++        u64 clears;
++        u64 full_clears;
++        u64 invalidated_blocks;
++        u64 dispatcher_lookups;
++    };
++    CacheStats GetCacheStats() const;
++
+ protected:
+     virtual EmitConfig GetEmitConfig() = 0;
+     virtual void RegisterNewBasicBlock(const IR::Block& block, const EmittedBlockInfo& block_info) = 0;
+@@ -83,6 +114,24 @@ protected:
+     ExceptionHandler exception_handler;
+     FastmemManager fastmem_manager;
+ 
++    /// RewindBox: allocated by the frontends that emit FastDispatchHint lookups (A32).
++    std::unique_ptr<FastDispatchEntry[]> fast_dispatch_table;
++    void ClearFastDispatchTable();
++    void StoreFastDispatch(u64 location, CodePtr code_ptr) {
++        if (fast_dispatch_table) {
++            fast_dispatch_table[FastDispatchIndex(location)] = FastDispatchEntry{location, code_ptr};
++        }
++    }
++
++    // RewindBox: statistics (GetCacheStats).
++    u64 stat_compiled_blocks = 0;
++    u64 stat_compiled_bytes = 0;
++    u64 stat_compile_ns = 0;
++    u64 stat_clears = 0;
++    u64 stat_full_clears = 0;
++    u64 stat_invalidated_blocks = 0;
++    u64 stat_dispatcher_lookups = 0;
++
+     struct PreludeInfo {
+         std::ptrdiff_t end_of_prelude;
+ 
+diff --git a/externals/dynarmic/src/dynarmic/backend/arm64/emit_arm64.h b/externals/dynarmic/src/dynarmic/backend/arm64/emit_arm64.h
+index 58ccb0e..3028186 100644
+--- a/externals/dynarmic/src/dynarmic/backend/arm64/emit_arm64.h
++++ b/externals/dynarmic/src/dynarmic/backend/arm64/emit_arm64.h
+@@ -158,6 +158,9 @@ struct EmitConfig {
+ 
+     // A32 specific
+     std::array<std::shared_ptr<A32::Coprocessor>, 16> coprocessors{};
++    /// RewindBox: table of AddressSpace::FastDispatchEntry for FastDispatchHint terminals
++    /// (0: those terminals return to the dispatcher).
++    u64 fast_dispatch_table_pointer = 0;
+ 
+     // Debugging
+     bool very_verbose_debugging_output;
+diff --git a/externals/dynarmic/src/dynarmic/backend/arm64/emit_arm64_a32.cpp b/externals/dynarmic/src/dynarmic/backend/arm64/emit_arm64_a32.cpp
+index 909dde7..54f8c7e 100644
+--- a/externals/dynarmic/src/dynarmic/backend/arm64/emit_arm64_a32.cpp
++++ b/externals/dynarmic/src/dynarmic/backend/arm64/emit_arm64_a32.cpp
+@@ -7,6 +7,7 @@
+ #include <oaknut/oaknut.hpp>
+ 
+ #include "dynarmic/backend/arm64/a32_jitstate.h"
++#include "dynarmic/backend/arm64/address_space.h"
+ #include "dynarmic/backend/arm64/abi.h"
+ #include "dynarmic/backend/arm64/emit_arm64.h"
+ #include "dynarmic/backend/arm64/emit_context.h"
+@@ -118,10 +119,40 @@ void EmitA32Terminal(oaknut::CodeGenerator& code, EmitContext& ctx, IR::Term::Po
+     EmitRelocation(code, ctx, LinkTarget::ReturnToDispatcher);
+ }
+ 
+-void EmitA32Terminal(oaknut::CodeGenerator& code, EmitContext& ctx, IR::Term::FastDispatchHint, IR::LocationDescriptor, bool) {
+-    EmitRelocation(code, ctx, LinkTarget::ReturnToDispatcher);
++void EmitA32Terminal(oaknut::CodeGenerator& code, EmitContext& ctx, IR::Term::FastDispatchHint, IR::LocationDescriptor, bool is_single_step) {
++    // RewindBox: indirect branches other than returns (BX/BLX to a register, MOV/LDR to PC,
++    // jump tables) look their target up in the dispatcher's direct-mapped table
++    // (AddressSpace::FastDispatchEntry) instead of calling the dispatcher every time. Same
++    // location value and slot as AddressSpace::FastDispatchIndex; a miss, an empty slot or the
++    // end of the time slice goes through the dispatcher, which fills the slot.
++    if (ctx.conf.HasOptimization(OptimizationFlag::FastDispatch) && !is_single_step && ctx.conf.fast_dispatch_table_pointer != 0) {
++        oaknut::Label fail;
++
++        if (ctx.conf.enable_cycle_counting) {
++            code.CMP(Xticks, 0);
++            code.B(LE, fail);
++        } else {
++            code.LDAR(Wscratch0, Xhalt);
++            code.CBNZ(Wscratch0, fail);
++        }
+ 
+-    // TODO: Implement FastDispatchHint optimization
++        static_assert(offsetof(A32JitState, regs) + 16 * sizeof(u32) == offsetof(A32JitState, upper_location_descriptor));
++        code.LDUR(X0, Xstate, offsetof(A32JitState, regs) + 15 * sizeof(u32));
++
++        code.EOR(Xscratch0, X0, X0, LSR, 32);
++        code.UBFX(Xscratch0, Xscratch0, 1, AddressSpace::fast_dispatch_table_bits);
++        code.MOV(Xscratch1, ctx.conf.fast_dispatch_table_pointer);
++        code.ADD(Xscratch0, Xscratch1, Xscratch0, LSL, 4);
++        code.LDP(Xscratch1, Xscratch2, Xscratch0);
++
++        code.CMP(X0, Xscratch1);
++        code.B(NE, fail);
++        code.BR(Xscratch2);
++
++        code.l(fail);
++    }
++
++    EmitRelocation(code, ctx, LinkTarget::ReturnToDispatcher);
+ }
+ 
+ void EmitA32Terminal(oaknut::CodeGenerator& code, EmitContext& ctx, IR::Term::If terminal, IR::LocationDescriptor initial_location, bool is_single_step) {
+diff --git a/externals/dynarmic/src/dynarmic/backend/x64/a32_interface.cpp b/externals/dynarmic/src/dynarmic/backend/x64/a32_interface.cpp
+index d690aad..6d27e92 100644
+--- a/externals/dynarmic/src/dynarmic/backend/x64/a32_interface.cpp
++++ b/externals/dynarmic/src/dynarmic/backend/x64/a32_interface.cpp
+@@ -284,6 +284,10 @@ void Jit::ClearCache() {
+     impl->ClearCache();
+ }
+ 
++Jit::CacheStats Jit::GetCacheStats() const {
++    return {}; // RewindBox: kept by the arm64 backend only
++}
++
+ void Jit::InvalidateCacheRange(std::uint32_t start_address, std::size_t length) {
+     impl->InvalidateCacheRange(start_address, length);
+ }
 diff --git a/externals/dynarmic/src/dynarmic/common/spin_lock_arm64.cpp b/externals/dynarmic/src/dynarmic/common/spin_lock_arm64.cpp
 index ccf807e..a15f77c 100644
 --- a/externals/dynarmic/src/dynarmic/common/spin_lock_arm64.cpp
@@ -129,6 +437,33 @@ index ccf807e..a15f77c 100644
  }
  
  }  // namespace Dynarmic
+diff --git a/externals/dynarmic/src/dynarmic/interface/A32/a32.h b/externals/dynarmic/src/dynarmic/interface/A32/a32.h
+index e1c5b40..e76a99d 100644
+--- a/externals/dynarmic/src/dynarmic/interface/A32/a32.h
++++ b/externals/dynarmic/src/dynarmic/interface/A32/a32.h
+@@ -40,6 +40,22 @@ public:
+      */
+     void ClearCache();
+ 
++    /// RewindBox: statistics of the code cache (cumulative counters; zeros on backends that
++    /// do not keep them).
++    struct CacheStats {
++        std::size_t capacity = 0;             ///< bytes of the code cache
++        std::size_t used = 0;                 ///< bytes emitted since the last clear (prelude included)
++        std::size_t live_blocks = 0;          ///< blocks currently looked up
++        std::uint64_t compiled_blocks = 0;    ///< blocks compiled
++        std::uint64_t compiled_bytes = 0;     ///< host code bytes of those blocks
++        std::uint64_t compile_ns = 0;         ///< time spent translating and emitting them
++        std::uint64_t clears = 0;             ///< whole-cache clears (asked or full)
++        std::uint64_t full_clears = 0;        ///< of which: the cache was full
++        std::uint64_t invalidated_blocks = 0; ///< blocks invalidated by guest code writes
++        std::uint64_t dispatcher_lookups = 0; ///< returns to the dispatcher (block lookups)
++    };
++    CacheStats GetCacheStats() const;
++
+     /**
+      * Invalidate the code cache at a range of addresses.
+      * @param start_address The starting address of the range to invalidate.
 diff --git a/externals/oaknut/include/oaknut/code_block.hpp b/externals/oaknut/include/oaknut/code_block.hpp
 index bfa87d9..0450d52 100644
 --- a/externals/oaknut/include/oaknut/code_block.hpp
@@ -971,11 +1306,14 @@ index 1d8e0f3..2a3fd9a 100644
      SwitchableSetting<bool> is_new_3ds{true, Keys::is_new_3ds};
      SwitchableSetting<bool> lle_applets{true, Keys::lle_applets};
 diff --git a/src/core/arm/dynarmic/arm_dynarmic.cpp b/src/core/arm/dynarmic/arm_dynarmic.cpp
-index 216b409..adda842 100644
+index 216b409..0ef7d38 100644
 --- a/src/core/arm/dynarmic/arm_dynarmic.cpp
 +++ b/src/core/arm/dynarmic/arm_dynarmic.cpp
-@@ -4,10 +4,12 @@
+@@ -2,12 +2,15 @@
+ // Licensed under GPLv2 or any later version
+ // Refer to the misc/licenses/gplv2.txt file included.
  
++#include <chrono>
  #include <csignal>
  #include <cstring>
 +#include <new>
@@ -987,7 +1325,71 @@ index 216b409..adda842 100644
  #include "core/arm/dynarmic/arm_dynarmic.h"
  #include "core/arm/dynarmic/arm_dynarmic_cp15.h"
  #include "core/arm/dynarmic/arm_exclusive_monitor.h"
-@@ -338,6 +340,14 @@ void ARM_Dynarmic::SetPageTable(const std::shared_ptr<Memory::PageTable>& page_t
+@@ -197,6 +200,63 @@ void ARM_Dynarmic::Run() {
+     }
+ 
+     jit->Run();
++
++    if ((++rb_run_calls & 0xfff) == 0 && Settings::values.dynarmic_code_cache_size != 0)
++        [[unlikely]] {
++        NoteRewindBoxJitStats();
++    }
++}
++
++void ARM_Dynarmic::NoteRewindBoxJitStats() {
++    const u64 now = static_cast<u64>(std::chrono::duration_cast<std::chrono::nanoseconds>(
++                                         std::chrono::steady_clock::now().time_since_epoch())
++                                         .count());
++    if (rb_stats_ns == 0) {
++        rb_stats_ns = now;
++        return;
++    }
++    constexpr u64 interval_ns = 60'000'000'000;
++    if (now - rb_stats_ns < interval_ns) {
++        return;
++    }
++    // Every instance of this core (one per process page table), summed.
++    Dynarmic::A32::Jit::CacheStats total{};
++    std::size_t used = 0;
++    std::size_t capacity = 0;
++    for (const auto& [page_table, instance] : jits) {
++        const auto stats = instance->GetCacheStats();
++        used += stats.used;
++        capacity += stats.capacity;
++        total.live_blocks += stats.live_blocks;
++        total.compiled_blocks += stats.compiled_blocks;
++        total.compiled_bytes += stats.compiled_bytes;
++        total.compile_ns += stats.compile_ns;
++        total.clears += stats.clears;
++        total.full_clears += stats.full_clears;
++        total.invalidated_blocks += stats.invalidated_blocks;
++        total.dispatcher_lookups += stats.dispatcher_lookups;
++    }
++    // An instance dropped since the last line (SetPageTable) makes a total go down.
++    const auto delta = [](u64 now_value, u64 then) {
++        return now_value >= then ? now_value - then : now_value;
++    };
++    const u64 compiled = delta(total.compiled_blocks, rb_stats.compiled_blocks);
++    const u64 compiled_bytes = delta(total.compiled_bytes, rb_stats.compiled_bytes);
++    const double seconds = static_cast<double>(now - rb_stats_ns) / 1e9;
++    LOG_INFO(Core_ARM11,
++             "[rb-jit] azahar cpu core={} jits={} cache_kb={}/{} live_blocks={} compiled=+{} "
++             "avg_bytes={} compile_ms=+{:.1f} clears=+{} full=+{} invalidated=+{} "
++             "dispatch_per_s={:.0f} interval_s={:.0f}",
++             GetID(), jits.size(), used / 1024, capacity / 1024, total.live_blocks, compiled,
++             compiled != 0 ? compiled_bytes / compiled : 0,
++             static_cast<double>(delta(total.compile_ns, rb_stats.compile_ns)) / 1e6,
++             delta(total.clears, rb_stats.clears), delta(total.full_clears, rb_stats.full_clears),
++             delta(total.invalidated_blocks, rb_stats.invalidated_blocks),
++             static_cast<double>(delta(total.dispatcher_lookups, rb_stats.dispatcher_lookups)) /
++                 seconds,
++             seconds);
++    rb_stats = total;
++    rb_stats_ns = now;
+ }
+ 
+ void ARM_Dynarmic::Step() {
+@@ -338,6 +398,14 @@ void ARM_Dynarmic::SetPageTable(const std::shared_ptr<Memory::PageTable>& page_t
          SaveContext(ctx);
      }
  
@@ -1002,7 +1404,7 @@ index 216b409..adda842 100644
      auto iter = jits.find(current_page_table);
      if (iter != jits.end()) {
          jit = iter->second.get();
-@@ -370,7 +380,25 @@ std::unique_ptr<Dynarmic::A32::Jit> ARM_Dynarmic::MakeJit() {
+@@ -370,7 +438,25 @@ std::unique_ptr<Dynarmic::A32::Jit> ARM_Dynarmic::MakeJit() {
      config.processor_id = GetID();
      config.global_monitor = &exclusive_monitor.monitor;
  
@@ -1029,6 +1431,23 @@ index 216b409..adda842 100644
  }
  
  } // namespace Core
+diff --git a/src/core/arm/dynarmic/arm_dynarmic.h b/src/core/arm/dynarmic/arm_dynarmic.h
+index bde9956..468b17d 100644
+--- a/src/core/arm/dynarmic/arm_dynarmic.h
++++ b/src/core/arm/dynarmic/arm_dynarmic.h
+@@ -79,6 +79,12 @@ private:
+     Dynarmic::A32::Jit* jit = nullptr;
+     std::shared_ptr<Memory::PageTable> current_page_table = nullptr;
+     std::map<std::shared_ptr<Memory::PageTable>, std::unique_ptr<Dynarmic::A32::Jit>> jits;
++
++    /// RewindBox: writes a "[rb-jit] azahar cpu" line of code cache statistics every minute.
++    void NoteRewindBoxJitStats();
++    u32 rb_run_calls = 0;
++    u64 rb_stats_ns = 0;
++    Dynarmic::A32::Jit::CacheStats rb_stats{};
+ };
+ 
+ } // namespace Core
 diff --git a/src/video_core/CMakeLists.txt b/src/video_core/CMakeLists.txt
 index 528072c..8d3747d 100644
 --- a/src/video_core/CMakeLists.txt
@@ -1042,10 +1461,23 @@ index 528072c..8d3747d 100644
          renderer_vulkan/vk_shader_disk_cache.h
          renderer_vulkan/vk_shader_util.cpp
 diff --git a/src/video_core/rasterizer_cache/framebuffer_base.h b/src/video_core/rasterizer_cache/framebuffer_base.h
-index 55d6e20..25a45dd 100644
+index 55d6e20..e11b000 100644
 --- a/src/video_core/rasterizer_cache/framebuffer_base.h
 +++ b/src/video_core/rasterizer_cache/framebuffer_base.h
-@@ -67,7 +67,7 @@ public:
+@@ -27,7 +27,11 @@ struct FramebufferParams {
+     u32 color_level;
+     u32 depth_level;
+     bool shadow_rendering;
+-    INSERT_PADDING_BYTES(3);
++    /// RewindBox: SurfaceBase::view_generation of the color and depth surfaces, so a framebuffer
++    /// is never kept on the views of images a backend has replaced.
++    u8 color_generation;
++    u8 depth_generation;
++    INSERT_PADDING_BYTES(1);
+ 
+     bool operator==(const FramebufferParams& params) const noexcept {
+         return std::memcmp(this, &params, sizeof(FramebufferParams)) == 0;
+@@ -67,7 +71,7 @@ public:
      explicit FramebufferHelper(RasterizerCache<T>* res_cache_, typename T::Framebuffer* fb_,
                                 bool flip_rect, const Pica::RasterizerRegs& regs,
                                 Common::Rectangle<u32> surfaces_rect)
@@ -1054,7 +1486,7 @@ index 55d6e20..25a45dd 100644
          const u32 res_scale = fb->Scale();
          const u32 height = surfaces_rect.GetHeight() / res_scale;
  
-@@ -139,6 +139,12 @@ public:
+@@ -139,6 +143,12 @@ public:
          return draw_rect;
      }
  
@@ -1067,7 +1499,7 @@ index 55d6e20..25a45dd 100644
      Common::Rectangle<s32> Scissor() const noexcept {
          return scissor_rect;
      }
-@@ -150,6 +156,7 @@ public:
+@@ -150,6 +160,7 @@ public:
  private:
      RasterizerCache<T>* res_cache;
      typename T::Framebuffer* fb;
@@ -1075,11 +1507,141 @@ index 55d6e20..25a45dd 100644
      Common::Rectangle<s32> scissor_rect;
      Common::Rectangle<u32> draw_rect;
      ViewportInfo viewport;
+diff --git a/src/video_core/rasterizer_cache/rasterizer_cache.h b/src/video_core/rasterizer_cache/rasterizer_cache.h
+index 7313f0d..4aa01a2 100644
+--- a/src/video_core/rasterizer_cache/rasterizer_cache.h
++++ b/src/video_core/rasterizer_cache/rasterizer_cache.h
+@@ -751,11 +751,18 @@ FramebufferHelper<T> RasterizerCache<T>::GetFramebufferSurfaces(bool using_color
+     auto color_vp_interval = color_params.GetSubRectInterval(viewport_clamped);
+     auto depth_vp_interval = depth_params.GetSubRectInterval(viewport_clamped);
+ 
++    // RewindBox: a color buffer created for shadow rendering is a shadow map from the start, so
++    // only those images take shader writes (Vulkan keeps the others compressible).
++    const bool shadow_rendering = regs.framebuffer.IsShadowRendering();
++    const SurfaceFlagBits color_flags =
++        shadow_rendering ? SurfaceFlagBits::ShadowSource : SurfaceFlagBits{};
++
+     Common::Rectangle<u32> color_rect{};
+     SurfaceId color_id{};
+     u32 color_level{};
+     if (using_color_fb)
+-        std::tie(color_id, color_rect) = GetSurfaceSubRect(color_params, ScaleMatch::Exact, false);
++        std::tie(color_id, color_rect) =
++            GetSurfaceSubRect(color_params, ScaleMatch::Exact, false, color_flags);
+ 
+     Common::Rectangle<u32> depth_rect{};
+     SurfaceId depth_id{};
+@@ -769,7 +776,7 @@ FramebufferHelper<T> RasterizerCache<T>::GetFramebufferSurfaces(bool using_color
+         // Color and Depth surfaces must have the same dimensions and offsets
+         if (color_rect.bottom != depth_rect.bottom || color_rect.top != depth_rect.top ||
+             color_rect.left != depth_rect.left || color_rect.right != depth_rect.right) {
+-            color_id = GetSurface(color_params, ScaleMatch::Exact, false);
++            color_id = GetSurface(color_params, ScaleMatch::Exact, false, color_flags);
+             depth_id = GetSurface(depth_params, ScaleMatch::Exact, false);
+             fb_rect = slot_surfaces[color_id].GetScaledRect();
+         }
+@@ -796,12 +803,19 @@ FramebufferHelper<T> RasterizerCache<T>::GetFramebufferSurfaces(bool using_color
+                         boost::icl::length(depth_vp_interval));
+     }
+ 
++    if (shadow_rendering && color_id) {
++        // Before the key: the framebuffer writes the color buffer through its storage view.
++        slot_surfaces[color_id].EnsureShaderStorage();
++    }
++
+     const FramebufferParams fb_params = {
+         .color_id = color_id,
+         .depth_id = depth_id,
+         .color_level = color_level,
+         .depth_level = depth_level,
+-        .shadow_rendering = regs.framebuffer.IsShadowRendering(),
++        .shadow_rendering = shadow_rendering,
++        .color_generation = color_id ? slot_surfaces[color_id].view_generation : u8{0},
++        .depth_generation = depth_id ? slot_surfaces[depth_id].view_generation : u8{0},
+     };
+ 
+     auto [it, new_framebuffer] = framebuffers.try_emplace(fb_params);
+@@ -1451,6 +1465,14 @@ void RasterizerCache<T>::InvalidateRegion(PAddr addr, u32 size, SurfaceId region
+         region_owner.MarkValid(invalid_interval);
+     }
+ 
++    // RewindBox: a memory fill that covers a whole render target (the frame clear of its color
++    // or depth buffer) leaves it registered, invalid, so the next draw validates the same images
++    // from the fill (a clear, taken by the render pass as its load operation) instead of
++    // allocating new ones: the old ones stay sentenced until the GPU is done with them, which at
++    // a high internal resolution means new tens of MiB every frame while the GPU runs behind.
++    const bool fill_owner =
++        region_owner_id && slot_surfaces[region_owner_id].type == SurfaceType::Fill;
++
+     boost::container::small_vector<SurfaceId, 4> remove_surfaces;
+     ForEachSurfaceInRegion(addr, size, [&](SurfaceId surface_id, Surface& surface) {
+         if (surface_id == region_owner_id) {
+@@ -1468,6 +1490,11 @@ void RasterizerCache<T>::InvalidateRegion(PAddr addr, u32 size, SurfaceId region
+         if (!surface.IsFullyInvalid()) {
+             return;
+         }
++        if (fill_owner && True(surface.flags & SurfaceFlagBits::RenderTarget) &&
++            surface.type != SurfaceType::Texture) {
++            runtime.NoteRetainedSurface();
++            return;
++        }
+         remove_surfaces.push_back(surface_id);
+     });
+ 
+diff --git a/src/video_core/rasterizer_cache/surface_base.h b/src/video_core/rasterizer_cache/surface_base.h
+index c73ec2c..d4d520c 100644
+--- a/src/video_core/rasterizer_cache/surface_base.h
++++ b/src/video_core/rasterizer_cache/surface_base.h
+@@ -74,6 +74,12 @@ public:
+         modification_tick++;
+     }
+ 
++    /// RewindBox: backends whose images do not all take shader writes give them that ability
++    /// here (Vulkan); true when the images changed. Nothing to do by default.
++    bool EnsureShaderStorage() {
++        return false;
++    }
++
+     bool IsFullyInvalid() const {
+         auto interval = GetInterval();
+         return *invalid_regions.equal_range(interval).first == interval;
+@@ -90,6 +96,9 @@ public:
+     u32 fill_size = 0;
+     std::array<u8, 4> fill_data{};
+     u64 modification_tick = 1;
++    /// RewindBox: changes when a backend replaces the images of the surface (Vulkan, storage
++    /// usage given after creation); part of the key of the framebuffers that use it.
++    u8 view_generation = 0;
+ };
+ 
+ } // namespace VideoCore
+diff --git a/src/video_core/renderer_opengl/gl_texture_runtime.h b/src/video_core/renderer_opengl/gl_texture_runtime.h
+index 985fe18..f136043 100644
+--- a/src/video_core/renderer_opengl/gl_texture_runtime.h
++++ b/src/video_core/renderer_opengl/gl_texture_runtime.h
+@@ -54,6 +54,9 @@ public:
+     /// Submits and waits for current GPU work.
+     void Finish();
+ 
++    /// RewindBox: counted by the Vulkan runtime only (render target kept across a memory fill).
++    void NoteRetainedSurface() noexcept {}
++
+     /// Returns true if the provided pixel format cannot be used natively by the runtime.
+     bool NeedsConversion(const Surface& surface) const;
+ 
 diff --git a/src/video_core/renderer_vulkan/renderer_vulkan.cpp b/src/video_core/renderer_vulkan/renderer_vulkan.cpp
-index 219d11c..b924b1a 100644
+index 219d11c..cc734f6 100644
 --- a/src/video_core/renderer_vulkan/renderer_vulkan.cpp
 +++ b/src/video_core/renderer_vulkan/renderer_vulkan.cpp
-@@ -13,6 +13,7 @@
+@@ -2,6 +2,7 @@
+ // Licensed under GPLv3 or any later version
+ // Refer to the LICENSE.txt file included.
+ 
++#include <algorithm>
+ #include "common/assert.h"
+ #include "common/logging/log.h"
+ #include "common/memory_detect.h"
+@@ -13,6 +14,7 @@
  #include "video_core/pica/pica_core.h"
  #include "video_core/renderer_vulkan/renderer_vulkan.h"
  #include "video_core/renderer_vulkan/vk_memory_util.h"
@@ -1087,7 +1649,7 @@ index 219d11c..b924b1a 100644
  #include "video_core/renderer_vulkan/vk_shader_util.h"
  
  #include "video_core/host_shaders/vulkan_present_anaglyph_frag.h"
-@@ -238,7 +239,9 @@ void RendererVulkan::RenderToWindow(PresentWindow& window, const Layout::Framebu
+@@ -238,7 +240,9 @@ void RendererVulkan::RenderToWindow(PresentWindow& window, const Layout::Framebu
                                      bool flipped) {
      if (!Settings::values.use_skip_duplicate_frames.GetValue() ||
          Core::PerfStats::game_frames_updated) {
@@ -1097,7 +1659,7 @@ index 219d11c..b924b1a 100644
  
          if (layout.width != frame->width || layout.height != frame->height) {
              window.WaitPresent();
-@@ -253,7 +256,9 @@ void RendererVulkan::RenderToWindow(PresentWindow& window, const Layout::Framebu
+@@ -253,7 +257,9 @@ void RendererVulkan::RenderToWindow(PresentWindow& window, const Layout::Framebu
  
          DrawScreens(frame, layout, flipped);
          scheduler.Flush(frame->render_ready);
@@ -1107,7 +1669,7 @@ index 219d11c..b924b1a 100644
          if ((secondaryWindowEnabled && isSecondaryWindow) || (!secondaryWindowEnabled)) {
              Core::PerfStats::game_frames_updated = false;
              screenRendered = true;
-@@ -1180,9 +1185,44 @@ void RendererVulkan::SwapBuffers() {
+@@ -1180,9 +1186,70 @@ void RendererVulkan::SwapBuffers() {
  
      system.perf_stats->EndSwap();
      rasterizer.TickFrame();
@@ -1118,10 +1680,14 @@ index 219d11c..b924b1a 100644
 +void RendererVulkan::NoteRewindBoxPerfFrame(const Layout::FramebufferLayout& layout) {
 +    const u64 now = RewindBoxPerf::NowNs();
 +    if (rb_perf_start_ns == 0) {
-+        rb_perf_start_ns = now;
++        rb_perf_start_ns = rb_perf_last_ns = now;
 +        RewindBoxPerf::counters = {};
++        rb_perf_frame_us.reserve(RewindBoxPerf::kFramesPerLine);
 +        return;
 +    }
++    rb_perf_frame_us.push_back(
++        static_cast<u32>(std::min<u64>((now - rb_perf_last_ns) / 1000, 0xffffffffu)));
++    rb_perf_last_ns = now;
 +    if (++rb_perf_frames < RewindBoxPerf::kFramesPerLine) {
 +        return;
 +    }
@@ -1130,12 +1696,26 @@ index 219d11c..b924b1a 100644
 +    const double seconds = static_cast<double>(now - rb_perf_start_ns) / 1e9;
 +    const auto per_frame = [frames](u64 value) { return static_cast<double>(value) / frames; };
 +    const auto ms_per_frame = [frames](u64 ns) { return static_cast<double>(ns) / 1e6 / frames; };
++    // Frame time percentiles (wall time between two frames of the game, menu pauses included).
++    std::sort(rb_perf_frame_us.begin(), rb_perf_frame_us.end());
++    const auto percentile_ms = [this](double p) {
++        if (rb_perf_frame_us.empty()) {
++            return 0.0;
++        }
++        const std::size_t index = std::min(
++            rb_perf_frame_us.size() - 1,
++            static_cast<std::size_t>(p * static_cast<double>(rb_perf_frame_us.size())));
++        return static_cast<double>(rb_perf_frame_us[index]) / 1000.0;
++    };
 +    LOG_INFO(Render_Vulkan,
 +             "[rb-perf] azahar frames={} fps={:.1f} res={} out={}x{} per frame: passes={:.1f} "
 +             "folded={:.2f} flushed={:.2f} partial={:.2f} kept={:.1f} uploads={:.1f} "
 +             "upload_kb={:.0f} downloads={:.2f} copies={:.1f} blits={:.1f} transfers={:.2f} "
 +             "fills={:.2f} submits={:.1f} finishes={:.2f} finish_ms={:.2f} sync_ms={:.2f} "
-+             "present_ms={:.2f}",
++             "present_ms={:.2f} deferred={:.2f} replaced={:.2f} touched={:.2f} held={:.2f} "
++             "missed={:.2f} retained={:.2f} created={:.2f} created_mb={:.1f} migrated={:.2f} "
++             "fb_copies={:.2f} worker_ms={:.2f} frame_ms_p50={:.2f} p95={:.2f} p99={:.2f} "
++             "max={:.2f}",
 +             rb_perf_frames, seconds > 0.0 ? frames / seconds : 0.0,
 +             Settings::values.resolution_factor.GetValue(), layout.width, layout.height,
 +             per_frame(c.passes), per_frame(c.folded), per_frame(c.flushed),
@@ -1143,9 +1723,17 @@ index 219d11c..b924b1a 100644
 +             per_frame(c.upload_bytes) / 1024.0, per_frame(c.downloads), per_frame(c.copies),
 +             per_frame(c.blits), per_frame(c.transfers), per_frame(c.fills),
 +             per_frame(c.submits), per_frame(c.finishes),
-+             ms_per_frame(c.finish_ns), ms_per_frame(c.sync_ns), ms_per_frame(c.present_ns));
++             ms_per_frame(c.finish_ns), ms_per_frame(c.sync_ns), ms_per_frame(c.present_ns),
++             per_frame(c.deferred), per_frame(c.replaced), per_frame(c.touched),
++             per_frame(c.held), per_frame(c.missed), per_frame(c.retained),
++             per_frame(c.created), per_frame(c.created_bytes) / (1024.0 * 1024.0),
++             per_frame(c.migrated), per_frame(c.fb_copies), ms_per_frame(c.worker_ns),
++             percentile_ms(0.50), percentile_ms(0.95), percentile_ms(0.99),
++             rb_perf_frame_us.empty() ? 0.0
++                                      : static_cast<double>(rb_perf_frame_us.back()) / 1000.0);
 +    RewindBoxPerf::counters = {};
 +    rb_perf_frames = 0;
++    rb_perf_frame_us.clear();
 +    rb_perf_start_ns = now;
 +}
 +
@@ -1153,10 +1741,18 @@ index 219d11c..b924b1a 100644
      if (previous_game_frame_tick != 0) {
          scheduler.Wait(previous_game_frame_tick);
 diff --git a/src/video_core/renderer_vulkan/renderer_vulkan.h b/src/video_core/renderer_vulkan/renderer_vulkan.h
-index 7b921e5..c0e231d 100644
+index 7b921e5..fae1464 100644
 --- a/src/video_core/renderer_vulkan/renderer_vulkan.h
 +++ b/src/video_core/renderer_vulkan/renderer_vulkan.h
-@@ -119,7 +119,14 @@ private:
+@@ -4,6 +4,7 @@
+ 
+ #pragma once
+ 
++#include <vector>
+ #include "common/common_types.h"
+ #include "common/math_util.h"
+ #include "video_core/renderer_base.h"
+@@ -119,7 +120,17 @@ private:
                              bool right_eye);
      void FillScreen(Common::Vec3<u8> color, const TextureInfo& texture);
  
@@ -1167,12 +1763,15 @@ index 7b921e5..c0e231d 100644
  private:
 +    u64 rb_perf_frames{};
 +    u64 rb_perf_start_ns{};
++    u64 rb_perf_last_ns{};
++    /// Wall time between two SwapBuffers, in microseconds, for the percentiles of the line.
++    std::vector<u32> rb_perf_frame_us;
 +
      Memory::MemorySystem& memory;
      Pica::PicaCore& pica;
  
 diff --git a/src/video_core/renderer_vulkan/vk_rasterizer.cpp b/src/video_core/renderer_vulkan/vk_rasterizer.cpp
-index 6b753b8..fab1c9e 100644
+index 6b753b8..847134d 100644
 --- a/src/video_core/renderer_vulkan/vk_rasterizer.cpp
 +++ b/src/video_core/renderer_vulkan/vk_rasterizer.cpp
 @@ -16,6 +16,7 @@
@@ -1183,7 +1782,19 @@ index 6b753b8..fab1c9e 100644
  #include "video_core/renderer_vulkan/vk_scheduler.h"
  #include "video_core/texture/texture_decode.h"
  
-@@ -568,18 +569,50 @@ bool RasterizerVulkan::Draw(bool accelerate, bool is_indexed) {
+@@ -144,8 +145,11 @@ RasterizerVulkan::RasterizerVulkan(Memory::MemorySystem& memory, Pica::PicaCore&
+ RasterizerVulkan::~RasterizerVulkan() = default;
+ 
+ void RasterizerVulkan::TickFrame() {
++    const u64 wait_start = RewindBoxPerf::NowNs();
+     scheduler.WaitWorker();
++    RewindBoxPerf::counters.worker_ns += RewindBoxPerf::NowNs() - wait_start;
+     res_cache.TickFrame();
++    runtime.CollectRetired();
+ }
+ 
+ void RasterizerVulkan::LoadDefaultDiskResources(
+@@ -568,18 +572,50 @@ bool RasterizerVulkan::Draw(bool accelerate, bool is_indexed) {
  
      const bool write_color_fb = shadow_rendering || pipeline_info.GetFinalColorWriteMask(instance);
      const bool write_depth_fb = pipeline_info.IsDepthWriteEnabled();
@@ -1236,7 +1847,27 @@ index 6b753b8..fab1c9e 100644
  
      const auto draw_rect = fb_helper.DrawRect();
      if (draw_rect.GetArea() == 0) {
-@@ -614,8 +647,9 @@ bool RasterizerVulkan::Draw(bool accelerate, bool is_indexed) {
+@@ -606,6 +642,19 @@ bool RasterizerVulkan::Draw(bool accelerate, bool is_indexed) {
+     SyncTextureUnits(framebuffer);
+     SyncUtilityTextures(framebuffer);
+ 
++    // RewindBox: a binding of this draw that gave one of its own render targets new images
++    // (Surface::EnsureShaderStorage, a target sampled as a shadow map in the same draw) leaves
++    // the framebuffer on the old ones. Not expected from a game; the draw is dropped rather than
++    // written into retired images. The next draw gets a framebuffer on the new images.
++    const auto stale = [&](VideoCore::SurfaceId id, u8 generation) {
++        return id && res_cache.GetSurface(id).view_generation != generation;
++    };
++    if (stale(framebuffer->color_id, framebuffer->color_generation) ||
++        stale(framebuffer->depth_id, framebuffer->depth_generation)) [[unlikely]] {
++        LOG_WARNING(Render_Vulkan, "Draw dropped: its render target changed images");
++        return true;
++    }
++
+     // Sync and bind the shader
+     pipeline_cache.UseFragmentShader(regs, user_config);
+ 
+@@ -614,8 +663,9 @@ bool RasterizerVulkan::Draw(bool accelerate, bool is_indexed) {
      SyncAndUploadLUTsLF();
      UploadUniforms(accelerate);
  
@@ -1248,7 +1879,7 @@ index 6b753b8..fab1c9e 100644
  
      // Configure viewport and scissor
      const auto viewport = fb_helper.Viewport();
-@@ -651,6 +685,16 @@ bool RasterizerVulkan::Draw(bool accelerate, bool is_indexed) {
+@@ -651,6 +701,16 @@ bool RasterizerVulkan::Draw(bool accelerate, bool is_indexed) {
      return succeeded;
  }
  
@@ -1265,7 +1896,7 @@ index 6b753b8..fab1c9e 100644
  void RasterizerVulkan::SyncTextureUnits(const Framebuffer* framebuffer) {
      using TextureType = Pica::TexturingRegs::TextureConfig::TextureType;
  
-@@ -836,6 +880,7 @@ void RasterizerVulkan::ClearAll(bool flush) {
+@@ -836,6 +896,7 @@ void RasterizerVulkan::ClearAll(bool flush) {
  }
  
  bool RasterizerVulkan::AccelerateDisplayTransfer(const Pica::DisplayTransferConfig& config) {
@@ -1273,7 +1904,7 @@ index 6b753b8..fab1c9e 100644
      return res_cache.AccelerateDisplayTransfer(config);
  }
  
-@@ -844,6 +889,7 @@ bool RasterizerVulkan::AccelerateTextureCopy(const Pica::DisplayTransferConfig&
+@@ -844,6 +905,7 @@ bool RasterizerVulkan::AccelerateTextureCopy(const Pica::DisplayTransferConfig&
  }
  
  bool RasterizerVulkan::AccelerateFill(const Pica::MemoryFillConfig& config) {
@@ -1316,7 +1947,7 @@ index 3c7ebb5..1e886d2 100644
  
  } // namespace Vulkan
 diff --git a/src/video_core/renderer_vulkan/vk_render_manager.cpp b/src/video_core/renderer_vulkan/vk_render_manager.cpp
-index 4ac6928..bbe7f42 100644
+index 4ac6928..0e128c4 100644
 --- a/src/video_core/renderer_vulkan/vk_render_manager.cpp
 +++ b/src/video_core/renderer_vulkan/vk_render_manager.cpp
 @@ -2,12 +2,14 @@
@@ -1376,7 +2007,7 @@ index 4ac6928..bbe7f42 100644
          },
      };
      const RenderPass new_pass = {
-@@ -42,12 +58,189 @@ void RenderManager::BeginRendering(const Framebuffer* framebuffer,
+@@ -42,12 +58,225 @@ void RenderManager::BeginRendering(const Framebuffer* framebuffer,
          .clears = {},
          .do_clear = false,
      };
@@ -1403,6 +2034,12 @@ index 4ac6928..bbe7f42 100644
 +        new_pass.render_area.offset.x != 0 || new_pass.render_area.offset.y != 0 ||
 +        new_pass.render_area.extent.width != width ||
 +        new_pass.render_area.extent.height != height) {
++        // Diagnostic: a held clear of an attachment that this render pass cannot take.
++        for (const DeferredClear& clear : deferred_clears) {
++            if (std::find(images.begin(), images.end(), clear.image) != images.end()) {
++                RewindBoxPerf::counters.missed++;
++            }
++        }
 +        return false;
 +    }
 +
@@ -1491,10 +2128,12 @@ index 4ac6928..bbe7f42 100644
 +void RenderManager::DeferClear(const DeferredClear& clear) {
 +    // Asked between render passes (ClearTexture ends the open one); never left inside one.
 +    EndRendering();
++    RewindBoxPerf::counters.deferred++;
 +    // A later clear of the whole image replaces the one still held back.
 +    for (DeferredClear& pending : deferred_clears) {
 +        if (pending.image == clear.image) {
 +            pending = clear;
++            RewindBoxPerf::counters.replaced++;
 +            return;
 +        }
 +    }
@@ -1505,6 +2144,56 @@ index 4ac6928..bbe7f42 100644
 +    scheduler.RequestBeforeRecord();
 +}
 +
++void RenderManager::RecordDeferredClear(const DeferredClear& clear) {
++    // As TextureRuntime::ClearTexture recorded it before. No render pass is open while clears
++    // are held back, and this is the first command touching the image since the clear was asked.
++    scheduler.RecordIndependent([clear](vk::CommandBuffer cmdbuf) {
++        const vk::ImageSubresourceRange range = {
++            .aspectMask = clear.aspect,
++            .baseMipLevel = 0,
++            .levelCount = 1,
++            .baseArrayLayer = 0,
++            .layerCount = 1,
++        };
++
++        const vk::ImageMemoryBarrier pre_barrier = {
++            .srcAccessMask = clear.src_access,
++            .dstAccessMask = vk::AccessFlagBits::eTransferWrite,
++            .oldLayout = vk::ImageLayout::eGeneral,
++            .newLayout = vk::ImageLayout::eTransferDstOptimal,
++            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++            .image = clear.image,
++            .subresourceRange = range,
++        };
++
++        const vk::ImageMemoryBarrier post_barrier = {
++            .srcAccessMask = vk::AccessFlagBits::eTransferWrite,
++            .dstAccessMask = clear.src_access,
++            .oldLayout = vk::ImageLayout::eTransferDstOptimal,
++            .newLayout = vk::ImageLayout::eGeneral,
++            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++            .image = clear.image,
++            .subresourceRange = range,
++        };
++
++        cmdbuf.pipelineBarrier(clear.pipeline_flags, vk::PipelineStageFlagBits::eTransfer,
++                               vk::DependencyFlagBits::eByRegion, {}, {}, pre_barrier);
++
++        if (clear.aspect & vk::ImageAspectFlagBits::eColor) {
++            cmdbuf.clearColorImage(clear.image, vk::ImageLayout::eTransferDstOptimal,
++                                   clear.value.color, range);
++        } else {
++            cmdbuf.clearDepthStencilImage(clear.image, vk::ImageLayout::eTransferDstOptimal,
++                                          clear.value.depthStencil, range);
++        }
++
++        cmdbuf.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, clear.pipeline_flags,
++                               vk::DependencyFlagBits::eByRegion, {}, {}, post_barrier);
++    });
++}
++
 +void RenderManager::FlushDeferredClears() {
 +    if (deferred_clears.empty()) {
 +        return;
@@ -1513,60 +2202,38 @@ index 4ac6928..bbe7f42 100644
 +    deferred_clears.clear();
 +    scheduler.CancelBeforeRecord();
 +    for (const DeferredClear& clear : clears) {
-+        // As TextureRuntime::ClearTexture recorded it before.
-+        scheduler.Record([clear](vk::CommandBuffer cmdbuf) {
-+            const vk::ImageSubresourceRange range = {
-+                .aspectMask = clear.aspect,
-+                .baseMipLevel = 0,
-+                .levelCount = 1,
-+                .baseArrayLayer = 0,
-+                .layerCount = 1,
-+            };
-+
-+            const vk::ImageMemoryBarrier pre_barrier = {
-+                .srcAccessMask = clear.src_access,
-+                .dstAccessMask = vk::AccessFlagBits::eTransferWrite,
-+                .oldLayout = vk::ImageLayout::eGeneral,
-+                .newLayout = vk::ImageLayout::eTransferDstOptimal,
-+                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-+                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-+                .image = clear.image,
-+                .subresourceRange = range,
-+            };
-+
-+            const vk::ImageMemoryBarrier post_barrier = {
-+                .srcAccessMask = vk::AccessFlagBits::eTransferWrite,
-+                .dstAccessMask = clear.src_access,
-+                .oldLayout = vk::ImageLayout::eTransferDstOptimal,
-+                .newLayout = vk::ImageLayout::eGeneral,
-+                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-+                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-+                .image = clear.image,
-+                .subresourceRange = range,
-+            };
-+
-+            cmdbuf.pipelineBarrier(clear.pipeline_flags, vk::PipelineStageFlagBits::eTransfer,
-+                                   vk::DependencyFlagBits::eByRegion, {}, {}, pre_barrier);
-+
-+            if (clear.aspect & vk::ImageAspectFlagBits::eColor) {
-+                cmdbuf.clearColorImage(clear.image, vk::ImageLayout::eTransferDstOptimal,
-+                                       clear.value.color, range);
-+            } else {
-+                cmdbuf.clearDepthStencilImage(clear.image, vk::ImageLayout::eTransferDstOptimal,
-+                                              clear.value.depthStencil, range);
-+            }
-+
-+            cmdbuf.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, clear.pipeline_flags,
-+                                   vk::DependencyFlagBits::eByRegion, {}, {}, post_barrier);
-+        });
++        RecordDeferredClear(clear);
 +    }
 +    RewindBoxPerf::counters.flushed += clears.size();
++}
++
++void RenderManager::FlushDeferredClears(std::span<const vk::Image> touched) {
++    if (deferred_clears.empty()) {
++        return;
++    }
++    for (auto it = deferred_clears.begin(); it != deferred_clears.end();) {
++        if (std::find(touched.begin(), touched.end(), it->image) == touched.end()) {
++            ++it;
++            continue;
++        }
++        // Copied first: erase moves the later clears down.
++        const DeferredClear clear = *it;
++        it = deferred_clears.erase(it);
++        RecordDeferredClear(clear);
++        RewindBoxPerf::counters.touched++;
++    }
++    if (deferred_clears.empty()) {
++        scheduler.CancelBeforeRecord();
++    } else {
++        // Recorded around the clears of other images: they keep waiting for their render pass.
++        RewindBoxPerf::counters.held++;
++    }
 +}
 +
  void RenderManager::BeginRendering(const RenderPass& new_pass) {
      if (pass == new_pass) [[likely]] {
          num_draws++;
-@@ -55,6 +248,7 @@ void RenderManager::BeginRendering(const RenderPass& new_pass) {
+@@ -55,6 +284,7 @@ void RenderManager::BeginRendering(const RenderPass& new_pass) {
      }
  
      EndRendering();
@@ -1574,7 +2241,7 @@ index 4ac6928..bbe7f42 100644
      scheduler.Record([info = new_pass](vk::CommandBuffer cmdbuf) {
          const vk::RenderPassBeginInfo renderpass_begin_info = {
              .renderPass = info.render_pass,
-@@ -160,7 +354,7 @@ vk::RenderPass RenderManager::GetRenderpass(VideoCore::PixelFormat color,
+@@ -160,7 +390,7 @@ vk::RenderPass RenderManager::GetRenderpass(VideoCore::PixelFormat color,
      const u32 samples_index = static_cast<u32>(std::bit_width(sample_count) - 1);
  
      vk::UniqueRenderPass& renderpass =
@@ -1583,7 +2250,7 @@ index 4ac6928..bbe7f42 100644
      if (!renderpass) {
          const vk::Format color_format = instance.GetTraits(color).native;
          const vk::Format depth_format = instance.GetTraits(depth).native;
-@@ -176,8 +370,44 @@ vk::RenderPass RenderManager::GetRenderpass(VideoCore::PixelFormat color,
+@@ -176,8 +406,44 @@ vk::RenderPass RenderManager::GetRenderpass(VideoCore::PixelFormat color,
      return *renderpass;
  }
  
@@ -1628,7 +2295,7 @@ index 4ac6928..bbe7f42 100644
  
      boost::container::static_vector<vk::AttachmentDescription, 2> attachments{};
      bool use_color = false;
-@@ -189,7 +419,7 @@ vk::UniqueRenderPass RenderManager::CreateRenderPass(vk::Format color, vk::Forma
+@@ -189,7 +455,7 @@ vk::UniqueRenderPass RenderManager::CreateRenderPass(vk::Format color, vk::Forma
          attachments.emplace_back(vk::AttachmentDescription{
              .format = color,
              .samples = vk::SampleCountFlagBits::e1,
@@ -1637,7 +2304,7 @@ index 4ac6928..bbe7f42 100644
              .storeOp = vk::AttachmentStoreOp::eStore,
              .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
              .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
-@@ -209,9 +439,9 @@ vk::UniqueRenderPass RenderManager::CreateRenderPass(vk::Format color, vk::Forma
+@@ -209,9 +475,9 @@ vk::UniqueRenderPass RenderManager::CreateRenderPass(vk::Format color, vk::Forma
          attachments.emplace_back(vk::AttachmentDescription{
              .format = depth,
              .samples = vk::SampleCountFlagBits::e1,
@@ -1650,18 +2317,19 @@ index 4ac6928..bbe7f42 100644
              .initialLayout = vk::ImageLayout::eGeneral,
              .finalLayout = vk::ImageLayout::eGeneral,
 diff --git a/src/video_core/renderer_vulkan/vk_render_manager.h b/src/video_core/renderer_vulkan/vk_render_manager.h
-index 8d6270d..b5877f9 100644
+index 8d6270d..73e8b42 100644
 --- a/src/video_core/renderer_vulkan/vk_render_manager.h
 +++ b/src/video_core/renderer_vulkan/vk_render_manager.h
-@@ -6,6 +6,7 @@
+@@ -6,6 +6,8 @@
  
  #include <bit>
  #include <mutex>
++#include <span>
 +#include <boost/container/static_vector.hpp>
  
  #include "common/math_util.h"
  #include "video_core/renderer_vulkan/vk_common.h"
-@@ -35,6 +36,19 @@ struct RenderPass {
+@@ -35,6 +37,19 @@ struct RenderPass {
      }
  };
  
@@ -1681,7 +2349,7 @@ index 8d6270d..b5877f9 100644
  class RenderManager {
      static constexpr u32 NumColorFormats = static_cast<u32>(VideoCore::PixelFormat::NumColorFormat);
      static constexpr u32 NumDepthFormats = static_cast<u32>(VideoCore::PixelFormat::NumDepthFormat);
-@@ -46,7 +60,9 @@ public:
+@@ -46,7 +61,9 @@ public:
      ~RenderManager();
  
      /// Begins a new renderpass with the provided framebuffer as render target.
@@ -1692,7 +2360,7 @@ index 8d6270d..b5877f9 100644
  
      /// Begins a new renderpass with the provided render state.
      void BeginRendering(const RenderPass& new_pass);
-@@ -54,15 +70,46 @@ public:
+@@ -54,15 +71,54 @@ public:
      /// Exits from any currently active renderpass instance
      void EndRendering();
  
@@ -1713,6 +2381,11 @@ index 8d6270d..b5877f9 100644
 +    /// RewindBox: records the deferred clears no render pass took, as separate clears.
 +    void FlushDeferredClears();
 +
++    /// RewindBox: records the held clears of `touched` only, before a command outside any render
++    /// pass that reads or writes those images (Scheduler::RecordIndependent). The clears of other
++    /// images keep waiting for the render pass that takes them as its load operation.
++    void FlushDeferredClears(std::span<const vk::Image> touched);
++
      /// Returns the renderpass associated with the color-depth format pair
      vk::RenderPass GetRenderpass(VideoCore::PixelFormat color, VideoCore::PixelFormat depth,
                                   bool is_clear, u8 sample_count = 1);
@@ -1727,6 +2400,9 @@ index 8d6270d..b5877f9 100644
 +    /// attachments; false, having recorded nothing, when none applies.
 +    bool BeginRenderingWithClears(const Framebuffer* framebuffer, const RenderPass& new_pass);
 +
++    /// RewindBox: records one held clear as a separate clear command.
++    void RecordDeferredClear(const DeferredClear& clear);
++
      /// Creates a renderpass configured appropriately and stores it in cached_renderpasses
      vk::UniqueRenderPass CreateRenderPass(vk::Format color, vk::Format depth,
                                            vk::AttachmentLoadOp load_op) const;
@@ -1739,7 +2415,7 @@ index 8d6270d..b5877f9 100644
      /// Creates an MSAA renderpass configured appropriately and stores it in cached_renderpasses
      vk::UniqueRenderPass CreateRenderPassMSAA(vk::Format color, vk::Format depth,
                                                vk::AttachmentLoadOp load_op,
-@@ -71,14 +118,16 @@ private:
+@@ -71,14 +127,16 @@ private:
  private:
      const Instance& instance;
      Scheduler& scheduler;
@@ -1759,10 +2435,10 @@ index 8d6270d..b5877f9 100644
  } // namespace Vulkan
 diff --git a/src/video_core/renderer_vulkan/vk_rewindbox_perf.h b/src/video_core/renderer_vulkan/vk_rewindbox_perf.h
 new file mode 100644
-index 0000000..b8c329b
+index 0000000..aae5f48
 --- /dev/null
 +++ b/src/video_core/renderer_vulkan/vk_rewindbox_perf.h
-@@ -0,0 +1,46 @@
+@@ -0,0 +1,57 @@
 +// Copyright 2026 RewindBox contributors
 +// Licensed under GPLv2 or any later version
 +// Refer to the misc/licenses/gplv2.txt file included.
@@ -1796,6 +2472,17 @@ index 0000000..b8c329b
 +    u64 finish_ns{};    ///< time of those waits
 +    u64 sync_ns{};      ///< time in the frontend's wait_sync_index (GetRenderFrame)
 +    u64 present_ns{};   ///< time in the frontend's video refresh (PresentWindow::Present)
++    u64 deferred{};     ///< whole-image clears held back (RenderManager::DeferClear)
++    u64 replaced{};     ///< held clears replaced by a later clear of the same image
++    u64 touched{};      ///< held clears recorded before a transfer of their own image
++    u64 held{};         ///< transfers recorded while clears of other images kept waiting
++    u64 missed{};       ///< held clears of an attachment whose render pass could not take them
++    u64 created{};      ///< surfaces whose images were allocated (Surface constructor)
++    u64 created_bytes{}; ///< estimated bytes of those images (all handles)
++    u64 retained{};     ///< render targets kept registered across a memory fill of all of them
++    u64 migrated{};     ///< surfaces given storage usage after their creation (shadows)
++    u64 fb_copies{};    ///< copies of a whole render target for a feedback loop or blending
++    u64 worker_ns{};    ///< time the emulation thread waited for the Vulkan worker (TickFrame)
 +};
 +
 +inline Counters counters;
@@ -1841,10 +2528,10 @@ index e7d3085..0114486 100644
      on_submit();
  
 diff --git a/src/video_core/renderer_vulkan/vk_scheduler.h b/src/video_core/renderer_vulkan/vk_scheduler.h
-index 2179143..929ec00 100644
+index 2179143..918c538 100644
 --- a/src/video_core/renderer_vulkan/vk_scheduler.h
 +++ b/src/video_core/renderer_vulkan/vk_scheduler.h
-@@ -50,6 +50,11 @@ public:
+@@ -50,6 +50,25 @@ public:
      /// Records the command to the current chunk.
      template <typename T>
      void Record(T&& command) {
@@ -1853,13 +2540,32 @@ index 2179143..929ec00 100644
 +        if (before_record_pending) [[unlikely]] {
 +            RunBeforeRecord();
 +        }
++        if (chunk->Record(command)) {
++            return;
++        }
++        DispatchWork();
++        (void)chunk->Record(command);
++    }
++
++    /// RewindBox: records a command outside any render pass that touches none of the images
++    /// whose clear RenderManager holds back (the caller has recorded those of its own images,
++    /// RenderManager::FlushDeferredClears(images)). The other held clears keep waiting for the
++    /// render pass that can take them as its load operation: an upload, a copy or a new image
++    /// between a frame clear and the first draw no longer costs a separate clear and a reload.
++    template <typename T>
++    void RecordIndependent(T&& command) {
          if (chunk->Record(command)) {
              return;
          }
-@@ -57,6 +62,22 @@ public:
+@@ -57,6 +76,27 @@ public:
          (void)chunk->Record(command);
      }
  
++    /// RewindBox: true while work is held back for the next command.
++    [[nodiscard]] bool IsBeforeRecordPending() const noexcept {
++        return before_record_pending;
++    }
++
 +    /// RewindBox: `func` runs once right before the next recorded command after
 +    /// RequestBeforeRecord, on the thread that records it.
 +    void RegisterBeforeRecord(std::function<void()>&& func) {
@@ -1879,7 +2585,7 @@ index 2179143..929ec00 100644
      /// Marks the provided state as non dirty
      void MarkStateNonDirty(StateFlags flag) noexcept {
          state |= flag;
-@@ -192,6 +213,14 @@ private:
+@@ -192,6 +232,14 @@ private:
  
      void AcquireNewChunk();
  
@@ -1894,7 +2600,7 @@ index 2179143..929ec00 100644
  private:
      std::unique_ptr<MasterSemaphore> master_semaphore;
      CommandPool command_pool;
-@@ -202,6 +231,8 @@ private:
+@@ -202,6 +250,8 @@ private:
      StateFlags state{};
      std::function<void()> on_submit;
      std::function<void()> on_dispatch;
@@ -1904,7 +2610,7 @@ index 2179143..929ec00 100644
      std::mutex reserve_mutex;
      std::mutex queue_mutex;
 diff --git a/src/video_core/renderer_vulkan/vk_texture_runtime.cpp b/src/video_core/renderer_vulkan/vk_texture_runtime.cpp
-index 62c577d..f975e63 100644
+index 62c577d..06f97c3 100644
 --- a/src/video_core/renderer_vulkan/vk_texture_runtime.cpp
 +++ b/src/video_core/renderer_vulkan/vk_texture_runtime.cpp
 @@ -26,6 +26,7 @@
@@ -1915,10 +2621,20 @@ index 62c577d..f975e63 100644
  #include "video_core/renderer_vulkan/vk_scheduler.h"
  #include "video_core/renderer_vulkan/vk_texture_runtime.h"
  
-@@ -362,6 +363,31 @@ bool TextureRuntime::ClearTexture(Surface& surface, const VideoCore::TextureClea
+@@ -339,6 +340,8 @@ bool TextureRuntime::Reinterpret(Surface& source, Surface& dest,
+     }
+ 
+     if (src_format == PixelFormat::D24S8 && dst_format == PixelFormat::RGBA8) {
++        // RewindBox: the conversion writes the destination as a storage image.
++        dest.EnsureShaderStorage();
+         return blit_helper.ConvertDS24S8ToRGBA8(source, dest, copy);
+     }
+ 
+@@ -362,7 +365,33 @@ bool TextureRuntime::ClearTexture(Surface& surface, const VideoCore::TextureClea
      // texture at the same time
  
      if (clear.texture_rect == surface.GetScaledRect() && (surface.GetSampleCount() == 1)) {
+-        scheduler.Record([params, clear](vk::CommandBuffer cmdbuf) {
 +        // RewindBox (tiled GPUs): a clear of the whole first level of a 2D image waits for the
 +        // next command; the render pass that begins next on it takes it as its load operation
 +        // (RenderManager::DeferClear). Frame clears (memory fills of the color and depth
@@ -1944,10 +2660,12 @@ index 62c577d..f975e63 100644
 +            });
 +            return true;
 +        }
-         scheduler.Record([params, clear](vk::CommandBuffer cmdbuf) {
++        ResolveClears({&surface});
++        scheduler.RecordIndependent([params, clear](vk::CommandBuffer cmdbuf) {
              const vk::ImageSubresourceRange range = {
                  .aspectMask = params.aspect,
-@@ -419,6 +445,7 @@ bool TextureRuntime::ClearTexture(Surface& surface, const VideoCore::TextureClea
+                 .baseMipLevel = clear.texture_level,
+@@ -419,6 +448,7 @@ bool TextureRuntime::ClearTexture(Surface& surface, const VideoCore::TextureClea
  
  void TextureRuntime::ClearTextureWithRenderpass(Surface& surface,
                                                  const VideoCore::TextureClear& clear) {
@@ -1955,7 +2673,20 @@ index 62c577d..f975e63 100644
      const bool is_color = surface.type != VideoCore::SurfaceType::Depth &&
                            surface.type != VideoCore::SurfaceType::DepthStencil;
  
-@@ -508,6 +535,7 @@ void TextureRuntime::ClearTextureWithRenderpass(Surface& surface,
+@@ -438,7 +468,11 @@ void TextureRuntime::ClearTextureWithRenderpass(Surface& surface,
+     const vk::Framebuffer framebuffer =
+         surface.Framebuffer((surface.GetSampleCount() > 1) ? Type::MultiSampled : Type::Current);
+ 
+-    scheduler.Record([params, is_color, clear, render_pass, framebuffer](vk::CommandBuffer cmdbuf) {
++    // RewindBox: the render pass begins and ends in this command; held clears of other images
++    // keep waiting.
++    ResolveClears({&surface});
++    scheduler.RecordIndependent([params, is_color, clear, render_pass,
++                                 framebuffer](vk::CommandBuffer cmdbuf) {
+         const vk::AccessFlags access_flag =
+             is_color ? vk::AccessFlagBits::eColorAttachmentRead |
+                            vk::AccessFlagBits::eColorAttachmentWrite
+@@ -508,6 +542,7 @@ void TextureRuntime::ClearTextureWithRenderpass(Surface& surface,
  bool TextureRuntime::CopyTextures(Surface& source, Surface& dest,
                                    std::span<const VideoCore::TextureCopy> copies) {
      renderpass_cache.EndRendering();
@@ -1963,7 +2694,17 @@ index 62c577d..f975e63 100644
  
      const RecordParams params = {
          .aspect = source.Aspect(),
-@@ -609,6 +637,7 @@ bool TextureRuntime::CopyTextures(Surface& source, Surface& dest,
+@@ -542,7 +577,8 @@ bool TextureRuntime::CopyTextures(Surface& source, Surface& dest,
+         };
+     });
+ 
+-    scheduler.Record([params, copies = std::move(vk_copies)](vk::CommandBuffer cmdbuf) {
++    ResolveClears({&source, &dest});
++    scheduler.RecordIndependent([params, copies = std::move(vk_copies)](vk::CommandBuffer cmdbuf) {
+         const bool self_copy = params.src_image == params.dst_image;
+         const vk::ImageLayout new_src_layout =
+             self_copy ? vk::ImageLayout::eGeneral : vk::ImageLayout::eTransferSrcOptimal;
+@@ -609,6 +645,7 @@ bool TextureRuntime::CopyTextures(Surface& source, Surface& dest,
  
  bool TextureRuntime::BlitTextures(Surface& source, Surface& dest,
                                    const VideoCore::TextureBlit& blit) {
@@ -1971,7 +2712,311 @@ index 62c577d..f975e63 100644
      const bool is_depth_stencil = source.type == VideoCore::SurfaceType::DepthStencil;
      const auto& depth_traits = instance.GetTraits(source.pixel_format);
      if (is_depth_stencil && !depth_traits.blit_support) {
-@@ -909,6 +938,8 @@ Surface::Surface(TextureRuntime& runtime_, const VideoCore::SurfaceBase& surface
+@@ -636,7 +673,8 @@ bool TextureRuntime::BlitTextures(Surface& source, Surface& dest,
+         .dst_image = dest.Image(),
+     };
+ 
+-    scheduler.Record([params, blit](vk::CommandBuffer cmdbuf) {
++    ResolveClears({&source, &dest});
++    scheduler.RecordIndependent([params, blit](vk::CommandBuffer cmdbuf) {
+         const std::array source_offsets = {
+             vk::Offset3D{static_cast<s32>(blit.src_rect.left),
+                          static_cast<s32>(blit.src_rect.bottom), 0},
+@@ -759,6 +797,202 @@ bool TextureRuntime::NeedsConversion(const Surface& surface) const {
+            traits.aspect != (vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil);
+ }
+ 
++void TextureRuntime::ResolveClears(std::initializer_list<const Surface*> surfaces) {
++    if (!scheduler.IsBeforeRecordPending()) {
++        return; // nothing held back
++    }
++    boost::container::small_vector<vk::Image, 2 * Type::Num> images;
++    for (const Surface* surface : surfaces) {
++        for (const Handle& handle : surface->handles) {
++            if (handle.image) {
++                images.push_back(handle.image);
++            }
++        }
++    }
++    renderpass_cache.FlushDeferredClears(images);
++}
++
++void TextureRuntime::NoteRetainedSurface() noexcept {
++    RewindBoxPerf::counters.retained++;
++}
++
++void TextureRuntime::Retire(Handle&& handle) {
++    // Commands recorded until now may still use the images: the same rule as the rasterizer
++    // cache's garbage collector (RunGarbageCollector).
++    retired.emplace_back(GetResourceTick(), std::move(handle));
++    CollectRetired();
++}
++
++namespace {
++u64 StorageHintKey(PAddr addr, u32 width, u32 height) {
++    return (u64{addr} << 32) ^ (u64{width} << 16) ^ u64{height};
++}
++} // Anonymous namespace
++
++void TextureRuntime::NoteShaderStorage(PAddr addr, u32 width, u32 height) {
++    if (storage_hints.size() < 4096) {
++        storage_hints.insert(StorageHintKey(addr, width, height));
++    }
++}
++
++bool TextureRuntime::WantsShaderStorage(PAddr addr, u32 width, u32 height) const {
++    return !storage_hints.empty() && storage_hints.contains(StorageHintKey(addr, width, height));
++}
++
++void TextureRuntime::CollectRetired() {
++    if (retired.empty()) {
++        return;
++    }
++    const u64 free_tick = GetResourceFreeTick();
++    while (!retired.empty() && free_tick > retired.front().first) {
++        retired.pop_front();
++    }
++}
++
++vk::ImageUsageFlags Surface::ImageUsage(bool with_storage) const noexcept {
++    vk::ImageUsageFlags usage = traits.usage & ~vk::ImageUsageFlagBits::eStorage;
++    // Ensure color formats have the color attachment bit set for framebuffers
++    if (traits.aspect & vk::ImageAspectFlagBits::eColor) {
++        usage |= vk::ImageUsageFlagBits::eColorAttachment;
++    }
++    if (with_storage && traits.native == vk::Format::eR8G8B8A8Unorm && traits.storage_support) {
++        usage |= vk::ImageUsageFlagBits::eStorage;
++    }
++    return usage;
++}
++
++vk::ImageCreateFlags Surface::ImageFlags(bool with_storage) const noexcept {
++    vk::ImageCreateFlags flags{};
++    if (texture_type == VideoCore::TextureType::CubeMap) {
++        flags |= vk::ImageCreateFlagBits::eCubeCompatible;
++    }
++    if (with_storage && traits.native == vk::Format::eR8G8B8A8Unorm) {
++        // R32Uint views (StorageView) for the atomic shadow writes and reads.
++        flags |= vk::ImageCreateFlagBits::eMutableFormat;
++    }
++    return flags;
++}
++
++bool Surface::EnsureShaderStorage() {
++    if (shader_storage || traits.native != vk::Format::eR8G8B8A8Unorm) {
++        return false;
++    }
++    shader_storage = true;
++    runtime.NoteShaderStorage(addr, width, height);
++    if (!handles[Type::Base]) {
++        return false;
++    }
++
++    runtime.renderpass_cache.EndRendering();
++    runtime.ResolveClears({this});
++
++    const vk::ImageCreateFlags flags = ImageFlags(true);
++    const vk::ImageUsageFlags usage = ImageUsage(true);
++    const bool need_format_list = instance.IsImageFormatListSupported();
++    const vk::PipelineStageFlags pipeline_flags = PipelineStageFlags();
++    const vk::AccessFlags access = AccessFlags();
++    const vk::ImageAspectFlags aspect = Aspect();
++
++    for (const Type type : {Type::Base, Type::Scaled}) {
++        if (!handles[type]) {
++            continue;
++        }
++        Handle fresh{instance};
++        fresh.Create(handles[type].width, handles[type].height, handles[type].levels, texture_type,
++                     traits.native, vk::SampleCountFlagBits::e1, usage, flags, aspect,
++                     need_format_list, DebugName(type == Type::Scaled));
++
++        scheduler.RecordIndependent([src_image = handles[type].image, dst_image = fresh.image,
++                                     width = handles[type].width, height = handles[type].height,
++                                     levels = handles[type].levels,
++                                     layers = handles[type].layers, aspect, pipeline_flags,
++                                     access](vk::CommandBuffer cmdbuf) {
++            const vk::ImageSubresourceRange range = {
++                .aspectMask = aspect,
++                .baseMipLevel = 0,
++                .levelCount = levels,
++                .baseArrayLayer = 0,
++                .layerCount = layers,
++            };
++            const std::array pre_barriers = {
++                vk::ImageMemoryBarrier{
++                    .srcAccessMask = access,
++                    .dstAccessMask = vk::AccessFlagBits::eTransferRead,
++                    .oldLayout = vk::ImageLayout::eGeneral,
++                    .newLayout = vk::ImageLayout::eTransferSrcOptimal,
++                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++                    .image = src_image,
++                    .subresourceRange = range,
++                },
++                vk::ImageMemoryBarrier{
++                    .srcAccessMask = vk::AccessFlagBits::eNone,
++                    .dstAccessMask = vk::AccessFlagBits::eTransferWrite,
++                    .oldLayout = vk::ImageLayout::eUndefined,
++                    .newLayout = vk::ImageLayout::eTransferDstOptimal,
++                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++                    .image = dst_image,
++                    .subresourceRange = range,
++                },
++            };
++            const std::array post_barriers = {
++                vk::ImageMemoryBarrier{
++                    .srcAccessMask = vk::AccessFlagBits::eTransferRead,
++                    .dstAccessMask = vk::AccessFlagBits::eNone,
++                    .oldLayout = vk::ImageLayout::eTransferSrcOptimal,
++                    .newLayout = vk::ImageLayout::eGeneral,
++                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++                    .image = src_image,
++                    .subresourceRange = range,
++                },
++                vk::ImageMemoryBarrier{
++                    .srcAccessMask = vk::AccessFlagBits::eTransferWrite,
++                    .dstAccessMask = access,
++                    .oldLayout = vk::ImageLayout::eTransferDstOptimal,
++                    .newLayout = vk::ImageLayout::eGeneral,
++                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
++                    .image = dst_image,
++                    .subresourceRange = range,
++                },
++            };
++            boost::container::small_vector<vk::ImageCopy, 8> copies;
++            for (u32 level = 0; level < levels; level++) {
++                const vk::ImageSubresourceLayers layer_range = {
++                    .aspectMask = aspect,
++                    .mipLevel = level,
++                    .baseArrayLayer = 0,
++                    .layerCount = layers,
++                };
++                copies.push_back(vk::ImageCopy{
++                    .srcSubresource = layer_range,
++                    .srcOffset = {0, 0, 0},
++                    .dstSubresource = layer_range,
++                    .dstOffset = {0, 0, 0},
++                    .extent = {std::max(width >> level, 1u), std::max(height >> level, 1u), 1},
++                });
++            }
++            cmdbuf.pipelineBarrier(pipeline_flags | vk::PipelineStageFlagBits::eTopOfPipe,
++                                   vk::PipelineStageFlagBits::eTransfer,
++                                   vk::DependencyFlagBits::eByRegion, {}, {}, pre_barriers);
++            cmdbuf.copyImage(src_image, vk::ImageLayout::eTransferSrcOptimal, dst_image,
++                             vk::ImageLayout::eTransferDstOptimal, copies);
++            cmdbuf.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, pipeline_flags,
++                                   vk::DependencyFlagBits::eByRegion, {}, {}, post_barriers);
++        });
++
++        runtime.Retire(std::move(handles[type]));
++        handles[type] = std::move(fresh);
++    }
++
++    // Framebuffers keyed on the old generation are never used again (RasterizerCache).
++    view_generation++;
++    RewindBoxPerf::counters.migrated++;
++    return true;
++}
++
+ Surface::Surface(TextureRuntime& runtime_, const VideoCore::SurfaceParams& params,
+                  const VideoCore::SurfaceFlagBits& initial_flag_bits)
+     : SurfaceBase{params, initial_flag_bits}, runtime{runtime_}, instance{runtime_.GetInstance()},
+@@ -769,17 +1003,20 @@ Surface::Surface(TextureRuntime& runtime_, const VideoCore::SurfaceParams& param
+         return;
+     }
+ 
+-    bool is_mutable = traits.native == vk::Format::eR8G8B8A8Unorm;
+-
+     if (True(flags & VideoCore::SurfaceFlagBits::ShadowSource) &&
+         traits.native != vk::Format::eR8G8B8A8Unorm) {
+         // If the surface is a shadow source, it needs conversion
+         // to be forced as it always has to be RGBA8
+         traits = instance.GetTraits(VideoCore::PixelFormat::RGBA8);
+         traits.needs_conversion = true;
+-        is_mutable = true;
+     }
+ 
++    // RewindBox (Apple GPUs): only shadow maps get the storage usage and the R32 view format
++    // from the start (EnsureShaderStorage gives them later to a surface that needs them).
++    shader_storage = traits.native == vk::Format::eR8G8B8A8Unorm &&
++                     (True(flags & VideoCore::SurfaceFlagBits::ShadowSource) ||
++                      runtime.WantsShaderStorage(addr, width, height));
++
+     const vk::Format format = traits.native;
+ 
+     ASSERT_MSG(format != vk::Format::eUndefined && levels >= 1,
+@@ -787,28 +1024,9 @@ Surface::Surface(TextureRuntime& runtime_, const VideoCore::SurfaceParams& param
+ 
+     boost::container::static_vector<vk::Image, 3> raw_images;
+ 
+-    vk::ImageCreateFlags flags{};
+-    if (texture_type == VideoCore::TextureType::CubeMap) {
+-        flags |= vk::ImageCreateFlagBits::eCubeCompatible;
+-    }
+-    if (is_mutable) {
+-        flags |= vk::ImageCreateFlagBits::eMutableFormat;
+-    }
+-
+-    // Ensure color formats have the color attachment bit set for framebuffers
+-    auto usage = traits.usage;
+-    const bool is_color =
+-        (traits.aspect & vk::ImageAspectFlagBits::eColor) != vk::ImageAspectFlags{};
+-    if (is_color) {
+-        usage |= vk::ImageUsageFlagBits::eColorAttachment;
+-    }
+-    if (traits.native == vk::Format::eR8G8B8A8Unorm && traits.storage_support) {
+-        // Add Storage-usage support when available in case it is found out later that this is a
+-        // shadow-source texture that will get used in the utility descriptor-set
+-        usage |= vk::ImageUsageFlagBits::eStorage;
+-    }
+-
+-    const bool need_format_list = is_mutable && instance.IsImageFormatListSupported();
++    const vk::ImageCreateFlags flags = ImageFlags(shader_storage);
++    const vk::ImageUsageFlags usage = ImageUsage(shader_storage);
++    const bool need_format_list = shader_storage && instance.IsImageFormatListSupported();
+     handles[Type::Base].Create(width, height, levels, texture_type, format,
+                                vk::SampleCountFlagBits::e1, usage, flags, traits.aspect,
+                                need_format_list, DebugName(false));
+@@ -826,15 +1044,23 @@ Surface::Surface(TextureRuntime& runtime_, const VideoCore::SurfaceParams& param
+     if (sample_count > 1) {
+         handles[Type::MultiSampled].Create(
+             GetScaledWidth(), GetScaledHeight(), levels, texture_type, format,
+-            vk::SampleCountFlagBits(sample_count), traits.usage, flags, traits.aspect,
++            vk::SampleCountFlagBits(sample_count),
++            traits.usage & ~vk::ImageUsageFlagBits::eStorage, flags, traits.aspect,
+             need_format_list, DebugName(true, false, sample_count));
+         raw_images.emplace_back(handles[Type::MultiSampled].image);
+     }
+ 
+     current = res_scale != 1 ? Type::Scaled : Type::Base;
+ 
++    RewindBoxPerf::counters.created++;
++    RewindBoxPerf::counters.created_bytes +=
++        u64{GetInternalBytesPerPixel()} *
++        (u64{width} * height + (res_scale != 1 ? u64{GetScaledWidth()} * GetScaledHeight() : 0) +
++         (sample_count > 1 ? u64{GetScaledWidth()} * GetScaledHeight() * sample_count : 0));
++
++    // New images: no clear can be held back for them.
+     runtime.renderpass_cache.EndRendering();
+-    scheduler.Record([raw_images, aspect = traits.aspect](vk::CommandBuffer cmdbuf) {
++    scheduler.RecordIndependent([raw_images, aspect = traits.aspect](vk::CommandBuffer cmdbuf) {
+         std::array<vk::ImageMemoryBarrier, 4> barriers;
+         MakeInitBarriers(aspect, raw_images, barriers);
+         cmdbuf.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe,
+@@ -893,7 +1119,7 @@ Surface::Surface(TextureRuntime& runtime_, const VideoCore::SurfaceBase& surface
+     current = res_scale != 1 ? Type::Scaled : Type::Base;
+ 
+     runtime.renderpass_cache.EndRendering();
+-    scheduler.Record([raw_images, aspect = traits.aspect](vk::CommandBuffer cmdbuf) {
++    scheduler.RecordIndependent([raw_images, aspect = traits.aspect](vk::CommandBuffer cmdbuf) {
+         std::array<vk::ImageMemoryBarrier, 4> barriers;
+         MakeInitBarriers(aspect, raw_images, barriers);
+         cmdbuf.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe,
+@@ -909,6 +1135,8 @@ Surface::Surface(TextureRuntime& runtime_, const VideoCore::SurfaceBase& surface
  void Surface::Upload(const VideoCore::BufferTextureCopy& upload,
                       const VideoCore::StagingData& staging) {
      runtime.renderpass_cache.EndRendering();
@@ -1980,7 +3025,19 @@ index 62c577d..f975e63 100644
  
      const RecordParams params = {
          .aspect = Aspect(),
-@@ -1070,6 +1101,7 @@ void Surface::UploadCustom(const VideoCore::Material* material, u32 level) {
+@@ -917,8 +1145,9 @@ void Surface::Upload(const VideoCore::BufferTextureCopy& upload,
+         .src_image = Image(Type::Base),
+     };
+ 
+-    scheduler.Record([buffer = runtime.upload_buffer.Handle(), format = traits.native, params,
+-                      staging, upload](vk::CommandBuffer cmdbuf) {
++    runtime.ResolveClears({this});
++    scheduler.RecordIndependent([buffer = runtime.upload_buffer.Handle(), format = traits.native,
++                                 params, staging, upload](vk::CommandBuffer cmdbuf) {
+         boost::container::static_vector<vk::BufferImageCopy, 2> buffer_image_copies;
+ 
+         const auto rect = upload.texture_rect;
+@@ -1070,6 +1299,7 @@ void Surface::UploadCustom(const VideoCore::Material* material, u32 level) {
  
  void Surface::Download(const VideoCore::BufferTextureCopy& download,
                         const VideoCore::StagingData& staging) {
@@ -1988,11 +3045,200 @@ index 62c577d..f975e63 100644
      SCOPE_EXIT({
          scheduler.Finish();
          runtime.download_buffer.Commit(staging.size);
+@@ -1155,26 +1385,27 @@ void Surface::Download(const VideoCore::BufferTextureCopy& download,
+ }
+ 
+ void Surface::ScaleUp(u32 new_scale, u8 new_sample_count) {
+-    const bool is_mutable = pixel_format == VideoCore::PixelFormat::RGBA8;
+-
+-    vk::ImageCreateFlags flags{};
+-    if (texture_type == VideoCore::TextureType::CubeMap) {
+-        flags |= vk::ImageCreateFlagBits::eCubeCompatible;
+-    }
+-    if (is_mutable) {
+-        flags |= vk::ImageCreateFlagBits::eMutableFormat;
+-    }
++    // RewindBox: the same usage as the base image (storage and R32 views for shadow maps only).
++    const vk::ImageCreateFlags flags = ImageFlags(shader_storage);
++    const bool need_format_list = shader_storage && instance.IsImageFormatListSupported();
+ 
+     const bool res_scale_modified = res_scale != new_scale;
+     if (res_scale_modified && new_scale > 1) {
+         res_scale = new_scale;
+ 
++        if (handles[Type::Scaled]) {
++            runtime.ResolveClears({this});
++            runtime.Retire(std::move(handles[Type::Scaled]));
++        }
+         handles[Type::Scaled].Create(GetScaledWidth(), GetScaledHeight(), levels, texture_type,
+-                                     traits.native, vk::SampleCountFlagBits::e1, traits.usage,
+-                                     flags, traits.aspect, false, DebugName(true));
++                                     traits.native, vk::SampleCountFlagBits::e1,
++                                     ImageUsage(shader_storage), flags, traits.aspect,
++                                     need_format_list, DebugName(true));
+         current = Type::Scaled;
+ 
+-        handles[Type::Copy].Destroy();
++        if (handles[Type::Copy]) {
++            runtime.Retire(std::move(handles[Type::Copy]));
++        }
+ 
+         runtime.renderpass_cache.EndRendering();
+         scheduler.Record(
+@@ -1199,9 +1430,14 @@ void Surface::ScaleUp(u32 new_scale, u8 new_sample_count) {
+ 
+     if ((res_scale_modified || sample_count != new_sample_count) && new_sample_count > 1) {
+         sample_count = new_sample_count;
++        if (handles[Type::MultiSampled]) {
++            runtime.ResolveClears({this});
++            runtime.Retire(std::move(handles[Type::MultiSampled]));
++        }
+         handles[Type::MultiSampled].Create(
+             GetScaledWidth(), GetScaledHeight(), levels, texture_type, traits.native,
+-            vk::SampleCountFlagBits(sample_count), traits.usage, flags, traits.aspect, false,
++            vk::SampleCountFlagBits(sample_count), traits.usage & ~vk::ImageUsageFlagBits::eStorage,
++            flags, traits.aspect, need_format_list,
+             DebugName(res_scale != 1, false, sample_count));
+ 
+         // The multi-sampled image is just a transient image that is almost always immediately
+@@ -1266,8 +1502,11 @@ vk::ImageView Surface::CopyImageView() noexcept {
+         if (texture_type == VideoCore::TextureType::CubeMap) {
+             flags |= vk::ImageCreateFlagBits::eCubeCompatible;
+         }
++        // RewindBox: sampled only, never written by shaders (compressible on Apple GPUs).
+         copy_handle.Create(GetScaledWidth(), GetScaledHeight(), levels, texture_type, traits.native,
+-                           vk::SampleCountFlagBits::e1, traits.usage, flags, traits.aspect, false);
++                           vk::SampleCountFlagBits::e1,
++                           traits.usage & ~vk::ImageUsageFlagBits::eStorage, flags, traits.aspect,
++                           false);
+         copy_layout = vk::ImageLayout::eUndefined;
+     }
+ 
+@@ -1281,8 +1520,11 @@ vk::ImageView Surface::CopyImageView() noexcept {
+         .dst_image = copy_handle.image,
+     };
+ 
+-    scheduler.Record([params, copy_layout, levels = this->levels, width = GetScaledWidth(),
+-                      height = GetScaledHeight()](vk::CommandBuffer cmdbuf) {
++    RewindBoxPerf::counters.fb_copies++;
++    runtime.ResolveClears({this});
++    scheduler.RecordIndependent([params, copy_layout, levels = this->levels,
++                                 width = GetScaledWidth(),
++                                 height = GetScaledHeight()](vk::CommandBuffer cmdbuf) {
+         std::array pre_barriers = {
+             vk::ImageMemoryBarrier{
+                 .srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite,
+@@ -1444,8 +1686,10 @@ void Surface::BlitScale(const VideoCore::TextureBlit& blit, bool up_scale) {
+     const auto src_type = up_scale ? Type::Base : Type::Scaled;
+     const auto dst_type = up_scale ? Type::Scaled : Type::Base;
+ 
+-    scheduler.Record([src_image = Image(src_type), aspect = Aspect(), filter = vk::Filter::eNearest,
+-                      dst_image = Image(dst_type), blit](vk::CommandBuffer render_cmdbuf) {
++    runtime.ResolveClears({this});
++    scheduler.RecordIndependent([src_image = Image(src_type), aspect = Aspect(),
++                                 filter = vk::Filter::eNearest, dst_image = Image(dst_type),
++                                 blit](vk::CommandBuffer render_cmdbuf) {
+         const std::array source_offsets = {
+             vk::Offset3D{static_cast<s32>(blit.src_rect.left),
+                          static_cast<s32>(blit.src_rect.bottom), 0},
 diff --git a/src/video_core/renderer_vulkan/vk_texture_runtime.h b/src/video_core/renderer_vulkan/vk_texture_runtime.h
-index b10fd4d..d968b18 100644
+index b10fd4d..79ef1bf 100644
 --- a/src/video_core/renderer_vulkan/vk_texture_runtime.h
 +++ b/src/video_core/renderer_vulkan/vk_texture_runtime.h
-@@ -369,6 +369,15 @@ public:
+@@ -4,7 +4,11 @@
+ 
+ #pragma once
+ 
++#include <deque>
++#include <initializer_list>
+ #include <span>
++#include <unordered_set>
++#include <utility>
+ #include "video_core/rasterizer_cache/framebuffer_base.h"
+ #include "video_core/rasterizer_cache/rasterizer_cache_base.h"
+ #include "video_core/rasterizer_cache/surface_base.h"
+@@ -167,6 +171,24 @@ public:
+     /// Returns true if the provided pixel format needs convertion
+     bool NeedsConversion(const Surface& surface) const;
+ 
++    /// RewindBox: records the clears RenderManager holds back for the images of `surfaces`,
++    /// before a transfer command that touches them (Scheduler::RecordIndependent).
++    void ResolveClears(std::initializer_list<const Surface*> surfaces);
++
++    /// RewindBox: a render target stayed registered across a memory fill (RasterizerCache).
++    void NoteRetainedSurface() noexcept;
++
++    /// RewindBox: keeps replaced images alive until the GPU is done with them.
++    void Retire(Handle&& handle);
++
++    /// RewindBox: destroys the retired images the GPU no longer uses.
++    void CollectRetired();
++
++    /// RewindBox: a surface of this address and size needed shader storage once; the next one
++    /// (a surface recreated every frame) gets it at creation instead of a copy.
++    void NoteShaderStorage(PAddr addr, u32 width, u32 height);
++    [[nodiscard]] bool WantsShaderStorage(PAddr addr, u32 width, u32 height) const;
++
+ private:
+     /// Clears a partial texture rect using a clear rectangle
+     void ClearTextureWithRenderpass(Surface& surface, const VideoCore::TextureClear& clear);
+@@ -179,6 +201,10 @@ private:
+     StreamBuffer upload_buffer;
+     StreamBuffer download_buffer;
+     u32 num_swapchain_images;
++    /// RewindBox: replaced images with the tick of their last possible use.
++    std::deque<std::pair<u64, Handle>> retired;
++    /// RewindBox: keys (address, width, height) of the surfaces given shader storage.
++    std::unordered_set<u64> storage_hints;
+ };
+ 
+ class Surface : public VideoCore::SurfaceBase {
+@@ -248,10 +274,25 @@ public:
+ 
+     /// Returns the R32 image view used for atomic load/store.
+     vk::ImageView StorageView() noexcept {
++        EnsureShaderStorage();
+         is_storage = true;
+         return ImageView(ViewType::Storage);
+     }
+ 
++    /// RewindBox (Apple GPUs): RGBA8 images take the storage usage and an R32 view format only
++    /// when the surface is a shadow map (or the destination of a depth conversion): Metal never
++    /// compresses a texture that can be written by shaders or viewed in another format, and the
++    /// other render targets are most of a frame's memory traffic at a high resolution. A surface
++    /// that turns out to need them gets new images with a copy of its contents; the old ones are
++    /// retired until the GPU is done with them, and view_generation changes so no framebuffer
++    /// keeps their views. True when the images changed.
++    bool EnsureShaderStorage();
++
++    /// RewindBox: true when the images take shader writes and R32 views.
++    [[nodiscard]] bool HasShaderStorage() const noexcept {
++        return shader_storage;
++    }
++
+     /// Uploads pixel data in staging to a rectangle region of the surface texture
+     void Upload(const VideoCore::BufferTextureCopy& upload, const VideoCore::StagingData& staging);
+ 
+@@ -275,6 +316,10 @@ public:
+     vk::PipelineStageFlags PipelineStageFlags() const noexcept;
+ 
+ private:
++    /// RewindBox: usage and create flags of the base and scaled images.
++    [[nodiscard]] vk::ImageUsageFlags ImageUsage(bool with_storage) const noexcept;
++    [[nodiscard]] vk::ImageCreateFlags ImageFlags(bool with_storage) const noexcept;
++
+     /// Performs blit between the scaled/unscaled images
+     void BlitScale(const VideoCore::TextureBlit& blit, bool up_scale);
+ 
+@@ -294,6 +339,7 @@ public:
+     vk::UniqueImageView storage_view;
+     bool is_framebuffer{};
+     bool is_storage{};
++    bool shader_storage{};
+ };
+ 
+ class Framebuffer : public VideoCore::FramebufferParams {
+@@ -369,6 +415,15 @@ public:
          return sample_count;
      }
  
