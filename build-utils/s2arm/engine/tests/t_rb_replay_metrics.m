@@ -64,13 +64,13 @@ static void rbm_pass_store(int depth, int index, int action) {   // a deferred s
         if (depth ? is_depth : (!is_depth && c++ == index)) { rbm_pass.store[k] = (is_depth ? 100 : 0) + action; return; } }
 }
 // Per-pass attachment trace of the frame being replayed (reset by main between frames, after the queue is idle): canonical texture, size, load / store actions
-static char rbm_trace[16384]; static size_t rbm_trace_n;
+static char rbm_ptrace[16384]; static size_t rbm_ptrace_n;
 static void rbm_pass_end(void) {
-    if (rbm_pass.n && rbm_trace_n < sizeof rbm_trace - 256) rbm_trace_n += (size_t)snprintf(rbm_trace + rbm_trace_n, sizeof rbm_trace - rbm_trace_n, " |");
+    if (rbm_pass.n && rbm_ptrace_n < sizeof rbm_ptrace - 256) rbm_ptrace_n += (size_t)snprintf(rbm_ptrace + rbm_ptrace_n, sizeof rbm_ptrace - rbm_ptrace_n, " |");
     for (int k = 0; k < rbm_pass.n; k++) { int s = rbm_pass.store[k] % 100; id<MTLTexture> t = rbm_pass.tex[k];
         if (s == MTLStoreActionStore || s == MTLStoreActionStoreAndMultisampleResolve) rbm_store_bytes += t.width * t.height * rbm_bpp(t);
-        if (rbm_trace_n < sizeof rbm_trace - 96)   // tN:WxH L<load> S<store>, load 0 dont-care 1 load 2 clear, store 0 dont-care 1 store
-            rbm_trace_n += (size_t)snprintf(rbm_trace + rbm_trace_n, sizeof rbm_trace - rbm_trace_n, " t%llu:%lux%lu%s L%d S%d", (unsigned long long)rbm_id((uint64_t)(uintptr_t)(__bridge void *)t),
+        if (rbm_ptrace_n < sizeof rbm_ptrace - 96)   // tN:WxH L<load> S<store>, load 0 dont-care 1 load 2 clear, store 0 dont-care 1 store
+            rbm_ptrace_n += (size_t)snprintf(rbm_ptrace + rbm_ptrace_n, sizeof rbm_ptrace - rbm_ptrace_n, " t%llu:%lux%lu%s L%d S%d", (unsigned long long)rbm_id((uint64_t)(uintptr_t)(__bridge void *)t),
                                             (unsigned long)t.width, (unsigned long)t.height, rbm_pass.store[k] >= 100 ? "d" : "", rbm_pass.load[k], s); }
     rbm_pass.n = 0;
 }
@@ -342,7 +342,7 @@ int main(int argc, char **argv) { @autoreleasepool {
     uint64_t base_put[RBM_OPS] = {0}, base_exec[RBM_OPS] = {0}, pass0 = 0, draw0 = 0, bwl0 = 0, bws0 = 0, ar0 = 0, arb0 = 0, rs0 = 0, d0 = 0, k0 = 0, ld0 = 0, st0 = 0, cl0 = 0, dc0 = 0, cp0 = 0, fl0 = 0, cut0 = 0, pcut0 = 0;
     double frame_ms[64]; int nfm = 0;   // wall time of each measured frame, submit to queue finish (Mac runner: CPU encode + GPU + idle, not an iPhone frame time)
     for (int f = 0; f <= frames; f++) {
-        rbm_trace_n = 0; rbm_trace[0] = 0;   // the queue is idle here: the trace holds the last frame only
+        rbm_ptrace_n = 0; rbm_ptrace[0] = 0;   // the queue is idle here: the trace holds the last frame only
         if (f == 1) { for (int i = 0; i < RBM_OPS; i++) { base_put[i] = atomic_load(&rbm_put_n[i]); base_exec[i] = rbm_exec_n[i]; }
             pass0 = g_stat_pass; draw0 = g_stat_draw; bwl0 = g_bw_load; bws0 = g_bw_store; ar0 = rbm_arena_calls; arb0 = rbm_arena_bytes; rs0 = rbm_res_adds;
             cut0 = g_cuts; pcut0 = g_pass_cuts; d0 = rbm_draws; k0 = rbm_dispatches; ld0 = rbm_load_bytes; st0 = rbm_store_bytes; cl0 = rbm_clear_atts; dc0 = rbm_dontcare_atts; cp0 = rbm_copy_bytes; fl0 = rbm_fill_bytes;
@@ -382,7 +382,7 @@ int main(int argc, char **argv) { @autoreleasepool {
            PF(rbm_arena_calls - ar0), PF(rbm_arena_bytes - arb0), PF(rbm_res_adds - rs0), PF(g_stat_pass - pass0), PF(g_stat_draw - draw0), PF(g_bw_load - bwl0), PF(g_bw_store - bws0), PF(g_cuts - cut0), PF(g_pass_cuts - pcut0),
            (unsigned long long)rbm_h, (unsigned long long)px, !memcmp(pr, ex, sizeof pr));
     printf("TIMES"); for (int i = 0; i < nfm; i++) printf(" %.4f", frame_ms[i]); printf("\n");
-    printf("PASSES%s\n", rbm_trace);
+    printf("PASSES%s\n", rbm_ptrace);
     printf("OPS");
     for (int i = 0; i < RBM_OPS; i++) if (pr[i]) printf(" %d:%llu", i, (unsigned long long)pr[i]);
     printf("\n");
