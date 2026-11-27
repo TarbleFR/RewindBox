@@ -1,0 +1,64 @@
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -263,6 +263,31 @@
+ int s2a_handle_peak(void) { return g_h_peak; }
+ int s2a_test_handle_used(void) { return g_h_used; }
+ static struct { uint32_t kind; uint16_t gen; void *obj; uint64_t cookie; } g_h[MAX_H];
++// Handle allocation and retirement hold G. Keep the first-free order in
++// each deterministic partition, including reuse after a failed request.
++_Static_assert(MAX_H % 128 == 0, "handle partitions must end on bitmap word boundaries");
++static uint64_t g_h_live[MAX_H / 64];
++
++static int h_first_free(int lo, int hi) {
++    static int indexed = -1;
++    if (indexed < 0) {
++        const char *e = getenv("S2A_RB_HANDLE_BITMAP");
++        indexed = !(e && !strcmp(e, "0"));
++    }
++    if (!indexed) {
++        for (int i = lo; i < hi; i++) if (!g_h[i].kind) return i;
++        return hi;
++    }
++
++    uint64_t allowed = UINT64_MAX << (lo % 64);
++    for (int word = lo / 64; word < hi / 64; word++) {
++        uint64_t available = ~g_h_live[word] & allowed;
++        if (available) return word * 64 + __builtin_ctzll(available);
++        allowed = UINT64_MAX;
++    }
++    return hi;
++}
++
+ static uint16_t g_gen;
+ #ifndef S2A_UNIT_TEST
+ int s2a_det_mode(void), s2a_det_in_turn(void);
+@@ -279,9 +304,11 @@
+ #ifndef S2A_UNIT_TEST
+     if (s2a_det_mode()) { if (s2a_det_in_turn()) hi = MAX_H / 2; else { lo = MAX_H / 2; gen = &g_gen_async; } }
+ #endif
+-    for (int i = lo; i < hi; i++) if (!g_h[i].kind) {
++    int i = h_first_free(lo, hi);
++    if (i < hi) {
+         if (!++*gen || *gen > 0x7fff) *gen = 1;
+         g_h[i].kind = kind; g_h[i].gen = *gen; g_h[i].obj = obj; g_h[i].cookie = cookie;
++        g_h_live[i / 64] |= UINT64_C(1) << (i % 64);
+         if (++g_h_used > g_h_peak) g_h_peak = g_h_used;
+         if (++g_kcnt[kind & 15] > g_kpeak[kind & 15]) g_kpeak[kind & 15] = g_kcnt[kind & 15];
+         return (uint32_t)*gen << 15 | (uint32_t)i;
+@@ -315,7 +342,14 @@
+     if (h == S2A_H_CUR_THREAD && kind == S2A_OBJ_THREAD) return thread_current_or_null();
+     int i = h_idx(h); return i && g_h[i].kind == kind ? g_h[i].obj : NULL;
+ }
+-static void h_free(int i) { if (g_h[i].kind) { g_h_used--; g_kcnt[g_h[i].kind & 15]--; } g_h[i].kind = 0; g_h[i].obj = NULL; g_h[i].cookie = 0; }
++static void h_free(int i) {
++    if (g_h[i].kind) {
++        g_h_live[i / 64] &= ~(UINT64_C(1) << (i % 64));
++        g_h_used--;
++        g_kcnt[g_h[i].kind & 15]--;
++    }
++    g_h[i].kind = 0; g_h[i].obj = NULL; g_h[i].cookie = 0;
++}
+ 
+ static int trace_on(void) { static int tr = -1; if (tr < 0) { const char *e = getenv("S2A_SVC_TRACE"); tr = e && *e == '1'; } return tr; }
+ static thr_t *cur(void) { thr_t *t = thread_current_or_null(); if (!t) die("非游戏线程调了线程类系统调用"); return t; }

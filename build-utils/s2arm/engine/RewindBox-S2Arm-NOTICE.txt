@@ -119,3 +119,7 @@ THE SOFTWARE.
 RewindBox patches 0472 and 0473 count newly mapped guest pages from the alias bitmap
 and skip empty shadow-directory blocks when gathering previous page protections.
 These runtime changes are provided under Apache-2.0.
+
+RewindBox patches 0474 and 0475 record uniform guest page groups together and
+use a bitmap to find the first free guest handle in its existing partition.
+These runtime changes are provided under Apache-2.0.

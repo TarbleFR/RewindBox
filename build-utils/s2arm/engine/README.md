@@ -821,3 +821,10 @@ Série `0468–0470` compilée ensemble sur `macos-15` et `macos-26` (run [`4598
 - **0473** (`runtime/src/far.c`) — Le relevé des protections avant une nouvelle allocation saute à la limite du bloc de 2 Mio quand son entrée est vide. Les protections des blocs existants, les opérations Mach et le retour arrière sont conservés. `S2A_RB_FAR_SKIP_EMPTY=0` rétablit les pas de 16 Kio.
 
 [Mesures CPU synthétiques, parité et limites](../../../docs/evidence/s2arm-runtime-0472-0473.md).
+
+### 0474–0475 — mise à jour des pages et allocation de handles
+
+- **0474** (`runtime/src/svc_mem.c`) — `MapPhysicalMemory` traite d’un bloc les groupes de 16 Kio intégralement libres ou déjà mappés. Les sous-pages partielles et les passages pouvant modifier le pic restent sur le chemin existant. `S2A_RB_PHYS_MARK_BULK=0` rétablit le parcours par sous-page.
+- **0475** (`runtime/src/thread.c`) — un bitmap de 1 Kio permet de trouver le premier handle libre par mot. Les codes de retour, générations et partitions déterministes restent identiques. `S2A_RB_HANDLE_BITMAP=0` rétablit la recherche linéaire.
+
+[Bancs CPU, parité et limites](../../../docs/evidence/s2arm-runtime-0474-0475.md).

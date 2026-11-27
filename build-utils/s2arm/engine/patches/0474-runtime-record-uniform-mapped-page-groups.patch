@@ -1,0 +1,80 @@
+diff --git a/runtime/src/svc_mem.c b/runtime/src/svc_mem.c
+--- a/runtime/src/svc_mem.c
++++ b/runtime/src/svc_mem.c
+@@ -1046,6 +1046,58 @@
+ static void zero_sub(uint64_t p, uint64_t we) {
+     memset(p < we ? (uint8_t *)p : s2a_far_g2h(p), 0, 0x1000);
+ }
++
++// Record the portions of the request that were newly mapped. The caller has
++// already established the backing and cleared any deferred whole-page zeros.
++static void phys_mark_new(uint64_t a, uint64_t size, uint64_t we) {
++    static int bulk = -1;
++    if (bulk < 0) {
++        const char *e = getenv("S2A_RB_PHYS_MARK_BULK");
++        bulk = !(e && !strcmp(e, "0"));
++    }
++    uint64_t run = 0;
++    uint8_t was = 0;
++    uint64_t end = a + size;
++    const uint8_t full = (1u << (HPG >> 12)) - 1u;
++    for (uint64_t p = a; p < end; p += 0x1000) {
++        uint8_t *m = amask_at(p);
++        uint64_t offset = p & (HPG - 1);
++        if (p == a || !offset) {
++            was = *m;
++            if (!offset && end - p >= HPG && bulk) {
++                if (!was && g_phys + HPG <= g_mem_peak) {
++                    // Empty groups are already zero. Use the subpage path
++                    // when peak accounting could run inside the group.
++                    *m = full;
++                    g_phys += HPG;
++                    if (!run) run = p;
++                    p += HPG - 0x1000;
++                    continue;
++                }
++                if (was == full) {
++                    if (run) {
++                        perm_set(run, p, -1);
++                        run = 0;
++                    }
++                    p += HPG - 0x1000;
++                    continue;
++                }
++            }
++        }
++        uint8_t bit = (uint8_t)(1u << (offset >> 12));
++        if (!(*m & bit)) {
++            if (was) zero_sub(p, we);
++            *m |= bit;
++            g_phys += 0x1000;
++            if (g_phys > g_mem_peak) mem_peak_note();
++            if (!run) run = p;
++        } else if (run) {
++            perm_set(run, p, -1);
++            run = 0;
++        }
++    }
++    if (run) perm_set(run, end, -1);
++}
+ #endif
+ // 地址 / 大小 / 回绕三项公共校验（Ryujinx Syscall 各内存调用开头同一套）：地址 4 KB 对齐 → 大小 4 KB 对齐且非零 → 不回绕
+ // 把 [src, src+n) 的同一批物理页共享映射到 dst（游戏地址 = 宿主地址），三者按平台宿主页对齐并按 prot 设权限。成功 0，否则 Horizon 错误码
+@@ -1867,16 +1919,7 @@
+             }
+             if (wl > lo && mprotect((void *)lo, wl - lo, PROT_READ | PROT_WRITE)) die("MapPhysicalMemory mprotect errno=%d", errno);
+             if (wl > lo) punch_zero_locked(lo, wl);   // #258：整宿主页原先全空、释放后待清零的，内容是旧的，先清零（下面按「原先全空 = 零」不再清）
+-            uint64_t run = 0;   // 新映射的连续子页起点：权限账按段清（已映射的子页保留游戏改过的权限）
+-            uint8_t was = 0;   // 本次调用之前这个宿主页的子页掩码：循环里会给 *m 置位，判「原先全空」必须看进来时的值
+-            for (uint64_t p = a; p < a + size; p += 0x1000) {   // 新映射的子页清零（真机新页是零页）；整宿主页原先全空的是解除时换上的新占位（pages_release），mprotect 放出来本来就是零
+-                uint8_t *m = amask_at(p), bit = (uint8_t)(1u << ((p & (HPG - 1)) >> 12));
+-                // 11-03 火纹：原先判 *m，同一宿主页前面的子页刚置过位，第 2–4 个子页都 memset，映射多少提交多少（起局一次映射约 9 GB → 足迹尖峰 9.3 GB，iPhone 6 GB 上限被杀）
+-                if (p == a || !(p & (HPG - 1))) was = *m;
+-                if (!(*m & bit)) { if (was) zero_sub(p, we); *m |= bit; g_phys += 0x1000; if (g_phys > g_mem_peak) mem_peak_note(); if (!run) run = p; }
+-                else if (run) { perm_set(run, p, -1); run = 0; }
+-            }
+-            if (run) perm_set(run, a + size, -1);
++            phys_mark_new(a, size, we);
+             if (a + size - L.alias_base > g_pk_alias_end) g_pk_alias_end = a + size - L.alias_base;
+         } else {
+             // Coalesce contiguous freed HPG pages into batched pages_release / s2a_far_release runs (splits at file/anon boundary so punch_defer_locked never falls back).
