@@ -42,7 +42,18 @@ Neuf paires alternées de 2 097 152 opérations donnent une médiane de 9,516 ns
 
 ### Exécution des bancs Apple
 
-Les premiers hôtes Metal 3 refusent les ensembles de résidence dont le banc historique dépend au démarrage. Le rendu est testé avec les ressources réelles déclarées auprès de chaque encodeur, comme dans le banc de rejeu NVN2 existant. Cette adaptation est limitée à la fixture et la preuve de compilation du moteur iPhoneOS reste distincte.
+Les premiers hôtes Metal 3 refusent les ensembles de résidence dont le banc historique dépend au démarrage. Le rendu est testé avec les ressources réelles déclarées auprès de chaque encodeur, comme dans le banc de rejeu NVN2 existant. Cette adaptation est limitée à la fixture. Le premier contrôle avec cette adaptation a révélé un cast ARC manquant dans le banc. Le [contrôle corrigé](https://github.com/TarbleFR/RewindBox/actions/runs/46035174782/job/140628639844) a réussi sur Apple Paravirtual Device en Metal 3.
+
+| Après 16 clears disjoints dans une scène D32S8 à deux mips | Témoin | Cache par sous-ressource |
+| --- | ---: | ---: |
+| Copies de profondeur | 17 | 1 |
+| Charge logique des snapshots | 1 360 octets | 80 octets |
+| Nouvelle copie après le clear chevauchant | 1 | 1 |
+| Contrôles indépendants réussis | 6/6 | 6/6 |
+
+Le test vérifie l’identifiant réellement utilisé par le fragment, puis chaque texel des deux plans du snapshot et des deux niveaux de l’atlas. Il confirme 16 copies évitées et la copie obligatoire pour le clear chevauchant. La durée et le débit GPU de cette scène n’ont pas été chronométrés. [Archive des preuves Apple](https://github.com/TarbleFR/RewindBox/actions/runs/46035174782/artifacts/15217180126).
+
+La [compilation et les contrôles d’export iPhoneOS](https://github.com/TarbleFR/RewindBox/actions/runs/46033595156/job/140623283698) ont réussi pour `a9513516` sur macOS 15. Le patch ultérieur 0523 modifie uniquement le banc macOS.
 
 ## Campagne sur iPhone
 
