@@ -332,6 +332,21 @@ jobs:
           dotnet build translator/dmsh_xlate/dmsh_xlate.csproj -c Release --nologo
           dotnet build graphics/tools/direct/tests/dsh_cmp/dsh_cmp.csproj -c Release --nologo
           python3 "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/test_wide_mem.py" "$PWD" | tee "$GITHUB_WORKSPACE/proof/wide-mem-checks.txt"
+      - name: Time S2A.Dsh shader passes A/B on the Mac GPU (same process, output parity)
+        if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-gpu-ab]')
+        working-directory: ${{ runner.temp }}/s2arm
+        env:
+          S2A_DEVELOPER_DIR: ${{ env.DEVELOPER_DIR }}
+          S2A_BUILD_CACHE: ${{ runner.temp }}/s2arm-build-cache
+          NUGET_PACKAGES: ${{ runner.temp }}/nuget
+        run: |
+          set -euo pipefail
+          test -f "$PWD/build/dsx/libdsx.dylib" || make -C graphics/dsx "$PWD/build/dsx/libdsx.dylib"
+          test -f graphics/tools/direct/tests/dsh_cmp/bin/Release/net10.0/dsh_cmp.dll || dotnet build graphics/tools/direct/tests/dsh_cmp/dsh_cmp.csproj -c Release --nologo
+          mkdir -p "$GITHUB_WORKSPACE/proof"
+          rc=0
+          python3 "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/gpu_ab.py" "$PWD" "$GITHUB_WORKSPACE/proof/gpu-ab" | tee "$GITHUB_WORKSPACE/proof/gpu-ab.txt" || rc=$?
+          case $rc in 0) ;; 77) echo "Metal device unavailable on runner" >> "$GITHUB_WORKSPACE/proof/gpu-ab.txt" ;; *) exit "$rc" ;; esac
       - name: Verify S2Arm global optimization patches (0396-0399) and Metal GPU execution
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-global-opt-check]')
         working-directory: ${{ runner.temp }}/s2arm
