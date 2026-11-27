@@ -13,7 +13,8 @@ import sys
 
 FLAGS = ("S2A_RB_REC_EARLY", "S2A_RB_REPLAY_WORKER", "S2A_RB_REPLAY_SCALAR_QUERIES", "S2A_RB_PARALLEL_TRACE")
 ARMS = {"baseline": (0, 0, 0, 0), "early": (1, 0, 0, 0), "worker": (0, 1, 0, 0),
-        "worker_scalar": (0, 1, 1, 0), "combined": (1, 1, 1, 0), "combined_trace": (1, 1, 1, 1)}
+        "worker_scalar": (0, 1, 1, 0), "combined": (1, 1, 1, 0), "combined_trace": (1, 1, 1, 1),
+        "baseline_trace": (0, 0, 0, 1)}
 FRAMES = 3
 ROUNDS = 4
 
@@ -62,6 +63,10 @@ def validate(out):
             cbs = sum(" event=cb " in s for s in events)
             if (tracing and (begins != 1 or not cbs)) or (not tracing and events):
                 raise ValueError(f"{name}.{run}: trace enable state differs; begins={begins}, cbs={cbs}")
+            if tracing:
+                frames = {int(re.search(r" frame=([0-9]+) ", s).group(1)) for s in events if " event=cb " in s}
+                if not set(range(1, FRAMES + 1)).issubset(frames):
+                    raise ValueError(f"{name}.{run}: missing measured frame IDs in callbacks: {frames}")
             if any(" status=error" in s for s in events):
                 raise ValueError(f"{name}.{run}: GPU feedback error")
             cb_counts.append(cbs)

@@ -667,6 +667,8 @@ int main(int argc, char **argv) { @autoreleasepool {
     double *frame_ms = calloc((size_t)frames, sizeof *frame_ms); REQUIRE(frame_ms);   // wall time of each measured frame, submit to queue finish (Mac runner: CPU encode + GPU + idle, not an iPhone frame time)
     NVNT_nvnDeviceGetTextureHandle scalar_query = rbm_candidate ? API(nvnDeviceGetTextureHandle) : NULL;
     for (int f = 0; f <= frames; f++) {
+        // The offscreen workload has no guest present to advance this counter.
+        if (rbm_candidate) nvn_be_set_frame((uint64_t)f);
         rbm_ptrace_n = 0; rbm_ptrace[0] = 0;   // the queue is idle here: the trace holds the last frame only
         if (f == 1) { for (int i = 0; i < RBM_OPS; i++) { base_put[i] = atomic_load(&rbm_put_n[i]); base_exec[i] = rbm_exec_n[i]; }
             empty_ds_base = g_rb_empty_ds_splits_saved;

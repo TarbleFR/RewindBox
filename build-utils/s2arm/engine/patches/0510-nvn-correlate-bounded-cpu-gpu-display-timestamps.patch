@@ -274,7 +274,8 @@ index 63ef027..601e479 100644
 @@ -30442,6 +30570,8 @@ static uint64_t present_enqueue(const tex_t *t, double period, const int crop[4]
      }
      if (atomic_load(&g_present_discard)) { pthread_mutex_unlock(&g_pq_mu); return 0; }
-     pq_item *it = &g_pq[g_pq_in % PQ]; *it = (pq_item){*t, period, atomic_load(&g_cur_frame), {0}, CACurrentMediaTime(), ev_val, display_hold};
+-    pq_item *it = &g_pq[g_pq_in % PQ]; *it = (pq_item){*t, period, atomic_load(&g_cur_frame), {0}, CACurrentMediaTime(), ev_val, display_hold};
++    pq_item *it = &g_pq[g_pq_in % PQ]; *it = (pq_item){.t=*t, .period=period, .frame=atomic_load(&g_cur_frame), .t_in=CACurrentMediaTime(), .ev_val=ev_val, .display_hold=display_hold};
 +    uint64_t session = atomic_load_explicit(&g_rb_pt.session, memory_order_acquire);
 +    if (session) it->trace_session = rb_pt_claim(&g_rb_pt, session, it->frame, &g_rb_pt.present, RB_PT_PRESENT_CAP);
      it->render_fence = ev_val ? 0 : nvn_be_last_fence();

@@ -325,7 +325,9 @@ jobs:
               echo "Unrecognized replay backend: $backend" >&2
               exit 1
             fi
-            python3 "$GITHUB_WORKSPACE/tools/s2arm_a18pro/parallelism/timeline.py" "$proof/parallel-replay/combined_trace.diagnostic.log" --timeline "$proof/parallel-timeline.json" > "$proof/parallel-frames.json"
+            for arm in baseline combined; do
+              python3 "$GITHUB_WORKSPACE/tools/s2arm_a18pro/parallelism/timeline.py" "$proof/parallel-replay/${arm}_trace.diagnostic.log" --timeline "$proof/parallel-timeline-$arm.json" > "$proof/parallel-frames-$arm.json"
+            done
           fi
       - name: Compare translated homebrew outputs to independent Vulkan reference bytes
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-homebrew-check]')

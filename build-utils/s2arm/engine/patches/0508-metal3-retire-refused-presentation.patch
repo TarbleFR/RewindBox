@@ -70,10 +70,95 @@ index 419c5ca..fb6e5f7 100644
  #if TARGET_OS_SIMULATOR   // The iOS simulator SDK has no presentation-time callback and no minimum display duration (used only for picture acceptance, display-link ticks are not counted)
      (void)period; [dr present];
 diff --git a/graphics/nvn/tests/t_nvn_gpu_halt.m b/graphics/nvn/tests/t_nvn_gpu_halt.m
-index bb23f63..4d64edf 100644
 --- a/graphics/nvn/tests/t_nvn_gpu_halt.m
 +++ b/graphics/nvn/tests/t_nvn_gpu_halt.m
-@@ -74,6 +74,9 @@ int main(void) {
+@@ -7,7 +7,7 @@
+ //   ③ 停后：旧队列真命令缓冲 cb_put / cb_run 都不交（状态仍 NotEnqueued、计数不涨、不阻塞）；m3_commit 不交；Metal 4 直交 rec_commit_upload 不交；
+ //      上屏 present_now 返回 0 且上屏计数不涨、present_enqueue 回票号 0；nvn_be_drain（进后台排空）立即返回、不交不等
+ //   ⓪ 帧 GPU 时间 1 秒门（gpu_tag_done）：照 11-09 M1 Pro 时之笛 S2 切回前台那一局，结束时间在现在之后的跨度（算出 6147890790964 ms）不判挂死、不计时间；
+-//      负对照：同一帧真实的 1.5 秒跨度（结束在现在）照判安全停，证明门没被关掉
++//      Negative control: three separate 1.5 s spans in ten seconds trip the sustained-load threshold.
+ #include "../gfx/nvn/nvn_mtl.m"
+ #include "s2a_t_result.h"
+
+@@ -28,10 +28,38 @@
+     return d && (strstr(d, "kIOGPUCommandBufferCallbackErrorTimeout") || strstr(d, "kIOGPUCommandBufferCallbackErrorHang"));
+ }
+
++// Empty command buffers reference no indirect resources. Use a real Metal queue on virtual
++// GPUs that lack residency sets. Every other device still runs full production initialization.
++static int init_halt_fixture(void) {
++    id<MTLDevice> device = MTLCreateSystemDefaultDevice();
++    if (!device) { fprintf(stderr, "GPU halt fixture requires a Metal device\n"); return 0; }
++    if (![device.name localizedCaseInsensitiveContainsString:@"paravirtual"]) {
++        mtl_init();
++        return 1;
++    }
++    MTLResidencySetDescriptor *descriptor = [MTLResidencySetDescriptor new];
++    descriptor.initialCapacity = 4096;   // Same request as mtl_init().
++    NSError *error = nil;
++    if ([device respondsToSelector:@selector(newResidencySetWithDescriptor:error:)] &&
++        [device newResidencySetWithDescriptor:descriptor error:&error]) {
++        mtl_init();
++        return 1;
++    }
++    s2a_mtl_slot_take("GPU halt empty-buffer fixture");
++    g_dev = device;
++    g_m3 = 1;
++    g_q = [device newCommandQueue];
++    if (!g_q) { fprintf(stderr, "cannot create the Metal queue for the GPU halt fixture\n"); return 0; }
++    g_q3 = g_q;
++    printf("GPU halt fixture: real Metal 3 queue, empty command buffers on %s (%s)\n",
++           device.name.UTF8String, error.localizedDescription.UTF8String ?: "residency sets unavailable");
++    return 1;
++}
++
+ int main(void) {
+     @autoreleasepool {
+         char map[] = "/tmp/t_gpu_halt_map_XXXXXX"; int fd = mkstemp(map); if (fd < 0) return 2; close(fd); setenv("DM_NVN_SHMAP", map, 1);
+-        mtl_init();
++        if (!init_halt_fixture()) { unlink(map); return 2; }
+         g_gpu_halt_notify = rec_notify;
+         NSError *hang = mtl4_err(1, @"Caused GPU Hang Error (00000003:kIOGPUCommandBufferCallbackErrorHang)", 3);
+         NSError *victim = mtl4_err(1, @"Discarded (victim of GPU error/recovery) (00000005:kIOGPUCommandBufferCallbackErrorInnocentVictim)", 5);
+@@ -41,12 +69,23 @@
+         NSError *m3_victim = [NSError errorWithDomain:MTLCommandBufferErrorDomain code:MTLCommandBufferErrorTimeout userInfo:@{NSUnderlyingErrorKey:
+             [NSError errorWithDomain:@"IOGPUCommandQueueErrorDomain" code:5 userInfo:@{NSLocalizedDescriptionKey: @"Discarded (victim of GPU error/recovery) (00000005:kIOGPUCommandBufferCallbackErrorInnocentVictim)"}]}];
+
+-        // ⓪ 帧 GPU 时间 1 秒门：不可能的时间戳不判，真跨度照判
++        // Feed backdated, nonoverlapping spans on the same queue without sleeping or hanging a GPU.
+         double now = CACurrentMediaTime();
+-        gpu_tag_begin(23924); gpu_tag_done(23924, now - 0.04, now - 0.04 + 6147890790.964);
+-        VERIFY(!mtl_gpu_halted() && !g_notified && atomic_load(&g_gpu[23924 % GRING].ns) == 0, "结束在现在之后的跨度（6147890790964 ms）不判挂死、不计进本帧 GPU 时间");
+-        gpu_tag_begin(23925); now = CACurrentMediaTime(); gpu_tag_done(23925, now - 1.5, now);
+-        VERIFY(mtl_gpu_halted() && g_notified == 1 && strstr(g_note, "frame 23925 kept the GPU busy"), "负对照：真实 1.5 秒跨度照判安全停（%s）", g_note);
++        gpu_tag_begin(23924);
++        gpu_tag_done(23924, 0, now - 0.05, now - 0.04, now - 0.04 + 6147890790.964);
++        VERIFY(!mtl_gpu_halted() && !g_notified && atomic_load(&g_gpu[23924 % GRING].ns) == 0,
++               "future GPU timestamp is neither charged nor classified as a hang");
++        for (unsigned i = 0; i < 3; i++) {
++            uint64_t frame = 23925 + i;
++            double start = now - 6.0 + 2.0 * i;
++            gpu_tag_begin(frame);
++            gpu_tag_done(frame, 0, start - 0.01, start, start + 1.5);
++            VERIFY(atomic_load(&g_gpu[frame % GRING].ns) > 1000000000ull,
++                   "recorded genuine long span for frame %llu", (unsigned long long)frame);
++            if (i < 2) VERIFY(!mtl_gpu_halted() && !g_notified, "isolated long span %u is tolerated", i + 1);
++        }
++        VERIFY(mtl_gpu_halted() && g_notified == 1 && strstr(g_note, "frame 23927 kept the GPU busy"),
++               "three long frames in ten seconds trigger the GPU halt (%s)", g_note);
+         atomic_store(&g_gpu_halt, 0); g_notified = 0; g_note[0] = 0;   // 复位，下面的流程从没停过的状态开始
+
+         // ① 判定
+@@ -61,6 +100,7 @@
+         uint64_t c0 = atomic_load(&g_gpu_commits);
+         id<MTLCommandBuffer> ok = [g_q commandBuffer]; VERIFY(cb_put(ok) == 1, "安全停前 cb_put 放行");
+         [ok waitUntilCompleted];
++        VERIFY(ok && ok.status == MTLCommandBufferStatusCompleted && !ok.error, "real pre-halt command buffer completed");
+         VERIFY(atomic_load(&g_gpu_commits) == c0 + 1, "负对照：安全停前放行计数 +1（%llu → %llu）", (unsigned long long)c0, (unsigned long long)atomic_load(&g_gpu_commits));
+         VERIFY(mtl_gpu_cb_error(victim, "main replay", 6703) == 0 && mtl_gpu_cb_error(ignored, "segment", 6716) == 0 && !mtl_gpu_halted() && !g_notified, "InnocentVictim / SubmissionsIgnored 不触发全停");
+         VERIFY(mtl_gpu_cb_error(hang, "main replay", 6701) == 1 && mtl_gpu_halted(), "Hang → 安全停置位");
+@@ -74,6 +114,9 @@
          VERIFY(!pa && a.status == MTLCommandBufferStatusNotEnqueued, "cb_put 不交（状态 %ld，0 = 未入队）", (long)a.status);
          VERIFY(!rb && b.status == MTLCommandBufferStatusNotEnqueued && ms < 50, "cb_run 不交也不等（%.2f ms）", ms);
          id<MTLCommandBuffer> c = [g_q3 ?: g_q commandBuffer]; m3_commit(c, nil, nil, 0);
