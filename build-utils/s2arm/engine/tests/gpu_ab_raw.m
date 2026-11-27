@@ -3,7 +3,7 @@
 // S2A_RB_WIDE_MEM=1 (one 16-byte helper). Same kernel k_ab(map, mapBytes, out, steps), one guest pool of POOL bytes
 // at guest address GUEST, each thread reads `steps` consecutive 16-byte groups and writes their xor. Alternated pairs,
 // outputs of A and B byte-identical and equal to a CPU oracle. Apple Paravirtual device without Metal 4: relative cost only.
-// usage: gpu_ab_raw A.metallib B.metallib case threads steps scatter
+// usage: gpu_ab_raw A.metallib B.metallib case threads steps interleaved [hint]  (hint 1: the 2 MiB chunk hints of the pool filled, as the engine's gmem_map does)
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
 #include <stdint.h>
@@ -58,6 +58,8 @@ int main(int argc, char **argv) { @autoreleasepool {
     uint32_t *t = (uint32_t *)map.contents; memset(t, 0, mapBytes);
     for (int k = 1; k < 8192; k++) memset(t + k * 8, 0xff, 8);
     uint64_t *ent = (uint64_t *)(t + 8); ent[0] = GUEST; ent[1] = GUEST + poolBytes; ent[2] = pool.gpuAddress - GUEST;
+    if (argc > 7 && atoi(argv[7]))   // word 6 of entry (chunk mod 8192) = chunk << 13 | entry, for each 2 MiB chunk wholly inside the pool (dmsh_abi.h DMSH_GMEM_HINT_SHIFT 21)
+        for (uint64_t c = GUEST >> 21; c < (GUEST + poolBytes) >> 21; c++) t[(c & 8191) * 8 + 6] = (uint32_t)(c << 13 | 1);
     for (int v = 0; v < 2; v++) {
         outb[v] = [dev newBufferWithLength:(size_t)n * 16 options:MTLResourceStorageModePrivate];
         rb[v] = [dev newBufferWithLength:(size_t)n * 16 options:MTLResourceStorageModeShared];

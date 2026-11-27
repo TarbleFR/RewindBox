@@ -127,8 +127,9 @@ def main():
                         "-framework", "Metal", "-framework", "Foundation", "-o", str(rexe)], capture_output=True, text=True)
     if r.returncode:
         raise SystemExit(f"raw runner: {r.stderr}")
-    for name, threads, steps, inter in [("raw_per_thread_runs", 1 << 18, 16, 0), ("raw_interleaved", 1 << 18, 16, 1)]:
-        r = subprocess.run([str(rexe), str(OUT / "raw_a.metallib"), str(OUT / "raw_b.metallib"), name, str(threads), str(steps), str(inter)], capture_output=True, text=True)
+    for name, threads, steps, inter, hint in [("raw_per_thread_runs", 1 << 18, 16, 0, 0), ("raw_interleaved", 1 << 18, 16, 1, 0),
+                                              ("raw_one_load_search", 1 << 22, 1, 1, 0), ("raw_one_load_hint", 1 << 22, 1, 1, 1)]:
+        r = subprocess.run([str(rexe), str(OUT / "raw_a.metallib"), str(OUT / "raw_b.metallib"), name, str(threads), str(steps), str(inter), str(hint)], capture_output=True, text=True)
         (OUT / f"{name}.csv").write_text(r.stdout)
         sys.stdout.write(r.stdout + r.stderr)
         if r.returncode == 77:
