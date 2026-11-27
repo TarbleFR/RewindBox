@@ -114,10 +114,13 @@ def quantile(values, p):
     return values[low] + (values[math.ceil(index)] - values[low]) * (index - low)
 
 
-def trace_difference(name):
+def trace_difference(name, work_only=False):
     files = [out / f"{n}.diagnostic.trace" for n in ("baseline", name)]
     with files[0].open() as a, files[1].open() as b:
-        for i, (x, y) in enumerate(zip_longest(a, b, fillvalue="<end>"), 1):
+        def records(stream):
+            return (line for line in stream if not work_only or line.startswith(("F ", "D ", "K ")))
+
+        for i, (x, y) in enumerate(zip_longest(records(a), records(b), fillvalue="<end>"), 1):
             if x != y:
                 return f"line {i}: baseline {x.strip()[:300]} / {name} {y.strip()[:300]}"
     return "identical"
@@ -152,9 +155,11 @@ for name in names:
     records = [m for m in [diag.get(name), *runs[name]] if m is not None]
     if not records:
         continue
-    for key in ("backend", *digests):
+    for key in ("backend", "pixel_digest", "draw_state_digest", "draws", "dispatches"):
         if len({r[key] for r in records}) != 1:
             errors[name].append(f"unstable {key}")
+    if len({r["state_digest"] for r in records}) != 1:
+        print(f"{name}: pass-inclusive digest varies between repetitions")
     if any(r.keys() != records[0].keys() for r in records):
         errors[name].append("METRICS fields changed across runs")
 
@@ -177,6 +182,9 @@ for name in ["baseline", *(n for n in names if n != "baseline")]:
             same = m["state_digest"] == baseline["state_digest"]
             print(f"historical state_digest (includes pass begins): {'identical' if same else 'different'}")
             print("diagnostic trace: " + trace_difference(name))
+            work_delta = trace_difference(name, work_only=True)
+            if work_delta != "identical":
+                errors[name].append("draw/dispatch trace differs: " + work_delta)
     if m:
         print(", ".join(f"{k}={m[k]}" for k in ("backend", *digests)))
         for key, val in m.items():

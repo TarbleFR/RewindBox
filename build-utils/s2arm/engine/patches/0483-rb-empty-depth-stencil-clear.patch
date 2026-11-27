@@ -1,7 +1,7 @@
 diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
 --- a/graphics/nvn/gfx/nvn/nvn_mtl.m
 +++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
-@@ -27758,6 +27758,31 @@
+@@ -27758,6 +27758,36 @@
          clr_tri(en, ps, ds, (MTLScissorRect){x, y, w, h}, g_pass.tw, g_pass.th, v, 0, 0); }
      clr_note(0, 0, 0);
  }
@@ -19,9 +19,14 @@ diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
 +}
 +static int rb_empty_ds_can_continue(const uint8_t *next) {
 +    static _Atomic int option;
-+    if (!R.has_rt || !rb_cont_mode()) return 0;
++    // Attachment-less passes derive their physical size from the viewport on open.
++    // An incomplete MRT can also retry a missing attachment on the next open.
++    if (!R.has_rt || !rb_cont_mode() || !g_nsd ||
++        (R.rt.depth && !g_pass.hd && !g_pass.hs)) return 0;
 +    for (int i = 0; i < g_nsd; i++) if (g_sd[i].lskip) return 0;
 +    int pending = R.clear_d || R.clear_s;
++    for (int i = 0; i < R.rt.n; i++)
++        if (R.rt.color[i] && !g_pass.cfmt[i]) return 0;
 +    for (int i = 0; i < 8; i++) pending |= R.clear_c[i];
 +    return !g_enc_mode && !g_fz.active && !g_defer_nact && !g_defer_replaying &&
 +           !g_rt_range_active && !g_nbcrt && !g_nubd && !g_rb_shadow_native &&
@@ -33,7 +38,7 @@ diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
  static void clear_ds_tri(const p_clear_ds *c) {
      unsigned want_s = (unsigned)c->stencil_mask & 0xff;
      if (!c->depth_mask && !want_s) return;
-@@ -27985,12 +28010,7 @@
+@@ -27985,12 +28015,7 @@
                  // Do not continue a render pass opened only for a clear; one with fewer depth / stencil attachments can be continued (check the planes before drawing)
                  if (g_enc && g_enc_mode != 1 && !pend && R.has_rt && tbdr_on() && rt_same(&R.rt, r)) { g_rt_merged = 1; if (!g_rt_merge_n++) MLOG("same-target continuation: first case pass %llu", g_stat_pass); PD("M %llu same-target continuation pass", g_stat_pass); R.rt = *r; break; }
                  if (rb_cont_mode() && g_enc && R.has_rt && rt_same(&R.rt, r)) {   // RewindBox (patch 0342): with the tile mode off (rb_rt_cont.h)
@@ -47,7 +52,7 @@ diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
                          PD("M %llu same-target continuation pass (tile mode off)", g_stat_pass); R.rt = *r; break; }
                      g_rb_cont_refused++; }
                  // The next command after the guest discards rebinds the targets and closes
-@@ -28042,6 +28062,16 @@
+@@ -28042,6 +28067,16 @@
                  if (R.rt.depth && (!scissor_full(R.rt.depth, &R.rt.dview, R.rt.has_dview) || (sm && sm != 0xff))) {
                      if (!g_enc) rb_mdx_ahead_from(p + h.size);   // RewindBox (patch 0072): the triangle opens the pass
                      clear_ds_tri(c); break;

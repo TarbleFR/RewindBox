@@ -195,7 +195,7 @@ jobs:
           python3 build-utils/s2arm/engine/prefetch_sources.py "$RUNNER_TEMP/s2arm" \
             "$RUNNER_TEMP/s2arm-build-cache/sources" | tee -a proof/inputs.txt
       - name: Locate the Metal compiler for the iOS framework
-        if: env.TEST_ONLY != 'yes' || (matrix.os == 'macos-26' && (contains(github.event.head_commit.message, '[s2arm-gpu-textures]') || contains(github.event.head_commit.message, '[s2arm-pipeline-driver]') || contains(github.event.head_commit.message, '[s2arm-homebrew-check]') || contains(github.event.head_commit.message, '[s2arm-first-draw]') || contains(github.event.head_commit.message, '[s2arm-wide-mem-check]') || contains(github.event.head_commit.message, '[s2arm-global-opt-check]') || contains(github.event.head_commit.message, '[s2arm-gpu-ab]') || contains(github.event.head_commit.message, '[s2arm-shader-metrics]')))
+        if: env.TEST_ONLY != 'yes' || (matrix.os == 'macos-26' && (contains(github.event.head_commit.message, '[s2arm-gpu-textures]') || contains(github.event.head_commit.message, '[s2arm-pipeline-driver]') || contains(github.event.head_commit.message, '[s2arm-homebrew-check]') || contains(github.event.head_commit.message, '[s2arm-first-draw]') || contains(github.event.head_commit.message, '[s2arm-wide-mem-check]') || contains(github.event.head_commit.message, '[s2arm-global-opt-check]') || contains(github.event.head_commit.message, '[s2arm-gpu-ab]') || contains(github.event.head_commit.message, '[s2arm-shader-metrics]') || contains(github.event.head_commit.message, '[s2arm-mesh-barrier]')))
         run: |
           if ! xcrun --sdk iphoneos metal --version >/dev/null 2>&1; then
             xcodebuild -downloadComponent MetalToolchain
@@ -961,8 +961,50 @@ jobs:
             77) echo "Apple shader compilation completed. GPU mesh execution unsupported on this device." ;;
             *) exit "$rc" ;;
           esac
-      - name: Check tiled subuploads and replay identical zero-mask clear workloads
+      - name: Build the NVN2 replay for tiled subuploads and depth/stencil clears
+        id: gpu-replay-build
         if: ${{ !cancelled() && (env.TEST_ONLY == 'yes' || steps.graphics-package.outcome == 'success') && matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-gob-clear]') }}
+        working-directory: ${{ runner.temp }}/s2arm
+        env:
+          S2A_DEVELOPER_DIR: ${{ env.DEVELOPER_DIR }}
+          S2A_BUILD_CACHE: ${{ runner.temp }}/s2arm-build-cache
+        run: |
+          set -euo pipefail
+          tests="$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests"
+          make -C graphics/nvn mac
+          make -j4 -f Makefile -f "$tests/host-tests.mk" build/tests/t_nvn_rb_replay_metrics
+      - name: Check tiled subuploads against full texture readback
+        if: ${{ !cancelled() && steps.gpu-replay-build.outcome == 'success' }}
+        working-directory: ${{ runner.temp }}/s2arm
+        env:
+          S2A_DEVELOPER_DIR: ${{ env.DEVELOPER_DIR }}
+          S2A_BUILD_CACHE: ${{ runner.temp }}/s2arm-build-cache
+        run: |
+          set -euo pipefail
+          out="$GITHUB_WORKSPACE/proof/gob-clear"
+          mkdir -p "$out"
+          for mode in 0 1; do
+            for repeat in 1 2 3 4 5; do
+              S2A_RB_GOB_RECTS=$mode DM_NVN_ENC_THREAD=1 build/tests/t_nvn_rb_replay_metrics --gob-rects | tee "$out/gob-$mode-$repeat.txt"
+            done
+          done
+      - name: Read back all mip levels and array layers after a sparse tiled subupload
+        if: ${{ !cancelled() && steps.gpu-replay-build.outcome == 'success' }}
+        working-directory: ${{ runner.temp }}/s2arm
+        env:
+          S2A_DEVELOPER_DIR: ${{ env.DEVELOPER_DIR }}
+          S2A_BUILD_CACHE: ${{ runner.temp }}/s2arm-build-cache
+        run: |
+          set -euo pipefail
+          out="$GITHUB_WORKSPACE/proof/gob-clear"
+          mkdir -p "$out"
+          for mode in 0 1; do
+            for repeat in 1 2 3 4 5; do
+              S2A_RB_GOB_SUBRESOURCE=$mode DM_NVN_ENC_THREAD=1 build/tests/t_nvn_rb_replay_metrics --gob-array | tee "$out/array-$mode-$repeat.txt"
+            done
+          done
+      - name: Replay identical zero-mask depth and stencil clears
+        if: ${{ !cancelled() && steps.gpu-replay-build.outcome == 'success' }}
         working-directory: ${{ runner.temp }}/s2arm
         env:
           S2A_DEVELOPER_DIR: ${{ env.DEVELOPER_DIR }}
@@ -972,15 +1014,8 @@ jobs:
           tests="$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests"
           out="$GITHUB_WORKSPACE/proof/gob-clear"
           mkdir -p "$out"
-          make -C graphics/nvn mac
-          make -j4 -f Makefile -f "$tests/host-tests.mk" build/tests/t_nvn_rb_replay_metrics
-          for mode in 0 1; do
-            for repeat in 1 2 3 4 5; do
-              S2A_RB_GOB_RECTS=$mode DM_NVN_ENC_THREAD=1 build/tests/t_nvn_rb_replay_metrics --gob-rects | tee "$out/gob-$mode-$repeat.txt"
-            done
-          done
           printf '%s\n' 'baseline S2A_RB_EMPTY_DS=0' 'candidate S2A_RB_EMPTY_DS=1' > "$out/variants.txt"
-          RBM_EMPTY_DS=1 DM_NVN_CUT=0 python3 "$tests/replay_compare.py" build/tests/t_nvn_rb_replay_metrics "$out/variants.txt" "$out" 3 12 | tee "$out/report.txt"
+          RBM_EMPTY_DS=1 DM_NVN_CUT=0 DM_NVN_TBDR=0 S2A_RB_RT_CONT=1 python3 "$tests/replay_compare.py" build/tests/t_nvn_rb_replay_metrics "$out/variants.txt" "$out" 3 12 | tee "$out/report.txt"
           python3 - "$out/metrics.json" <<'PYTHON'
           import json, sys
           runs = json.load(open(sys.argv[1]))

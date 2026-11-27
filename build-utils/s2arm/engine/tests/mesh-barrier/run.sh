@@ -13,7 +13,7 @@ for mode in 0 1; do
   for shader in "$proof/$mode"/*.metal; do
     xcrun -sdk iphoneos metal -c -mios-version-min=18.0 -fmetal-math-mode=relaxed -fpreserve-invariance "$shader" -o "${shader%.metal}.ios.air"
     xcrun -sdk iphoneos metal -O2 -mios-version-min=18.0 -fmetal-math-mode=relaxed -fpreserve-invariance -c -emit-llvm -S "$shader" -o "${shader%.metal}.ios.ll"
-    xcrun -sdk macosx metal -fpreserve-invariance "$shader" -o "${shader%.metal}.metallib"
+    xcrun -sdk macosx metal -mmacosx-version-min=15.0 -fmetal-math-mode=relaxed -fpreserve-invariance "$shader" -o "${shader%.metal}.metallib"
   done
 done
 python3 - "$proof" <<'PYTHON'
@@ -26,10 +26,10 @@ for ll in sorted(Path(sys.argv[1]).glob('*/*.ios.ll')):
     ll.with_suffix('.barriers.txt').write_text('\n'.join(calls) + '\n')
 PYTHON
 make -C graphics/nvn mac
-make -j4 -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/host-tests.mk" -f "$here/mesh_raster.mk" build/tests/rb_mesh_raster
+make -j4 -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/host-tests.mk" -f "$here/mesh_raster.mk" build/tests/t_nvn_rb_mesh_raster
 for mode in 0 1; do
   status=0
-  build/tests/rb_mesh_raster "$proof/$mode" | tee "$proof/$mode/raster.txt" || status=$?
+  build/tests/t_nvn_rb_mesh_raster "$proof/$mode" | tee "$proof/$mode/raster.txt" || status=$?
   if [[ $status == 77 ]]; then echo "Mesh drawing unsupported on this GPU" | tee "$proof/gpu-status.txt"; exit 77; fi
   if [[ $status != 0 ]]; then exit "$status"; fi
 done

@@ -127,16 +127,16 @@ static uint64_t nanos(void) {
     return (uint64_t)t.tv_sec * UINT64_C(1000000000) + t.tv_nsec;
 }
 
-static void time_load(void) {
+static void time_load(unsigned pages) {
     nvn_texdesc d = {.target=1,.format=0x25,.width=2048,.height=2048,.depth=1,.levels=1,.samples=1};
     nvn_texlayout layout;
     nvn_tex_layout(&d, &layout);
     nvn_gob_switch2 = 1;
     const unsigned pitch = 8192, height = 2048, rw=128, rh=128;
     assert(layout.tileH == 4 && layout.size == (size_t)pitch*height);
-    uint8_t *src=malloc(layout.size), *full=malloc(layout.size), *rect=malloc(rw*rh);
+    uint8_t *src=malloc(layout.size), *full=malloc(layout.size), *rect=malloc((size_t)pages*rw*rh);
     assert(src && full && rect); fill(src,layout.size);
-    memset(full,0,layout.size); memset(rect,0,rw*rh);
+    memset(full,0,layout.size); memset(rect,0,(size_t)pages*rw*rh);
     puts("pair,position,mode,calls,output_bytes_per_call,wall_ns");
     for (int pair = -1; pair < Pairs; ++pair) {
         for (unsigned pos=0; pos < 2; ++pos) {
@@ -147,8 +147,14 @@ static void time_load(void) {
                 unsigned x=(key%64u)*rw, y=((key/64u)%16u)*rh;
                 int rc;
                 if (tight) {
-                    rc=nvn_deswizzle_rect_2d(&d,src,layout.size,x,y,rw,rh,rect);
-                    sink += rect[0];
+                    rc=0;
+                    for (unsigned page=0; page<pages; page++) {
+                        unsigned at=(key + page*181u) % 1024u;
+                        x=(at%64u)*rw; y=(at/64u)*rh;
+                        rc |= nvn_deswizzle_rect_2d(&d,src,layout.size,x,y,rw,rh,
+                                                    rect + (size_t)page*rw*rh);
+                        sink += rect[(size_t)page*rw*rh];
+                    }
                 } else {
                     rc=nvn_deswizzle(&d,0,0,src,full,pitch);
                     sink += full[(size_t)y*pitch+x];
@@ -157,7 +163,7 @@ static void time_load(void) {
             }
             uint64_t elapsed=nanos()-begin;
             if (pair >= 0) printf("%d,%u,%s,%d,%zu,%" PRIu64 "\n",pair+1,pos+1,
-                tight?"rect":"full",Repeats,tight?(size_t)rw*rh:layout.size,elapsed);
+                tight?"rect":"full",Repeats,tight?(size_t)pages*rw*rh:layout.size,elapsed);
         }
     }
     free(src); free(full); free(rect);
@@ -165,7 +171,12 @@ static void time_load(void) {
 
 int main(int argc, char **argv) {
     if (argc == 1) verify();
-    else if (argc == 2 && !strcmp(argv[1], "--time")) time_load();
+    else if (argc == 2 && !strcmp(argv[1], "--time")) time_load(1);
+    else if (argc == 3 && !strcmp(argv[1], "--time-pages")) {
+        unsigned pages = (unsigned)strtoul(argv[2], NULL, 10);
+        if (!pages || pages > 1024) return 2;
+        time_load(pages);
+    }
     else return 2;
     return 0;
 }

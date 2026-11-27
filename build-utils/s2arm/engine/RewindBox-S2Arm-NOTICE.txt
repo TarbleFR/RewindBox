@@ -141,3 +141,6 @@ These changes are provided under Apache-2.0.
 RewindBox patch 0484 records the full guest resource-memory high-water mark at
 the end of physical mapping, while holding the memory lock. This runtime change
 is provided under Apache-2.0.
+
+RewindBox patch 0485 extends partial tiled texture uploads to eligible mip
+levels and 2D array layers. This change is provided under Apache-2.0.

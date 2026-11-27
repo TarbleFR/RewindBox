@@ -1,0 +1,232 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 8c0f97b..8feb104 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -9557,20 +9557,41 @@ static void pkg_gpu_wrote(const tex_t *t, unsigned level, unsigned layer0, unsig
+ }
+ // Partial re-upload into the texture itself (pages the CPU wrote after the GPU, see NvPkg pgpu): each rectangle's level / layer is deswizzled from guest memory once, only the rectangles go to the texture
+ typedef struct { unsigned level, layer; uint32_t x, y, w, h; } up_rect;
+-typedef struct { up_rect *r; int n, cap, oom; } rect_list;
++typedef struct {
++    up_rect *r;
++    int n, cap, oom;
++    uint64_t first, end, variation, dirty_bytes;
++    int bad_runs;
++} rect_list;
+ static void rect_add(void *u, unsigned level, unsigned layer, uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
+     rect_list *L = u;
+     if (L->oom) return;
+     if (L->n == L->cap) { int nc = L->cap ? 2 * L->cap : 16; up_rect *nr = realloc(L->r, (size_t)nc * sizeof *nr); if (!nr) { L->oom = 1; return; } L->r = nr; L->cap = nc; }
+     L->r[L->n++] = (up_rect){level, layer, x, y, w, h};
+ }
++static int rb_gob_subresource_on(void) {
++    static _Atomic int setting;
++    return rb_pacing_setting(&setting, "S2A_RB_GOB_SUBRESOURCE");
++}
+ static int rb_gob_rects_on(void) {
+-    static int enabled = -1;
+-    if (enabled < 0) {
+-        const char *value = getenv("S2A_RB_GOB_RECTS");
+-        enabled = !value || strcmp(value, "0") != 0;
++    static _Atomic int setting;
++    return rb_pacing_setting(&setting, "S2A_RB_GOB_RECTS");
++}
++// Preserve the physical dirty-run boundaries. Rectangles alone omit padding.
++static void rb_dirty_rects_add(const tex_t *t, uint64_t lo, uint64_t hi, rect_list *list) {
++    if ((t->d.target == 4 || (t->d.target == 1 && t->d.levels > 1)) &&
++        !(t->d.flags & 0x70) && t->d.samples <= 1 && t->d.width && t->d.height &&
++        rb_gob_rects_on() && rb_gob_subresource_on()) {
++        if (hi <= lo || (list->dirty_bytes && lo < list->end) || hi > t->L.size)
++            list->bad_runs = 1;
++        if (!list->bad_runs) {
++            if (!list->dirty_bytes) list->first = lo;
++            list->variation |= (lo ^ list->first) | (hi ^ list->first);
++            list->end = hi;
++            list->dirty_bytes += hi - lo;
++        }
+     }
+-    return enabled;
++    tex_bytes_rects(t, lo, hi, rect_add, list);
+ }
+ static int pkg_upload_rects_body(const tex_t *t, id<MTLTexture> mt, const rect_list *L) {   // 0 = done
+     if (L->oom) return 1;
+@@ -9583,27 +9604,43 @@ static int pkg_upload_rects_body(const tex_t *t, id<MTLTexture> mt, const rect_l
+     uint64_t lp = linear_page_pitch(t, (unsigned)bw, (unsigned)bh, (unsigned)bpb);
+     int tiled = !lp && !(t->d.flags & 0x70) && t->d.target == 1 && t->d.levels <= 1 &&
+                 t->d.samples <= 1 && t->d.width && t->d.height && rb_gob_rects_on();
++    unsigned level = 0, layer = 0;
++    uint32_t width = t->d.width, height = t->d.height;
++    nvn_rect_level geom;
++    int subresource = 0;
++    if (!lp && !tiled && (t->d.target == 4 || (t->d.target == 1 && t->d.levels > 1)) &&
++        L->dirty_bytes && !L->bad_runs) {
++        level = L->r[0].level;
++        layer = L->r[0].layer;
++        if (!nvn_rect_level_span(&t->d, t->L.size, level, layer, L->first, L->end, L->variation, &geom)) {
++            width = MAX(width >> level, 1u);
++            height = MAX(height >> level, 1u);
++            subresource = tiled = 1;
++        }
++    }
+     if (lp || tiled) {
+-        size_t full_pitch = (size_t)(((uint64_t)t->d.width + (unsigned)bw - 1u) / (unsigned)bw) * (size_t)bpb;
+-        size_t full_rows = (size_t)(((uint64_t)t->d.height + (unsigned)bh - 1u) / (unsigned)bh);
++        size_t full_pitch = (size_t)(((uint64_t)width + (unsigned)bw - 1u) / (unsigned)bw) * (size_t)bpb;
++        size_t full_rows = (size_t)(((uint64_t)height + (unsigned)bh - 1u) / (unsigned)bh);
+         size_t full_bytes = full_rows && full_pitch <= SIZE_MAX / full_rows ? full_pitch * full_rows : SIZE_MAX;
+         size_t total_stg = 0;
+         int tight = (lp <= SIZE_MAX);
+         for (int i = 0; tight && i < L->n; i++) {
+             const up_rect *r = &L->r[i];
+-            if (r->level || r->layer || !r->w || !r->h || (r->x % (unsigned)bw) || (r->y % (unsigned)bh) ||
+-                r->x >= t->d.width || r->y >= t->d.height || r->w > t->d.width - r->x || r->h > t->d.height - r->y) {
++            if (r->level != level || r->layer != layer || !r->w || !r->h || (r->x % (unsigned)bw) || (r->y % (unsigned)bh) ||
++                r->x >= width || r->y >= height || r->w > width - r->x || r->h > height - r->y) {
+                 tight = 0; break;
+             }
+             size_t rpitch = (((size_t)r->w + bw - 1) / bw) * bpb;
+             size_t rrows = ((size_t)r->h + bh - 1) / bh;
+             if (!rrows || rpitch > SIZE_MAX / rrows || (tiled && (full_pitch > UINT32_MAX || rpitch > UINT32_MAX))) { tight = 0; break; }
++            if (subresource && (((size_t)(r->x / bw) * bpb) % 64 || (r->y / bh) % 8 ||
++                rpitch % 64 || rrows % 8)) { tight = 0; break; }
+             size_t rbytes = rpitch * rrows;
+             size_t off = (total_stg + 15u) & ~(size_t)15u;
+             if (off < total_stg || rbytes > SIZE_MAX - off) { tight = 0; break; }
+             total_stg = off + rbytes;
+         }
+-        if (tight && total_stg > 0 && total_stg < full_bytes && (!tiled || total_stg <= full_bytes / 4)) {
++        if (tight && total_stg > 0 && (!subresource || total_stg == L->dirty_bytes) && total_stg < full_bytes && (!tiled || total_stg <= full_bytes / 4)) {
+             up_begin();
+             int saved_blits = g_nup_blits;
+             size_t start = 0;
+@@ -9626,14 +9663,18 @@ static int pkg_upload_rects_body(const tex_t *t, id<MTLTexture> mt, const rect_l
+                 size_t off = (pos + 15u) & ~(size_t)15u;
+                 pos = off + rbytes;
+                 if (tiled) {
+-                    if (nvn_deswizzle_rect_2d(&t->d, src, t->L.size, (uint32_t)rx, (uint32_t)ry,
+-                                              (uint32_t)rpitch, (uint32_t)rrows, dst + off)) {
++                    int rc = subresource
++                        ? nvn_deswizzle_rect_level(&geom, src, t->L.size, (uint32_t)rx, (uint32_t)ry,
++                                                  (uint32_t)rpitch, (uint32_t)rrows, dst + off)
++                        : nvn_deswizzle_rect_2d(&t->d, src, t->L.size, (uint32_t)rx, (uint32_t)ry,
++                                               (uint32_t)rpitch, (uint32_t)rrows, dst + off);
++                    if (rc) {
+                         g_nup_blits = saved_blits;
+                         goto whole_level;
+                     }
+                 } else if (rpitch == (size_t)lp) memcpy(dst + off, src + ry * (size_t)lp + rx, rbytes);
+                 else for (size_t row = 0; row < rrows; row++) memcpy(dst + off + row * rpitch, src + (ry + row) * (size_t)lp + rx, rpitch);
+-                if (!up_blit_add_at(stg, start + off, rpitch, rbytes, MTLSizeMake(r->w, r->h, 1), mt, 0, 0, r->x, r->y)) {
++                if (!up_blit_add_at(stg, start + off, rpitch, rbytes, MTLSizeMake(r->w, r->h, 1), mt, layer, level, r->x, r->y)) {
+                     g_nup_blits = saved_blits;
+                     if (tiled) goto whole_level;
+                     free(rb); return 1;
+@@ -9993,7 +10034,7 @@ static id<MTLTexture> tex_mtl_for_pass(const tex_t *ct, id<MTLTexture> __strong
+                                 if ((uint64_t)(loj - t->mem) != run_hi) break;
+                                 run_hi += mj; j++;
+                             }
+-                            tex_bytes_rects(t, run_lo, run_hi, rect_add, &L); up = 1;
++                            rb_dirty_rects_add(t, run_lo, run_hi, &L); up = 1;
+                             k = j;
+                         }
+                         if (!up || (!L.oom && !pkg_upload_rects(t, pk->tex, &L))) {
+diff --git a/graphics/nvn/gfx/tex/nvn_deswizzle.c b/graphics/nvn/gfx/tex/nvn_deswizzle.c
+index b16273b..afa0705 100644
+--- a/graphics/nvn/gfx/tex/nvn_deswizzle.c
++++ b/graphics/nvn/gfx/tex/nvn_deswizzle.c
+@@ -185,20 +185,42 @@ static inline void copy_gob_row_partial(uint8_t *gob, uint8_t *row_x, uint32_t r
+     }
+ }
+
+-// A dirty GOB rectangle in a single-level 2D texture. Coordinates are bytes
+-// across a block row and format-block rows down (also for native BC/ASTC).
+-int nvn_deswizzle_rect_2d(const nvn_texdesc *d, const void *storage, size_t storage_size,
+-                          uint32_t xbyte, uint32_t yrow, uint32_t width_bytes, uint32_t height,
+-                          void *dst) {
+-    if (!d || !storage || !dst || d->target != 1 || d->levels > 1 || (d->flags & 0x70) ||
+-        d->samples > 1 || !width_bytes || !height || xbyte % 64 || yrow % 8) return -1;
+-    uint32_t pitch, rows, slices, bpb, gobs;
+-    uint64_t base;
+-    unsigned th, td;
+-    if (nvn_deswizzle_geom_ex(d, 0, 0, &pitch, &rows, &slices, &base, &th, &td, &bpb, &gobs) ||
+-        td || slices != 1 || !gobs || gobs > UINT32_MAX / 64 || gobs * 64 < pitch ||
++// Admit only subresources with no GOB, column or end-of-block-row padding.
++int nvn_rect_level_span(const nvn_texdesc *d, size_t size, unsigned level, unsigned layer,
++                        uint64_t first, uint64_t end, uint64_t variation, nvn_rect_level *out) {
++    if (!d || !out || (d->target != 1 && d->target != 4) || (d->flags & 0x70) ||
++        d->samples > 1 || !d->width || !d->height || level >= 32 || first >= end || end > size)
++        return -1;
++    nvn_rect_level g;
++    uint32_t slices, bpb;
++    unsigned td;
++    if (nvn_deswizzle_geom_ex(d, level, layer, &g.pitch, &g.rows, &slices, &g.base,
++                              &g.th, &td, &bpb, &g.gobs) || td || slices != 1 ||
++        g.th > 15 || !g.gobs || g.gobs > UINT32_MAX / 64 || g.gobs * 64 != g.pitch ||
++        !g.rows || (g.rows % (8u << g.th)) || g.base > first) return -1;
++
++    uint64_t bytes = (uint64_t)g.pitch * g.rows;
++    if (bytes > size - g.base) return -1;
++    g.end = g.base + bytes;
++    uint64_t offset = nvn_tex_level_offset(d, level), next = nvn_tex_level_offset(d, level + 1);
++    if (next <= offset || bytes != next - offset || end > g.end) return -1;
++    uint64_t column = UINT64_C(512) << g.th;
++    if (((first - g.base) | variation | (end - g.base)) & (column - 1)) return -1;
++    *out = g;
++    return 0;
++}
++
++int nvn_deswizzle_rect_level(const nvn_rect_level *g, const void *storage, size_t storage_size,
++                             uint32_t xbyte, uint32_t yrow, uint32_t width_bytes, uint32_t height,
++                             void *dst) {
++    if (!g || !storage || !dst || !width_bytes || !height || xbyte % 64 || yrow % 8) return -1;
++    const uint32_t pitch = g->pitch, rows = g->rows, gobs = g->gobs;
++    const uint64_t base = g->base;
++    const unsigned th = g->th;
++    if (!gobs || gobs > UINT32_MAX / 64 || gobs * 64 < pitch || th > 15 ||
+         xbyte >= pitch || width_bytes > pitch - xbyte || yrow >= rows || height > rows - yrow ||
+-        (size_t)width_bytes > SIZE_MAX / height || base > storage_size) return -1;
++        (size_t)width_bytes > SIZE_MAX / height || g->end > storage_size || base > g->end) return -1;
++    storage_size = g->end;
+
+     // The greatest GOB base in the rectangle has both the greatest column
+     // and greatest eight-row group. Validate its entire 512 bytes before copying.
+@@ -228,6 +250,17 @@ int nvn_deswizzle_rect_2d(const nvn_texdesc *d, const void *storage, size_t stor
+     return 0;
+ }
+
++int nvn_deswizzle_rect_2d(const nvn_texdesc *d, const void *storage, size_t size,
++                          uint32_t xbyte, uint32_t yrow, uint32_t width, uint32_t height, void *dst) {
++    if (!d || d->target != 1 || d->levels > 1 || (d->flags & 0x70) || d->samples > 1) return -1;
++    nvn_rect_level g = {.end = size};
++    uint32_t slices, bpb;
++    unsigned td;
++    if (nvn_deswizzle_geom_ex(d, 0, 0, &g.pitch, &g.rows, &slices, &g.base, &g.th, &td, &bpb, &g.gobs) ||
++        td || slices != 1) return -1;
++    return nvn_deswizzle_rect_level(&g, storage, size, xbyte, yrow, width, height, dst);
++}
++
+ // RewindBox (patch 0024): bl is the storage from byte bl_at on (0: the whole texture's; nvn_deswizzle_from gives a sparse texture's mip tail on its own).
+ //   Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82 (dm/gfx/tex/nvn_deswizzle.c:48-52 at 0c078130).
+ //   S2Arm adaptation: upstream's move has no linear branch. A linear texture has no tiles and no tail, so storage given from a later byte is refused there (-1), never read as from 0
+diff --git a/graphics/nvn/gfx/tex/nvn_deswizzle.h b/graphics/nvn/gfx/tex/nvn_deswizzle.h
+index 13882f4..630f39f 100644
+--- a/graphics/nvn/gfx/tex/nvn_deswizzle.h
++++ b/graphics/nvn/gfx/tex/nvn_deswizzle.h
+@@ -10,6 +10,17 @@
+ // Not supported: multisampling, the LINEAR flag (already linear), BUFFER; returns -1 on these, 0 on success.
+ int nvn_deswizzle(const nvn_texdesc *d, unsigned level, unsigned layer, const void *src_storage, void *dst_linear, size_t dst_pitch);
+ // Decode a GOB-aligned rectangle of one tiled 2D level into tight block rows.
++// Physical bounds and pitch of a dense, complete-GOB mip of a 2D texture or 2D array.
++typedef struct {
++    uint64_t base, end;
++    uint32_t pitch, rows, gobs;
++    unsigned th;
++} nvn_rect_level;
++// Runs are sorted and disjoint. variation is the OR of each run boundary XOR first.
++int nvn_rect_level_span(const nvn_texdesc *d, size_t size, unsigned level, unsigned layer,
++                        uint64_t first, uint64_t end, uint64_t variation, nvn_rect_level *out);
++int nvn_deswizzle_rect_level(const nvn_rect_level *g, const void *storage, size_t size,
++                             uint32_t xbyte, uint32_t yrow, uint32_t width, uint32_t height, void *dst);
+ int nvn_deswizzle_rect_2d(const nvn_texdesc *d, const void *storage, size_t storage_size,
+                           uint32_t xbyte, uint32_t yrow, uint32_t width_bytes, uint32_t rows, void *dst);
+ // Reverse (for unit test round trips): linear src_linear → written into the corresponding level / layer of the whole-texture storage dst_storage

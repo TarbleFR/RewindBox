@@ -123,7 +123,9 @@ static uint64_t rbm_state(void) {
 // Without a residency set: the encode thread's open encoder declares every resident allocation before its first call (a residency stand-in, not counted in the metrics)
 static void rbm_track(void) {
     static __unsafe_unretained id last;
-    if (!rbm_tracked || !g_rx_enc || g_rx_enc == last) return;
+    if (!rbm_tracked) return;
+    if (!g_rx_enc) { last = nil; return; }
+    if (g_rx_enc == last) return;
     last = g_rx_enc;
     pthread_mutex_lock(&g_res_mu); NSArray *all = g_res_objects.allObjects; pthread_mutex_unlock(&g_res_mu);
     NSUInteger n = all.count; if (!n) return;
@@ -479,13 +481,115 @@ static void rbm_gob_probe(void) {
     else puts("GOB_METAL skip=ASTC reason=no_native_support");
 }
 
+// Upload one physical page from layer 2, mip 1, then read all 24 subresources.
+static void rbm_gob_array(void) {
+    enum { Side = 1024, Levels = 6, Layers = 4, Layer = 2, Mip = 1,
+           XByte = 512, Y = 256, RectPitch = 128, RectRows = 128, Page = 16384 };
+    const char *mode = getenv("S2A_RB_GOB_SUBRESOURCE");
+    REQUIRE(mode && (!strcmp(mode, "0") || !strcmp(mode, "1")));
+    BOOL tight = mode[0] == '1';
+    nvn_gob_switch2 = 1;
+    tex_t t = {0};
+    t.d = (nvn_texdesc){.target=NVN_TEXTURE_TARGET_2D_ARRAY, .format=NVN_FORMAT_RGBA8,
+        .width=Side, .height=Side, .depth=Layers, .levels=Levels, .samples=1};
+    nvn_tex_layout(&t.d, &t.L);
+    REQUIRE(t.L.layers == Layers && t.L.size && !(t.L.size % Page));
+    void *source = NULL; REQUIRE(!posix_memalign(&source, Page, t.L.size)); t.mem = source;
+    memset(source, 0x55, t.L.size);
+    unsigned th, td; nvn_tex_level_tiles(&t.d, Mip, &th, &td);
+    unsigned side = Side >> Mip, pitch = side * 4;
+    REQUIRE(th == 4 && td == 0 && nvn_tex_level_gobs(&t.d, Mip) * 64 == pitch);
+    uint64_t base = Layer * t.L.layer_size + nvn_tex_level_offset(&t.d, Mip);
+    uint64_t lo = base + nvn_bl_offset(XByte, Y, 0, pitch, side, th, 0);
+    REQUIRE(!(lo % Page) && lo + Page <= t.L.size);
+    for (unsigned i = 0; i < Page; i++)
+        ((uint8_t *)source)[lo+i] = (uint8_t)((i ^ (i >> 3) ^ (i >> 7) ^ (i >> 10)) & 127u);
+
+    MTLTextureDescriptor *desc = [MTLTextureDescriptor new];
+    desc.textureType = MTLTextureType2DArray; desc.pixelFormat = MTLPixelFormatRGBA8Unorm;
+    desc.width = Side; desc.height = Side; desc.arrayLength = Layers;
+    desc.mipmapLevelCount = Levels; desc.storageMode = MTLStorageModePrivate;
+    id<MTLTexture> dst = [g_dev newTextureWithDescriptor:desc];
+    id<MTLCommandQueue> q = [g_dev newCommandQueue]; REQUIRE(dst && q);
+    size_t offsets[Layers][Levels], rows[Levels], length = 0;
+    for (unsigned sl = 0; sl < Layers; sl++) for (unsigned lv = 0; lv < Levels; lv++) {
+        unsigned n = Side >> lv;
+        rows[lv] = (n * 4 + 255u) & ~255u;
+        offsets[sl][lv] = length; length += rows[lv] * n;
+    }
+    id<MTLBuffer> expected = [g_dev newBufferWithLength:length options:MTLResourceStorageModeShared];
+    id<MTLBuffer> actual = [g_dev newBufferWithLength:length options:MTLResourceStorageModeShared];
+    REQUIRE(expected && actual);
+    uint8_t *gold = expected.contents;
+    MTLOrigin zero = MTLOriginMake(0, 0, 0);
+    id<MTLCommandBuffer> init = [q commandBuffer];
+    id<MTLBlitCommandEncoder> pre = [init blitCommandEncoder];
+    for (unsigned sl = 0; sl < Layers; sl++) for (unsigned lv = 0; lv < Levels; lv++) {
+        unsigned n = Side >> lv;
+        memset(gold + offsets[sl][lv], 0x80 + sl * Levels + lv, rows[lv] * n);
+        [pre copyFromBuffer:expected sourceOffset:offsets[sl][lv] sourceBytesPerRow:rows[lv] sourceBytesPerImage:0
+            sourceSize:MTLSizeMake(n,n,1) toTexture:dst destinationSlice:sl destinationLevel:lv destinationOrigin:zero];
+    }
+    [pre endEncoding]; [init commit]; [init waitUntilCompleted]; REQUIRE(init.status == MTLCommandBufferStatusCompleted);
+    // Per-byte layout oracle. Neighboring mip and slice values come from the GPU initialization.
+    for (unsigned y = Y; y < Y + RectRows; y++) for (unsigned x = XByte; x < XByte + RectPitch; x++) {
+        uint64_t pos = base + nvn_bl_offset(x, y, 0, pitch, side, th, 0);
+        REQUIRE(pos >= lo && pos < lo + Page);
+        gold[offsets[Layer][Mip] + y * rows[Mip] + x] = ((const uint8_t *)source)[pos];
+    }
+
+    res_add(dst); nvn_be_sub_begin();
+    rect_list rects = {0}; rb_dirty_rects_add(&t, lo, lo + Page, &rects);
+    REQUIRE(!rects.oom && rects.n == 1);
+    up_rect r = rects.r[0];
+    REQUIRE(r.level == Mip && r.layer == Layer && r.x == XByte/4 && r.y == Y && r.w == RectPitch/4 && r.h == RectRows);
+    int first = g_nup_blits; uint64_t before = g_bp_up_bytes;
+    REQUIRE(!pkg_upload_rects_body(&t, dst, &rects)); free(rects.r);
+    REQUIRE(g_nup_blits == first+1 && g_bp_up_bytes-before == Page);
+    up_blit job = g_up_blits[first];
+    REQUIRE(job.dst == dst && job.level == Mip && job.slice == Layer && job.x0 == r.x && job.y0 == r.y);
+    REQUIRE(job.size.width == r.w && job.size.height == r.h && job.size.depth == 1);
+    REQUIRE(job.row == (tight ? RectPitch : pitch) && job.image == (tight ? Page : pitch*side));
+    uint64_t fence = nvn_be_sub_commit();
+    REQUIRE(nvn_be_wait(fence, UINT64_C(10000000000)) && !mtl_last_commit_error());
+    rec_drain(); up_wait_zero(&g_up_pending); REQUIRE(!up_lost_take(dst));
+
+    id<MTLCommandBuffer> read = [q commandBuffer];
+    id<MTLBlitCommandEncoder> post = [read blitCommandEncoder];
+    for (unsigned sl = 0; sl < Layers; sl++) for (unsigned lv = 0; lv < Levels; lv++) {
+        unsigned n = Side >> lv;
+        [post copyFromTexture:dst sourceSlice:sl sourceLevel:lv sourceOrigin:zero sourceSize:MTLSizeMake(n,n,1)
+            toBuffer:actual destinationOffset:offsets[sl][lv] destinationBytesPerRow:rows[lv] destinationBytesPerImage:0];
+    }
+    [post endEncoding]; [read commit]; [read waitUntilCompleted]; REQUIRE(read.status == MTLCommandBufferStatusCompleted);
+    size_t checked = 0;
+    const uint8_t *bytes = actual.contents;
+    for (unsigned sl = 0; sl < Layers; sl++) for (unsigned lv = 0; lv < Levels; lv++) {
+        unsigned n = Side >> lv;
+        for (unsigned y = 0; y < n; y++) {
+            size_t pos = offsets[sl][lv] + y * rows[lv];
+            if (memcmp(bytes + pos, gold + pos, n * 4)) {
+                fprintf(stderr, "GOB_ARRAY mismatch layer=%u level=%u row=%u\n", sl, lv, y);
+                exit(2);
+            }
+        }
+        checked += (size_t)n*n*4;
+    }
+    printf("GOB_ARRAY switch=%d layer=%u mip=%u subresources=%u payload=%u staging=%zu checked_bytes=%zu errors=0\n",
+           (int)tight, (unsigned)Layer, (unsigned)Mip, (unsigned)(Layers*Levels), (unsigned)Page, job.image, checked);
+    res_remove(dst); free(source);
+}
+
 int main(int argc, char **argv) { @autoreleasepool {
     setvbuf(stdout, NULL, _IOLBF, 0);
     int frames = argc > 1 ? atoi(argv[1]) : 3; if (frames < 1) frames = 1;
     char map[] = "/tmp/t_rbm_map_XXXXXX", user[] = "/tmp/t_rbm_user_XXXXXX"; int fd = mkstemp(map); close(fd); fd = mkstemp(user); close(fd);
     setenv("DM_NVN_SHMAP", map, 1); setenv("DM_PSO_USER", user, 1); setenv("DM_PSO_ARCHIVE", "0", 1); setenv("DM_PRESENT_LINK", "0", 1);
+    BOOL gob_array = argc == 2 && !strcmp(argv[1], "--gob-array");
+    if (gob_array) REQUIRE(setenv("S2A_RB_GOB_RECTS", "1", 1) == 0);
     NVNdeviceBuilder db; API(nvnDeviceBuilderSetDefaults)(&db); REQUIRE(API(nvnDeviceInitialize)(&dev, &db));
     NVNqueueBuilder qb; API(nvnQueueBuilderSetDefaults)(&qb); API(nvnQueueBuilderSetDevice)(&qb, &dev); REQUIRE(API(nvnQueueInitialize)(&queue, &qb)); mtl_init();
+    if (gob_array) { rbm_gob_array(); unlink(map); unlink(user); return 0; }
     if (argc == 2 && !strcmp(argv[1], "--gob-rects")) { rbm_gob_probe(); unlink(map); unlink(user); return 0; }
     REQUIRE(!posix_memalign((void **)&mem, 65536, POOL)); memset(mem, 0, POOL);
     NVNmemoryPoolBuilder pb; API(nvnMemoryPoolBuilderSetDefaults)(&pb); API(nvnMemoryPoolBuilderSetDevice)(&pb, &dev);

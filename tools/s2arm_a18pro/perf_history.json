@@ -6987,6 +6987,57 @@
       },
       "reading": "One in-pass cut costs exactly one store and one reload of the open pass's attachments (here 262144 bytes each way) plus one render encoder and its state re-records; pixels stay identical. On this runner the frame wall time spread (paired IQR about 40-50 points) is far larger than any cut effect, so the bandwidth cost cannot be bounded against the idle time it removes here. No change of the cut rule: it needs a device-side bound. Not a rejected candidate (no patch).",
       "physical_device_status": "not measured"
+    },
+    {
+      "label": "gpu_0481_0483_0485_host",
+      "timestamp": "2026-11-27",
+      "host": "Linux x86_64 synthetic",
+      "runs_per_variant": 12,
+      "results": {
+        "tiled_rgba8_one_page": {
+          "size": [
+            2048,
+            2048
+          ],
+          "staging_bytes": [
+            16777216,
+            16384
+          ],
+          "cpu_us_per_call": [
+            1603.136625,
+            1.760125
+          ],
+          "calls_per_arm_per_pair": 8,
+          "exact_rectangles": 1296,
+          "refusals_untouched": 17
+        },
+        "mesh_wrapper": {
+          "affected_entrypoints": 5,
+          "group_barriers_removed_per_entry": 1,
+          "host_rgba_exact_bytes": 1024
+        },
+        "tiled_rgba8_one_array_mip": {
+          "levels": 6,
+          "layers": 4,
+          "level": 1,
+          "layer": 2,
+          "staging_bytes": [
+            1048576,
+            16384
+          ],
+          "cpu_us_per_call": [
+            27.022,
+            0.678
+          ],
+          "calls_per_arm_per_pair": 8,
+          "paired_runs_favorable": 12,
+          "exact_rectangles": 408,
+          "refused_spans": 19
+        }
+      },
+      "reading": "The CPU samples time deswizzle only. The encoded upload payload stays unchanged. The mesh counts describe generated program work. Source graphics paths at 0479 and 0480 are identical.",
+      "evidence": "docs/evidence/s2arm-gpu-0481/README.md",
+      "physical_device_status": "not measured"
     }
   ],
   "accepted_optimizations": [

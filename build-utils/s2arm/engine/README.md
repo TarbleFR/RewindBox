@@ -866,3 +866,8 @@ La création d’un handle recontrôle le quota de mémoire de transfert sous le
 ### 0484 — pic total après mappage des pages physiques
 
 Le pic des ressources mémoire est actualisé une seule fois à la fin du marquage, sous le verrou mémoire, à partir de l’usage total. La valeur retenue conserve les pages mappées même après leur libération. Le regroupement des pages neuves couvre ainsi tous les pics. [Contre-expertise et vérification des octets](../../../docs/evidence/s2arm-cpu-counteraudit-0480.md).
+
+
+### 0485 — mises à jour partielles des mipmaps et tableaux 2D
+
+Une plage sale entièrement contenue dans un niveau et une couche peut utiliser le staging serré de 0481. L’admission demande des colonnes GOB entières, une géométrie sans remplissage et au plus un quart du niveau. Les mises à jour mixtes reprennent le traitement par niveau et couche. `S2A_RB_GOB_SUBRESOURCE=0` restitue 0481. [Mesures et conditions](../../../docs/evidence/s2arm-gpu-0481/README.md).
