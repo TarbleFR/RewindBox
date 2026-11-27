@@ -1,0 +1,93 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 2558434..384814a 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -8,6 +8,7 @@
+ #include <uuid/uuid.h>
+ #include <sys/sysctl.h>
+ #include <objc/runtime.h>   // objc_*AssociatedObject: the integer storage an RGBA8 atomic image is a view of (tex_upgrade, defer_drain)
++#include <objc/message.h>   // RewindBox (patch 0468): objc_msgSend, nvn_rec.h rx_imp with S2A_RB_REC_IMP=0
+ #include <mach/mach_time.h>
+ #include <mach/mach.h>
+ #include <dlfcn.h>
+diff --git a/graphics/nvn/gfx/nvn/nvn_rec.h b/graphics/nvn/gfx/nvn/nvn_rec.h
+index 95592bf..362d394 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rec.h
++++ b/graphics/nvn/gfx/nvn/nvn_rec.h
+@@ -203,6 +203,18 @@ static id rec_begin_render(id cb, id descriptor, id<MTLTexture> pending, int cla
+     return nil;
+ }
+ static id g_rx_cb, g_rx_enc;   // the encode thread's real command buffer and open encoder
++// RewindBox (patch 0468): the frequent encoder and argument-table records go through the IMP looked up once per record kind and receiver class, as RO_T_ADDR since patch 0073
++//   (this thread only). On the Apple runtime (macOS 26 arm64 runner, build-utils/s2arm/engine/benchmarks/rec_bench.m, trivial method bodies, 12 alternated pairs) the dispatch went from
++//   7.7 to 4.7 ns a record; the Metal work inside each call is unchanged and not measured. A nil receiver stays a no-op, as a message to nil. S2A_RB_REC_IMP=0: objc_msgSend as before
++static int rb_rec_imp_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_REC_IMP"); v = !(e && !strcmp(e, "0")); } return v; }
++static struct { Class k; IMP f; } g_rx_imp[RO_WAIT_EVENT + 1];
++static inline IMP rx_imp(uint32_t op, id o, SEL s) {
++    if (!rb_rec_imp_on()) return (IMP)objc_msgSend;
++    Class k = object_getClass(o);
++    if (__builtin_expect(g_rx_imp[op].k != k || !g_rx_imp[op].f, 0)) { g_rx_imp[op].f = class_getMethodImplementation(k, s); g_rx_imp[op].k = k; }
++    return g_rx_imp[op].f;
++}
++#define RX_CALL(op, o, T, sel, ...) do { id rx_o_ = (o); if (rx_o_) ((T)rx_imp(op, rx_o_, @selector(sel)))(rx_o_, @selector(sel), __VA_ARGS__); } while (0)
+ static void dlss_fx_run(id cb, const uint64_t *a);   // nvn_dlss.inc: a[0] scaler, a[1..4] color / depth / motion / output (retained by the record), the rest its parameters
+ static void rec_exec(const rec_t *r) {
+     const uint64_t *a = r->a; id e = g_rx_enc;
+@@ -235,30 +247,33 @@ static void rec_exec(const rec_t *r) {
+     case RO_BAR_QUEUE: [(id<MTL4CommandEncoder>)e barrierAfterQueueStages:a[0] beforeStages:a[1] visibilityOptions:a[2]]; break;
+     case RO_BAR_AFTER_STAGES: [(id<MTL4CommandEncoder>)e barrierAfterStages:a[0] beforeQueueStages:a[1] visibilityOptions:a[2]]; break;
+     case RO_BAR_ENCODER: [(id<MTL4CommandEncoder>)e barrierAfterEncoderStages:a[0] beforeEncoderStages:a[1] visibilityOptions:a[2]]; break;
+-    case RO_R_TABLE: [(id<MTL4RenderCommandEncoder>)e setArgumentTable:rec_id(a[0]) atStages:a[1]]; break;
+-    case RO_R_PSO: [(id<MTL4RenderCommandEncoder>)e setRenderPipelineState:rec_id(a[0])]; break;
+-    case RO_R_DSS: [(id<MTL4RenderCommandEncoder>)e setDepthStencilState:rec_id(a[0])]; break;
+-    case RO_R_VIEWPORT: { MTLViewport v; memcpy(&v, a, sizeof v); [(id<MTL4RenderCommandEncoder>)e setViewport:v]; break; }
+-    case RO_R_SCISSOR: { MTLScissorRect s; memcpy(&s, a, sizeof s); [(id<MTL4RenderCommandEncoder>)e setScissorRect:s]; break; }
+-    case RO_R_CULL: [(id<MTL4RenderCommandEncoder>)e setCullMode:a[0]]; break;
++    case RO_R_TABLE: RX_CALL(RO_R_TABLE, e, void (*)(id, SEL, id, MTLRenderStages), setArgumentTable:atStages:, rec_id(a[0]), (MTLRenderStages)a[1]); break;
++    case RO_R_PSO: RX_CALL(RO_R_PSO, e, void (*)(id, SEL, id), setRenderPipelineState:, rec_id(a[0])); break;
++    case RO_R_DSS: RX_CALL(RO_R_DSS, e, void (*)(id, SEL, id), setDepthStencilState:, rec_id(a[0])); break;
++    case RO_R_VIEWPORT: { MTLViewport v; memcpy(&v, a, sizeof v); RX_CALL(RO_R_VIEWPORT, e, void (*)(id, SEL, MTLViewport), setViewport:, v); break; }
++    case RO_R_SCISSOR: { MTLScissorRect s; memcpy(&s, a, sizeof s); RX_CALL(RO_R_SCISSOR, e, void (*)(id, SEL, MTLScissorRect), setScissorRect:, s); break; }
++    case RO_R_CULL: RX_CALL(RO_R_CULL, e, void (*)(id, SEL, MTLCullMode), setCullMode:, (MTLCullMode)a[0]); break;
+     case RO_R_WINDING: [(id<MTL4RenderCommandEncoder>)e setFrontFacingWinding:a[0]]; break;
+     case RO_R_FILL: [(id<MTL4RenderCommandEncoder>)e setTriangleFillMode:a[0]]; break;
+     case RO_R_BIAS: [(id<MTL4RenderCommandEncoder>)e setDepthBias:rec_fv(a[0]) slopeScale:rec_fv(a[1]) clamp:rec_fv(a[2])]; break;
+     case RO_R_CLIP: [(id<MTL4RenderCommandEncoder>)e setDepthClipMode:a[0]]; break;
+-    case RO_R_SREF: [(id<MTL4RenderCommandEncoder>)e setStencilFrontReferenceValue:(uint32_t)a[0] backReferenceValue:(uint32_t)a[1]]; break;
++    case RO_R_SREF: RX_CALL(RO_R_SREF, e, void (*)(id, SEL, uint32_t, uint32_t), setStencilFrontReferenceValue:backReferenceValue:, (uint32_t)a[0], (uint32_t)a[1]); break;
+     case RO_R_BLEND: [(id<MTL4RenderCommandEncoder>)e setBlendColorRed:rec_fv(a[0]) green:rec_fv(a[1]) blue:rec_fv(a[2]) alpha:rec_fv(a[3])]; break;
+     case RO_R_VIS: [(id<MTL4RenderCommandEncoder>)e setVisibilityResultMode:a[0] offset:a[1]]; break;
+-    case RO_R_DRAW: [(id<MTL4RenderCommandEncoder>)e drawPrimitives:a[0] vertexStart:a[1] vertexCount:a[2]]; break;
+-    case RO_R_DRAW_INST: [(id<MTL4RenderCommandEncoder>)e drawPrimitives:a[0] vertexStart:a[1] vertexCount:a[2] instanceCount:a[3] baseInstance:a[4]]; break;
++    case RO_R_DRAW: RX_CALL(RO_R_DRAW, e, void (*)(id, SEL, MTLPrimitiveType, NSUInteger, NSUInteger), drawPrimitives:vertexStart:vertexCount:, (MTLPrimitiveType)a[0], (NSUInteger)a[1], (NSUInteger)a[2]); break;
++    case RO_R_DRAW_INST: RX_CALL(RO_R_DRAW_INST, e, void (*)(id, SEL, MTLPrimitiveType, NSUInteger, NSUInteger, NSUInteger, NSUInteger), drawPrimitives:vertexStart:vertexCount:instanceCount:baseInstance:,
++                                  (MTLPrimitiveType)a[0], (NSUInteger)a[1], (NSUInteger)a[2], (NSUInteger)a[3], (NSUInteger)a[4]); break;
+     case RO_R_DRAW_IND: [(id<MTL4RenderCommandEncoder>)e drawPrimitives:a[0] indirectBuffer:a[1]]; break;
+-    case RO_R_DRAW_IDX: [(id<MTL4RenderCommandEncoder>)e drawIndexedPrimitives:a[0] indexCount:a[1] indexType:a[2] indexBuffer:a[3] indexBufferLength:a[4] instanceCount:a[5] baseVertex:(NSInteger)a[6] baseInstance:a[7]]; break;
++    case RO_R_DRAW_IDX: RX_CALL(RO_R_DRAW_IDX, e, void (*)(id, SEL, MTLPrimitiveType, NSUInteger, MTLIndexType, uint64_t, NSUInteger, NSUInteger, NSInteger, NSUInteger),
++                                 drawIndexedPrimitives:indexCount:indexType:indexBuffer:indexBufferLength:instanceCount:baseVertex:baseInstance:,
++                                 (MTLPrimitiveType)a[0], (NSUInteger)a[1], (MTLIndexType)a[2], a[3], (NSUInteger)a[4], (NSUInteger)a[5], (NSInteger)a[6], (NSUInteger)a[7]); break;
+     case RO_R_DRAW_IDX_IND: [(id<MTL4RenderCommandEncoder>)e drawIndexedPrimitives:a[0] indexType:a[1] indexBuffer:a[2] indexBufferLength:a[3] indirectBuffer:a[4]]; break;
+     case RO_R_STORE_C: [(id<MTL4RenderCommandEncoder>)e setColorStoreAction:a[0] atIndex:a[1]]; break;
+     case RO_R_STORE_D: [(id<MTL4RenderCommandEncoder>)e setDepthStoreAction:a[0]]; break;
+     case RO_R_STORE_S: [(id<MTL4RenderCommandEncoder>)e setStencilStoreAction:a[0]]; break;
+-    case RO_C_TABLE: [(id<MTL4ComputeCommandEncoder>)e setArgumentTable:rec_id(a[0])]; break;
+-    case RO_C_PSO: [(id<MTL4ComputeCommandEncoder>)e setComputePipelineState:rec_id(a[0])]; break;
+-    case RO_C_DISPATCH: [(id<MTL4ComputeCommandEncoder>)e dispatchThreadgroups:MTLSizeMake(a[0], a[1], a[2]) threadsPerThreadgroup:MTLSizeMake(a[3], a[4], a[5])]; break;
++    case RO_C_TABLE: RX_CALL(RO_C_TABLE, e, void (*)(id, SEL, id), setArgumentTable:, rec_id(a[0])); break;
++    case RO_C_PSO: RX_CALL(RO_C_PSO, e, void (*)(id, SEL, id), setComputePipelineState:, rec_id(a[0])); break;
++    case RO_C_DISPATCH: RX_CALL(RO_C_DISPATCH, e, void (*)(id, SEL, MTLSize, MTLSize), dispatchThreadgroups:threadsPerThreadgroup:, MTLSizeMake(a[0], a[1], a[2]), MTLSizeMake(a[3], a[4], a[5])); break;
+     case RO_C_DISPATCH_IND: [(id<MTL4ComputeCommandEncoder>)e dispatchThreadgroupsWithIndirectBuffer:a[0] threadsPerThreadgroup:MTLSizeMake(a[1], a[2], a[3])]; break;
+     case RO_C_DISPATCH_THREADS: [(id<MTL4ComputeCommandEncoder>)e dispatchThreads:MTLSizeMake(a[0], a[1], a[2]) threadsPerThreadgroup:MTLSizeMake(a[3], a[4], a[5])]; break;
+     case RO_C_COPY_BB: [(id<MTL4ComputeCommandEncoder>)e copyFromBuffer:rec_id(a[0]) sourceOffset:a[2] toBuffer:rec_id(a[1]) destinationOffset:a[3] size:a[4]]; break;
+@@ -273,8 +288,8 @@ static void rec_exec(const rec_t *r) {
+         id t = rec_id(a[0]); static Class tc; static void (*tf)(id, SEL, uint64_t, NSUInteger); Class k = object_getClass(t);
+         if (k != tc || !tf) { tf = (void (*)(id, SEL, uint64_t, NSUInteger))class_getMethodImplementation(k, @selector(setAddress:atIndex:)); tc = k; }
+         tf(t, @selector(setAddress:atIndex:), a[1], a[2]); break; }
+-    case RO_T_TEX: [(id<MTL4ArgumentTable>)rec_id(a[0]) setTexture:(MTLResourceID){a[1]} atIndex:a[2]]; break;
+-    case RO_T_SAMP: [(id<MTL4ArgumentTable>)rec_id(a[0]) setSamplerState:(MTLResourceID){a[1]} atIndex:a[2]]; break;
++    case RO_T_TEX: RX_CALL(RO_T_TEX, rec_id(a[0]), void (*)(id, SEL, MTLResourceID, NSUInteger), setTexture:atIndex:, (MTLResourceID){a[1]}, (NSUInteger)a[2]); break;
++    case RO_T_SAMP: RX_CALL(RO_T_SAMP, rec_id(a[0]), void (*)(id, SEL, MTLResourceID, NSUInteger), setSamplerState:atIndex:, (MTLResourceID){a[1]}, (NSUInteger)a[2]); break;
+     case RO_LABEL: [(id<MTL4CommandEncoder>)e setLabel:rec_id(a[0])]; break;
+     case RO_R_TS: [(id<MTL4RenderCommandEncoder>)e writeTimestampWithGranularity:a[1] afterStage:a[2] intoHeap:rec_id(a[0]) atIndex:a[3]]; break;
+     case RO_C_TS: [(id<MTL4ComputeCommandEncoder>)e writeTimestampWithGranularity:a[1] intoHeap:rec_id(a[0]) atIndex:a[2]]; break;
