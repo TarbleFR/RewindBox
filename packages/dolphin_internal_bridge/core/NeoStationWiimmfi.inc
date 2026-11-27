@@ -123,6 +123,7 @@ int32_t neostation_dolphin_wiimmfi_import(const char* image, const char* keys, c
       g_wiimmfi_progress = (importer.IsExtracting() ? 1000 : 0) + importer.GetProgress();
     }, [keys] { return keys ? std::string(keys) : std::string{}; });
     if (!importer.Succeeded() || !DOLWiimmfiNANDReady(stage)) return 3;
+    if (!neostation_dolphin_wiimmfi_tls_files_valid(stage)) return 4;
     return 0;
   }
   catch (...) { return g_wiimmfi_cancel ? 1 : 3; }

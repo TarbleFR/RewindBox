@@ -41,6 +41,7 @@ class DolphinProcessLifecycleTests(unittest.TestCase):
 #include <cstdint>
 #include <mutex>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -58,6 +59,8 @@ bool g_validated_wii_menu=false;
 bool g_wiimmfi_session=false;
 std::atomic<bool> g_wiimmfi_network_allowed{false};
 std::atomic<bool> g_wiimmfi_boot_interrupted{false};
+std::atomic<bool> g_wiimmfi_cancel{false};
+std::atomic<int> g_wiimmfi_progress{0};
 std::string g_wiimmfi_previous_nand_root;
 std::atomic<int32_t> g_wiimmfi_nand_stage{0};
 std::array<std::atomic<uint32_t>, 9> g_wiimmfi_network_events{};
@@ -67,10 +70,21 @@ namespace File {
 std::string wii_root="User/Wii/", session_root="User/Wii/";
 const std::string& GetUserPath(int index) { return index==D_WIIROOT_IDX?wii_root:session_root; }
 void SetUserPath(int, std::string path) { wii_root=std::move(path); }
+bool IsDirectory(const char*) { return true; }
 }
 bool DOLWiimmfiNANDReady(const std::string&) { return true; }
 bool tls_files_valid=true;
 bool neostation_dolphin_wiimmfi_tls_files_valid(const std::string&) { return tls_files_valid; }
+namespace DiscIO {
+struct NANDImporter {
+  explicit NANDImporter(const char*) {}
+  template<typename Progress, typename Keys>
+  void ImportNANDBin(const char*,Progress progress,Keys) { progress(); }
+  bool Succeeded() const { return true; }
+  bool IsExtracting() const { return true; }
+  int GetProgress() const { return 100; }
+};
+}
 void* g_metal_surface=nullptr;
 double g_metal_scale=1;
 std::optional<int> g_devices_callback;
@@ -140,6 +154,7 @@ template<class F> void DOLHostQueueRunSync(F block) { ++host_depth; block(); --h
                           'int32_t neostation_dolphin_wiimmfi_configure(',
                           'bool neostation_dolphin_wiimmfi_validate_boot_nand(',
                           'void neostation_dolphin_wiimmfi_observe_ios_identity(',
+                          'int32_t neostation_dolphin_wiimmfi_import(',
                           'void neostation_dolphin_wiimmfi_interrupt_boot()'):
             harness += '\n' + function(source, signature)
         harness += r'''
@@ -160,6 +175,10 @@ int main() {
    assert(g_metal_surface==nullptr && g_boot_language==-1);
    assert(neostation_dolphin_initialize("anotherUser","Sys","bad")==0);
    assert(g_log_path==logfile && g_user_directory=="User");
+   tls_files_valid=false;
+   assert(neostation_dolphin_wiimmfi_import("backup.bin","keys.bin","stage")==4);
+   tls_files_valid=true;
+   assert(neostation_dolphin_wiimmfi_import("backup.bin","keys.bin","stage")==0);
    if (cycle%2==0) {
      File::wii_root="OtherNand/";
      tls_files_valid=false;

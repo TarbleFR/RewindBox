@@ -770,6 +770,25 @@ void main() {
         false,
       );
       expect(calls, contains('wiimmfiCancelImport'));
+      cancelOnProtect = false;
+      final priorIdentity = await keys.readAsString();
+      nativeImport = (_) async => 4;
+      await expectLater(
+        WiimmfiService.importBootMii(),
+        throwsA(
+          isA<WiimmfiException>().having(
+            (error) => error.code,
+            'code',
+            'tlsFilesRejected',
+          ),
+        ),
+      );
+      expect(await keys.readAsString(), priorIdentity);
+      expect(
+        await Directory(p.join(live.path, 'User/Wii.incoming')).exists(),
+        false,
+      );
+      expect(WiimmfiService.importPhase.value, 'idle');
     },
   );
 

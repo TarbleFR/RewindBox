@@ -404,7 +404,7 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
   );
 
   Future<void> _diagnose() => _run(() async {
-    final result = await WiimmfiService.diagnose();
+    final result = await WiimmfiService.diagnose(refresh: true);
     if (!mounted) return;
     await _showMessage(
       t('diagnose'),

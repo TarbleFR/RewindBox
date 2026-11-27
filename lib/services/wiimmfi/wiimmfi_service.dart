@@ -143,7 +143,11 @@ abstract final class WiimmfiService {
             'stageDirectory': stage.path,
           });
           if (outcome != 0) {
-            throw WiimmfiException(outcome == 1 ? 'cancelled' : 'invalidNand');
+            throw WiimmfiException(switch (outcome) {
+              1 => 'cancelled',
+              4 => 'tlsFilesRejected',
+              _ => 'invalidNand',
+            });
           }
           if (_cancelRequested) throw const WiimmfiException('cancelled');
           importPhase.value = 'preserving';
@@ -287,14 +291,17 @@ abstract final class WiimmfiService {
     ...?_diagnostic,
     ...await status(),
   };
-  static Future<Map<String, dynamic>> diagnose() async {
+  static Future<Map<String, dynamic>> diagnose({bool refresh = false}) async {
     if ((await settings())['enabled'] != true) {
       throw const WiimmfiException('disabled');
     }
     final age = _diagnosticDate == null
         ? null
         : DateTime.now().difference(_diagnosticDate!);
-    if (age != null && !age.isNegative && age < const Duration(minutes: 5)) {
+    if (!refresh &&
+        age != null &&
+        !age.isNegative &&
+        age < const Duration(minutes: 5)) {
       return {..._diagnostic!, ...await status()};
     }
     final network = await (_diagnosticInFlight ??= _probe().whenComplete(

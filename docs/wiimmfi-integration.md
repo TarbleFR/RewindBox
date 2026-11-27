@@ -1,5 +1,7 @@
 # Wiimmfi dans Dolphin — 27 novembre 2026
 
+[Revue supplémentaire de l’import et du diagnostic](evidence/wiimmfi-import-refresh-counteraudit.md) — contrôle TLS avant remplacement de NAND, invalidation des anciennes preuves de chargement et mesure réseau renouvelée à la demande.
+
 [Diagnostic du lancement et parcours Mario Kart Wii, ABI 5](evidence/wiimmfi-session-diagnostic.md). Le réglage de dossier NAND et les nouvelles tentatives au repos sont contrôlés. La reconnaissance exige aussi la présence des signatures de l’identité Wii. Le diagnostic sépare les certificats TLS locaux, l’identité chargée par IOS et la connexion au serveur. Les preuves anciennes ci-dessous restent liées à leurs versions.
 
 [Parcours visuel unifié avec Nextendo](evidence/wiimmfi-nextendo-interface-2026-11-27.md) : menu de la playlist Wii → Wiimmfi, préparation de la console, Services en ligne et état synthétique ; aide/détails repliés. Composants partagés avec Nextendo, authentifications distinctes et inchangées.

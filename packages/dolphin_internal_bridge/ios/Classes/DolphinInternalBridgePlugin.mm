@@ -1380,6 +1380,11 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
         auto importNand = reinterpret_cast<int32_t (*)(const char*, const char*, const char*)>(dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_import"));
         outcome = importNand(image.fileSystemRepresentation, keys.fileSystemRepresentation, stage.fileSystemRepresentation);
         self.wiimmfiImportActive = NO;
+        if (outcome == 0) {
+          // A new console import must not inherit the former console's boot proof.
+          self.wiimmfiLastGame = nil;
+          self.wiimmfiLastCoreConfigured = NO;
+        }
       }
       dispatch_async(dispatch_get_main_queue(), ^{ result(@(outcome)); });
     });
