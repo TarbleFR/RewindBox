@@ -17,13 +17,24 @@ def split_pair(events, index, wait, update):
     return stage is not None and events[index:index+2] == [(at, update, 1, 3), (at, wait, 1, 1)]
 
 
-def canonical_event(event, cuts, wait, fixed):
-    # An adaptive cut in the MRT pass can shift the next budget boundary to
-    # the first downsample. A fresh CB waits from vertex there, which also
-    # covers the normal fragment dependency. Fixed work compares exact stages.
-    if not fixed and cuts and event == (338, wait, 1, 1):
-        return (338, wait, 1, 2)
-    return event
+def strengthened_waits(events, wait, update, backend, fixed):
+    # Scene-specific: lighting writes t_light, then fs_down reads it through handle 3
+    # into t_half. The guest requests ORDER_FRAGMENTS | INVALIDATE_TEXTURE (0x12).
+    # A 64-draw segment begun inside the G-buffer can first become due between
+    # passes at this transition: work 320 is still too early and 338 includes one dispatch.
+    # sub_cut -> rb_new_main_cb clears g_last_end_relaxed; m3_wait then holds
+    # the new render encoder before vertex instead of only before fragment.
+    if fixed or backend != "Metal3" or len(events) != 16:
+        return {}
+    cuts = [events[i][0] for i in range(len(events)) if split_pair(events, i, wait, update)]
+    if len(cuts) != 1 or not (64 < cuts[0] < 320 and 320 - cuts[0] < 64 <= 337 - cuts[0]):
+        return {}
+    transition = [(338, update, 1, 3), (338, wait, 1, 1),
+                  (339, update, 1, 3), (339, wait, 1, 2)]
+    for i in range(len(events)-3):
+        if events[i:i+4] == transition:
+            return {i+1: (338, wait, 1, 2)}
+    return {}
 
 
 def check_events(events, cuts, wait, update, backend, fixed):
@@ -38,6 +49,7 @@ def check_events(events, cuts, wait, update, backend, fixed):
         golden.extend([(first, wait, 0), (last, update, 0)] if stage is None else
                       [(first, wait, 1, stage), (last, update, 1, 3)])
     extras = set()
+    strengthened = strengthened_waits(events, wait, update, backend, fixed)
     core = []
     i = 0
     while i < len(events):
@@ -45,7 +57,7 @@ def check_events(events, cuts, wait, update, backend, fixed):
             extras.add(i)
             i += 2
         else:
-            core.append(canonical_event(events[i], cuts, wait, fixed))
+            core.append(strengthened.get(i, events[i]))
             i += 1
     # With inter-pass cuts disabled, shadow -> MRT (guest barrier 0x12) can
     # wait before the fragment stage in the same CB. Fixed runs still compare
@@ -74,7 +86,7 @@ def sync_rows(log, frames):
     return wait, update, rows
 
 
-def canonical_trace(path, rows, extras, wait, fixed):
+def canonical_trace(path, rows, extras, strengthened):
     """Erase only justified close/reopen pairs after verifying the same attachments are reopened."""
     data = path.read_text().splitlines()
     canonical = []
@@ -97,7 +109,7 @@ def canonical_trace(path, rows, extras, wait, fixed):
         elif tag in ("D", "K"):
             work += 1
         elif tag == "S":
-            cuts, events = rows[frame-1]
+            events = rows[frame-1][1]
             if event >= len(events) or (work, *map(int, line.split()[1:])) != events[event]:
                 raise ValueError("diagnostic trace differs from compact sync record")
             if event in extras[frame-1]:
@@ -111,7 +123,8 @@ def canonical_trace(path, rows, extras, wait, fixed):
                 event += 2
                 i += 4
                 continue
-            line = "S " + " ".join(map(str, canonical_event(events[event], cuts, wait, fixed)[1:]))
+            if event in strengthened[frame-1]:
+                line = "S " + " ".join(map(str, strengthened[frame-1][event][1:]))
             event += 1
         elif tag != "E":
             raise ValueError(f"unexpected diagnostic record {line}")
@@ -132,19 +145,30 @@ def verify_negative_controls():
     sample = source[:3] + pair + source[3:]
     if check_events(sample, 1, wait, update, "Metal3", False) != {3}:
         raise ValueError("valid additional split rejected")
-    conservative = [(338, wait, 1, 1) if event == (338, wait, 1, 2) else event for event in sample]
-    if check_events(conservative, 1, wait, update, "Metal3", False) != {3}:
-        raise ValueError("conservative downsample wait after an adaptive split rejected")
-    unexpected_stage = [(338, wait, 1, 3) if event == (338, wait, 1, 1) else event for event in conservative]
-    uncut_conservative = conservative[:3] + conservative[5:]
-    for events, count, fixed in [(source[1:], 0, False), (source[1::-1]+source[2:], 0, False),
-                                 ([(0, wait, 1, 2)]+source[1:], 0, False),
-                                 (sample, 0, False), (sample, 1, True),
-                                 (source[:3]+pair[::-1]+source[3:], 1, False),
-                                 (source[:3]+[pair[0], (129, wait, 1, 1)]+source[3:], 1, False),
-                                 (source[:3]+[(128, update, 1, 1), pair[1]]+source[3:], 1, False),
-                                 (unexpected_stage, 1, False), (uncut_conservative, 0, False),
-                                 (uncut_conservative, 0, True)]:
+    late_cut = [(266, update, 1, 3), (266, wait, 1, 1)]
+    strong = source[:3] + late_cut + source[3:]
+    strong[10] = (338, wait, 1, 1)
+    if (check_events(strong, 1, wait, update, "Metal3", False) != {3} or
+            strengthened_waits(strong, wait, update, "Metal3", False) != {10: source[8]}):
+        raise ValueError("lighting/downsample ownership change not identified")
+    no_cut = list(source)
+    no_cut[8] = (338, wait, 1, 1)
+    wrong_cut = strong[:3]+[(251, update, 1, 3), (251, wait, 1, 1)]+strong[5:]
+    wrong_pass = list(strong)
+    wrong_pass[10], wrong_pass[12] = source[8], (339, wait, 1, 1)
+    unexpected_mask = list(strong)
+    unexpected_mask[10] = (338, wait, 1, 3)
+    rejected = [
+        (strong, 1, True), (no_cut, 0, False), (no_cut, 0, True),
+        (wrong_cut, 1, False), (wrong_pass, 1, False), (unexpected_mask, 1, False),
+        (source[1:], 0, False), (source[1::-1]+source[2:], 0, False),
+        ([(0, wait, 1, 2)]+source[1:], 0, False),
+        (sample, 0, False), (sample, 1, True),
+        (source[:3]+pair[::-1]+source[3:], 1, False),
+        (source[:3]+[pair[0], (129, wait, 1, 1)]+source[3:], 1, False),
+        (source[:3]+[(128, update, 1, 1), pair[1]]+source[3:], 1, False),
+    ]
+    for events, count, fixed in rejected:
         try:
             check_events(events, count, wait, update, "Metal3", fixed)
         except ValueError:

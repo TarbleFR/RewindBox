@@ -45,3 +45,9 @@ L’option `S2A_RB_PARALLEL_LONG=1` accompagne un démarrage valide du Banc d’
 Sur Linux, neuf paires de 200 000 appels donnent 0,542 ns en médiane pour la garde désactivée et 32,534 ns avec l’horloge, le mutex non contesté et l’histogramme. [Mesure de coût du compteur 30 minutes](long-cadence-overhead.csv).
 
 Sur la session historique MKW du 20 novembre 2026 identifiée par `host-20261120-073420.log`, la même initialisation du moteur identifie le GPU Apple A18 Pro et le backend direct Metal 4. Cette observation sur appareil précède les correctifs 0506–0512. La ligne de démarrage `direct backend: Metal 4` ou `direct backend: Metal 3` identifie le chemin réellement choisi dans une nouvelle session.
+
+[Première série Apple, profondeurs 1, 2, 3 et adaptative, données et chronologies](apple-17473146/README.md). Les ressources Metal préallouées restent identiques dans tous les bras. La préparation CPU recouvre aussi l’avant-dernière image GPU dès que trois slots sont disponibles.
+
+[Seconde série Apple et traces du moteur](apple-198a6998/README.md). Les classements de latence et les débits varient entre les deux hôtes. Une réouverture de passe liée au rythme du GPU ajoute deux opérations de synchronisation dans un essai. Le contrôle du travail identique nécessite également un découpage reproductible.
+
+[Rejeu final des sept configurations](apple-56d09d52/README.md). Les 189 images conservent leurs empreintes. La comparaison à travail fixé conserve chaque opcode et chaque masque. Le contrôle dynamique reconnaît une attente vertex anticipée seulement au passage d’éclairage identifié.

@@ -33,6 +33,46 @@ concurrency:
   group: s2arm-engine-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: false
 jobs:
+  parallel-recheck:
+    name: Validate an existing Apple GPU capture
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[s2arm-parallel-recheck ')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify the archived capture and check all recorded frames
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          run_id=$(python3 - <<'PYTHON'
+          import json, os, re
+          with open(os.environ["GITHUB_EVENT_PATH"]) as handle:
+              message = json.load(handle)["head_commit"]["message"]
+          match, = re.findall(r"\[s2arm-parallel-recheck ([0-9]+)\]", message)
+          print(match)
+          PYTHON
+          )
+          api="repos/$GITHUB_REPOSITORY/actions"
+          gh api "$api/runs/$run_id" > "$RUNNER_TEMP/source-run.json"
+          source_sha=$(jq -er --arg repo "$GITHUB_REPOSITORY" '
+            select(.path == ".github/workflows/s2arm-engine.yml" and .head_branch == "Claude" and
+                   .head_repository.full_name == $repo and .event == "push" and .status == "completed")
+            | .head_sha | select(test("^[a-f0-9]{40}$"))' "$RUNNER_TEMP/source-run.json")
+          name="s2arm-engine-macos-26-$source_sha"
+          gh api "$api/runs/$run_id/artifacts?per_page=100" > "$RUNNER_TEMP/artifacts.json"
+          read -r id digest < <(jq -er --arg name "$name" '
+            [.artifacts[] | select(.name == $name and (.expired | not))] | select(length == 1) | .[0] |
+            [.id, (.digest | select(test("^sha256:[0-9a-f]{64}$")) | sub("^sha256:";""))] | @tsv' "$RUNNER_TEMP/artifacts.json")
+          gh api "$api/artifacts/$id/zip" > "$RUNNER_TEMP/capture.zip"
+          echo "Checking original Apple run $run_id, commit $source_sha, artifact $id, SHA-256 $digest."
+          python3 -B build-utils/s2arm/engine/tests/recheck_parallel_artifact.py \
+            "$RUNNER_TEMP/capture.zip" "$RUNNER_TEMP/checked" --sha256 "$digest"
   engine:
     if: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (contains(github.event.head_commit.message, '[s2arm-engine]') || contains(github.event.head_commit.message, '[s2arm-check-delivery]') || (contains(github.event.head_commit.message, '[s2arm-shader-checks]') || (contains(github.event.head_commit.message, '[s2arm-thermal-checks]') || (contains(github.event.head_commit.message, '[s2arm-archive-check]') || (contains(github.event.head_commit.message, '[s2arm-gpu-textures]') || (contains(github.event.head_commit.message, '[s2arm-pipeline-driver]') || (contains(github.event.head_commit.message, '[s2arm-bounds-clamp]') || (contains(github.event.head_commit.message, '[s2arm-homebrew-pacing]') || contains(github.event.head_commit.message, '[s2arm-parallel-bench]') || contains(github.event.head_commit.message, '[s2arm-lab]'))))))))))) && !contains(github.event.head_commit.message, '[s2arm-pin ') }}
     strategy:

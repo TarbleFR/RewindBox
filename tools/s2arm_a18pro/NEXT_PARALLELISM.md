@@ -12,6 +12,8 @@ Le rendu peut déjà employer plusieurs command buffers et trois jeux de ressour
 | Horodater les commandes et tickets natifs | `S2A_RB_PARALLEL_TRACE=1`, début de fenêtre optionnel `S2A_RB_PARALLEL_FROM=N` | `=0` |
 | Suivre une même session sur 30 minutes | `S2A_RB_PARALLEL_LONG=1` puis démarrer le Banc d’essai habituel. Le compagnon continue après la fenêtre standard de 180 s. | `=0` |
 
+Le journal Mario Kart World du 20 novembre confirme Metal 4 sur A18 Pro. Les deux séries hors écran et le rejeu de 189 images ont sélectionné Metal 3 sur GPU Apple paravirtualisé. Les comparaisons techniques et les limites figurent dans le rapport ci-dessous.
+
 ## Lire une capture
 
 ```sh
@@ -19,7 +21,7 @@ python3 tools/s2arm_a18pro/parallelism/timeline.py engine.log --timeline timelin
 python3 tools/s2arm_a18pro/parallelism/wait_summary.py engine.log --out waits.json
 ```
 
-Ouvrir `timeline.json` avec Perfetto. Une piste montre la fenêtre murale de préparation, une autre le travail de la file principale entre les horodatages GPU et la troisième les affichages confirmés. Les identités de soumission, segment et ressource figurent dans les événements. Utiliser un journal par lancement. Un intervalle manquant ou un ticket sans preuve d’affichage reste visible dans les compteurs de couverture.
+Ouvrir `timeline.json` avec Perfetto. Une piste montre la fenêtre murale de préparation, une autre le travail de la file principale entre les horodatages GPU et la troisième les affichages confirmés. Les identités de soumission, segment et ressource figurent dans les événements. Utiliser un journal par lancement. Un intervalle manquant ou un ticket sans preuve d’affichage reste visible dans les compteurs de couverture. `observed_display_interval_ms` inclut les grands écarts entre deux affichages observés malgré un saut de ticket. `consecutive_presentation_interval_ms` isole les paires consécutives.
 
 ## Décisions à prendre sur appareil
 

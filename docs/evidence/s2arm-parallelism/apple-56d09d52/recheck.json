@@ -1,0 +1,26 @@
+{
+  "inputs_sha256": "c3987ee2cddaddc39786fb1b078f159628f0e888b7df482c10518b657e331491",
+  "archive_sha256": "31fd68ddb052837139669c9e72a56f6f5908cd82e3bff221d7ba17f1ca7f6357",
+  "input_files": 92,
+  "native_checks": {
+    "encode_0": 7,
+    "xqueue_0": 14,
+    "encode_1": 7,
+    "xqueue_1": 14,
+    "gpu_halt": 28
+  },
+  "profiles": {
+    "default": {
+      "processes": 35,
+      "measured_or_diagnostic_frames": 105,
+      "pass_cuts": 4,
+      "strengthened_waits": 1
+    },
+    "fixed": {
+      "processes": 28,
+      "measured_or_diagnostic_frames": 84,
+      "pass_cuts": 0,
+      "strengthened_waits": 0
+    }
+  }
+}

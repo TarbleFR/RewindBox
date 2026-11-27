@@ -1,0 +1,501 @@
+{
+  "baseline": {
+    "backend": "Metal3",
+    "barriers_per_frame": 14.0,
+    "canonical_order_sha256": "ec6002677feaa9880c81447a45c146a937ef6c920db54d098293874b80378ac4",
+    "raw_diagnostic_order_sha256": "ec6002677feaa9880c81447a45c146a937ef6c920db54d098293874b80378ac4",
+    "pass_cuts_by_run": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        1,
+        1,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "strengthened_wait_ordinals_by_run": [
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [
+          338
+        ],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ]
+    ],
+    "draw_state_digest": "22f104742e837afc",
+    "pixel_digest": "f2c8d5939b7f046b",
+    "worker_seen": 0,
+    "scalar_checks_per_process": 4,
+    "trace_cb_callbacks": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "early": {
+    "backend": "Metal3",
+    "barriers_per_frame": 14.0,
+    "canonical_order_sha256": "ec6002677feaa9880c81447a45c146a937ef6c920db54d098293874b80378ac4",
+    "raw_diagnostic_order_sha256": "ec6002677feaa9880c81447a45c146a937ef6c920db54d098293874b80378ac4",
+    "pass_cuts_by_run": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "strengthened_wait_ordinals_by_run": [
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ]
+    ],
+    "draw_state_digest": "22f104742e837afc",
+    "pixel_digest": "f2c8d5939b7f046b",
+    "worker_seen": 0,
+    "scalar_checks_per_process": 4,
+    "trace_cb_callbacks": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "worker": {
+    "backend": "Metal3",
+    "barriers_per_frame": 14.0,
+    "canonical_order_sha256": "ec6002677feaa9880c81447a45c146a937ef6c920db54d098293874b80378ac4",
+    "raw_diagnostic_order_sha256": "ec6002677feaa9880c81447a45c146a937ef6c920db54d098293874b80378ac4",
+    "pass_cuts_by_run": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "strengthened_wait_ordinals_by_run": [
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ]
+    ],
+    "draw_state_digest": "22f104742e837afc",
+    "pixel_digest": "f2c8d5939b7f046b",
+    "worker_seen": 1,
+    "scalar_checks_per_process": 4,
+    "trace_cb_callbacks": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "worker_scalar": {
+    "backend": "Metal3",
+    "barriers_per_frame": 14.0,
+    "canonical_order_sha256": "ec6002677feaa9880c81447a45c146a937ef6c920db54d098293874b80378ac4",
+    "raw_diagnostic_order_sha256": "ec6002677feaa9880c81447a45c146a937ef6c920db54d098293874b80378ac4",
+    "pass_cuts_by_run": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "strengthened_wait_ordinals_by_run": [
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ]
+    ],
+    "draw_state_digest": "22f104742e837afc",
+    "pixel_digest": "f2c8d5939b7f046b",
+    "worker_seen": 1,
+    "scalar_checks_per_process": 4,
+    "trace_cb_callbacks": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "combined": {
+    "backend": "Metal3",
+    "barriers_per_frame": 14.0,
+    "canonical_order_sha256": "ec6002677feaa9880c81447a45c146a937ef6c920db54d098293874b80378ac4",
+    "raw_diagnostic_order_sha256": "ec6002677feaa9880c81447a45c146a937ef6c920db54d098293874b80378ac4",
+    "pass_cuts_by_run": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "strengthened_wait_ordinals_by_run": [
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ]
+    ],
+    "draw_state_digest": "22f104742e837afc",
+    "pixel_digest": "f2c8d5939b7f046b",
+    "worker_seen": 1,
+    "scalar_checks_per_process": 4,
+    "trace_cb_callbacks": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "combined_trace": {
+    "backend": "Metal3",
+    "barriers_per_frame": 14.0,
+    "canonical_order_sha256": "ec6002677feaa9880c81447a45c146a937ef6c920db54d098293874b80378ac4",
+    "raw_diagnostic_order_sha256": "ec6002677feaa9880c81447a45c146a937ef6c920db54d098293874b80378ac4",
+    "pass_cuts_by_run": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "strengthened_wait_ordinals_by_run": [
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ]
+    ],
+    "draw_state_digest": "22f104742e837afc",
+    "pixel_digest": "f2c8d5939b7f046b",
+    "worker_seen": 1,
+    "scalar_checks_per_process": 4,
+    "trace_cb_callbacks": [
+      12,
+      12,
+      12,
+      12,
+      12
+    ]
+  },
+  "baseline_trace": {
+    "backend": "Metal3",
+    "barriers_per_frame": 14.7,
+    "canonical_order_sha256": "ec6002677feaa9880c81447a45c146a937ef6c920db54d098293874b80378ac4",
+    "raw_diagnostic_order_sha256": "813a85224838a12038f3281df68d22c23eaff570bd438ead81bb6b5aa4062da7",
+    "pass_cuts_by_run": [
+      [
+        0,
+        1,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "strengthened_wait_ordinals_by_run": [
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ],
+      [
+        [],
+        [],
+        []
+      ]
+    ],
+    "draw_state_digest": "22f104742e837afc",
+    "pixel_digest": "f2c8d5939b7f046b",
+    "worker_seen": 0,
+    "scalar_checks_per_process": 4,
+    "trace_cb_callbacks": [
+      13,
+      12,
+      12,
+      12,
+      12
+    ]
+  }
+}

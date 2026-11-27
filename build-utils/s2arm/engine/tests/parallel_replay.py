@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Targeted candidate matrix on the host Metal fixture. Run from the prepared engine tree."""
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -8,7 +9,7 @@ import re
 import subprocess
 import sys
 
-from replay_sync_oracle import canonical_event, canonical_trace, check_events, sync_rows, verify_negative_controls
+from replay_sync_oracle import canonical_trace, check_events, strengthened_waits, sync_rows, verify_negative_controls
 
 
 FLAGS = ("S2A_RB_REC_EARLY", "S2A_RB_REPLAY_WORKER", "S2A_RB_REPLAY_SCALAR_QUERIES", "S2A_RB_PARALLEL_TRACE")
@@ -26,7 +27,7 @@ def validate(out, fixed, rounds):
     measured = json.loads((out / "metrics.json").read_text())
     for name, (_, worker, _, tracing) in ARMS.items():
         metrics = diag[name]
-        cb_counts, pass_cuts = [], []
+        cb_counts, pass_cuts, strengthenings = [], [], []
         for run in ("diagnostic", *range(rounds)):
             log = (out / f"{name}.{run}.log").read_text(errors="replace")
             wait, update, rows = sync_rows(log, FRAMES)
@@ -37,8 +38,10 @@ def validate(out, fixed, rounds):
                     round(sum(cuts)/FRAMES, 1) != run_metrics["pass_cuts"]):
                 raise ValueError(f"{name}.{run}: observed events differ from production totals")
             extras = [check_events(events, cut, wait, update, metrics["backend"], fixed) for cut, events in rows]
-            sync = [[canonical_event(event, cuts, wait, fixed) for i, event in enumerate(events)
-                     if i not in extra and i-1 not in extra] for (cuts, events), extra in zip(rows, extras)]
+            stronger = [strengthened_waits(events, wait, update, metrics["backend"], fixed) for _, events in rows]
+            sync = [[strong.get(i, e) for i, e in enumerate(events) if i not in extra and i-1 not in extra]
+                    for (_, events), extra, strong in zip(rows, extras, stronger)]
+            strengthenings.append([[e[0] for e in changes.values()] for changes in stronger])
             ops = [s for s in log.splitlines() if s.startswith("OPSEQ ")]
             if len(ops) != FRAMES or any(not re.fullmatch(rf"OPSEQ {i} [1-9][0-9]* [0-9a-f]{{16}}", line)
                                          for i, line in enumerate(ops, 1)):
@@ -48,7 +51,9 @@ def validate(out, fixed, rounds):
             if sync != baseline_sync or (fixed and ops != baseline_ops):
                 raise ValueError(f"{name}.{run}: core sync sequence or fixed opcode stream differs")
             if run == "diagnostic":
-                trace_hash = canonical_trace(out / f"{name}.diagnostic.trace", rows, extras, wait, fixed)
+                trace_path = out / f"{name}.diagnostic.trace"
+                raw_hash = hashlib.sha256(trace_path.read_bytes()).hexdigest()
+                trace_hash = canonical_trace(trace_path, rows, extras, stronger)
                 if baseline_trace is None:
                     baseline_trace = trace_hash
                 if trace_hash != baseline_trace:
@@ -69,7 +74,8 @@ def validate(out, fixed, rounds):
                 raise ValueError(f"{name}.{run}: GPU feedback error")
             cb_counts.append(cbs)
         results[name] = dict(backend=metrics["backend"], barriers_per_frame=metrics["barriers_fences"],
-                             canonical_order_sha256=trace_hash, pass_cuts_by_run=pass_cuts,
+                             canonical_order_sha256=trace_hash, raw_diagnostic_order_sha256=raw_hash,
+                             pass_cuts_by_run=pass_cuts, strengthened_wait_ordinals_by_run=strengthenings,
                              draw_state_digest=metrics["draw_state_digest"], pixel_digest=metrics["pixel_digest"],
                              worker_seen=worker, scalar_checks_per_process=FRAMES+1, trace_cb_callbacks=cb_counts)
     (out / "parallel-validation.json").write_text(json.dumps(results, indent=2) + "\n")
