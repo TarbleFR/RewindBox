@@ -218,3 +218,28 @@ Temps d’image, FPS et chauffe sur iPhone : non mesurés. Échecs consécutifs 
 - **Tables de hachage.** [`hm_parts.c`](dispatch/hm_parts.c) : le hachage d’une clé de pipeline coûte `16–25 ns` (184 o) ou `26–28 ns` (344 o), pour une recherche de `34–53 ns`. Ces recherches n’ont lieu qu’aux changements d’état : gain possible de quelques microsecondes par image. Pistes non poursuivies.
 - **Chemins CPU des fils de soumission et d’encodage.** Épuisés à l’échelle des microbancs : `0468` est retenu ; trois candidats sont rejetés à la mesure et deux sont écartés à moins de 10 µs par image.
 - **Prochain levier.** Le travail GPU, à mesurer en A/B dans un même run Metal macOS 26 avec les interrupteurs `S2A_RB_*` existants, ou sur appareil.
+
+## Axe GPU Metal : banc A/B sur le GPU du Mac (27 novembre)
+
+**Banc.** [`gpu_ab.py`](../../../build-utils/s2arm/engine/tests/gpu_ab.py) avec [`gpu_ab.m`](../../../build-utils/s2arm/engine/tests/gpu_ab.m) et [`gpu_ab_raw.m`](../../../build-utils/s2arm/engine/tests/gpu_ab_raw.m), lancé par les étiquettes `[s2arm-lab] [s2arm-gpu-ab]` :
+- même processus, 12 paires alternées ;
+- temps GPU d’un tampon de commandes de 10 à 20 dispatches ;
+- sorties A et B identiques octet pour octet à chaque paire, plus un oracle CPU.
+
+**Limite.** Le runner expose un « Apple Paravirtual device » sans Metal 4 : on mesure le coût des shaders émis (le même MSL sous Metal 4), pas l’encodage Metal 4 ni un iPhone.
+
+Run [`45965382114`](https://github.com/TarbleFR/RewindBox/actions/runs/45965382114), [CSV](gpu-ab/). A = code scalaire, B = accès 16 octets.
+
+| Cas | A (ms) | B (ms) | Médiane appariée (p25 ; p75) |
+| --- | ---: | ---: | ---: |
+| Mémoire brute LDG.128, chaque voie lit sa propre suite (`0394`) | 23,54 | 15,88 | **−33,79 %** (−35,44 ; −25,85) |
+| Mémoire brute LDG.128, voies entrelacées | 16,87 | 16,88 | +1,51 % (−1,48 ; +4,22) |
+| Tampon lié, contigu aligné (`0395`) | 34,34 | 32,98 | −1,54 % (−7,56 ; +1,11) |
+| Tampon lié, liaison décalée de 4 octets | 31,75 | 31,97 | −0,44 % (−4,13 ; +3,82) |
+| Tampon lié, groupes dispersés | 82,08 | 82,21 | +0,43 % (−0,62 ; +3,21) |
+
+**Lecture.**
+- Le gain de `0394` est réel quand les voies d’un groupe ne lisent pas des adresses voisines. Quand elles le font, le GPU regroupe déjà les lectures scalaires.
+- `0395` (tampons liés) ne change rien de mesurable dans ces trois dispositions, sans régression.
+- Aucun changement moteur dans ce lot.
+- Les chiffres « Zelda 16,3 → 12,6 ms » et « 29,24 → 24,80 ms » restent non vérifiés.

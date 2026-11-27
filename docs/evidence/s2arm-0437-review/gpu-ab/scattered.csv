@@ -1,0 +1,26 @@
+case,pair,variant,gpu_ms
+scattered,0,A,81.4492
+scattered,0,B,81.5895
+scattered,1,A,88.3605
+scattered,1,B,84.6178
+scattered,2,A,81.9417
+scattered,2,B,81.1559
+scattered,3,A,82.2117
+scattered,3,B,84.8593
+scattered,4,A,82.8363
+scattered,4,B,85.5684
+scattered,5,A,82.5190
+scattered,5,B,82.6975
+scattered,6,A,81.2123
+scattered,6,B,81.7320
+scattered,7,A,79.3446
+scattered,7,B,80.6724
+scattered,8,A,78.5998
+scattered,8,B,81.1097
+scattered,9,A,82.8264
+scattered,9,B,79.8348
+scattered,10,A,82.9205
+scattered,10,B,82.6884
+scattered,11,A,80.9363
+scattered,11,B,84.2878
+SUMMARY scattered device="Apple Paravirtual device" n=2097152 dispatches=20 A_median_ms=82.0767 B_median_ms=82.2102 paired_median_pct=0.43 p25=-0.62 p75=3.21 parity=ok
