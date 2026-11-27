@@ -155,3 +155,6 @@ RewindBox patches 0495 through 0500 modify RomFS image ownership, index
 metadata and padding buffers, deferred-zero page accounting, mapping table
 reset and overlapping far-memory moves. These changes are provided under
 Apache-2.0.
+
+RewindBox patch 0501 packs the path offset and length used in random RomFS
+index reads. This services change is provided under Apache-2.0.

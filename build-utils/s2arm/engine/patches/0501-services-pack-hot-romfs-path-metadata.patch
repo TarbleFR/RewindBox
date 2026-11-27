@@ -1,0 +1,46 @@
+diff --git a/services/S2A.Services/RomFsIndex.cs b/services/S2A.Services/RomFsIndex.cs
+--- a/services/S2A.Services/RomFsIndex.cs
++++ b/services/S2A.Services/RomFsIndex.cs
+@@ -924,6 +924,7 @@
+             private readonly int[] _ref;        // ≥ 0：文件号；< 0：~段号
+             private const int FileTable = 20, FileRecord = 24, SegmentRecord = 12;
+             private readonly int _pathBase;
++            private readonly ulong[] _pathRanges;  // Packed offset and length for indexed reads.
+             private readonly int[] _segData;    // 段字节在 _idx 里的位置
+             private readonly LazyHostFile[] _files;
+ 
+@@ -968,12 +969,13 @@
+                 int segmentTable = p;
+                 int segmentData = p + ns * SegmentRecord;
+ 
+-                // Keep the sorted read table. Path fields stay in the immutable on-disk records.
++                // Keep the sorted read table and pack the path fields for random reads.
+                 int n = nf + ns;
+                 _start = new long[n];
+                 _len = new long[n];
+                 _ref = new int[n];
+                 _segData = new int[ns];
++                _pathRanges = new ulong[nf];
+ 
+                 for (int i = 0, a = 0, b = 0; i < n; i++)
+                 {
+@@ -983,6 +985,8 @@
+                     if (b >= ns || (a < nf && off < BitConverter.ToInt64(idx, segment)))
+                     {
+                         (_start[i], _len[i], _ref[i]) = (off, BitConverter.ToInt64(idx, file + 8), a);
++                        _pathRanges[a] = (uint)BitConverter.ToInt32(idx, file + 16) |
++                            (ulong)(uint)BitConverter.ToInt32(idx, file + 20) << 32;
+                         a++;
+                     }
+                     else
+@@ -1001,8 +1005,8 @@
+ 
+             private ReadOnlySpan<byte> FilePath(int file)
+             {
+-                int p = FileTable + file * FileRecord + 16;
+-                return _idx.AsSpan(_pathBase + BitConverter.ToInt32(_idx, p), BitConverter.ToInt32(_idx, p + 4));
++                ulong path = _pathRanges[file];
++                return _idx.AsSpan(_pathBase + (int)path, (int)(path >> 32));
+             }
+ 
+             public override Result Read(long offset, Span<byte> destination)

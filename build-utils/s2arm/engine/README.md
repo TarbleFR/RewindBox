@@ -892,3 +892,7 @@ Une plage sale entièrement contenue dans un niveau et une couche peut utiliser 
 - **0500** déplace directement les plages distantes qui se chevauchent, dans l’ordre des adresses invitées. Les plages mixtes gardent la copie via tampon.
 
 [Cartographie et mesures sur hôte](../../../docs/evidence/s2arm-ram-0495-0500.md).
+
+### 0501 — métadonnées des lectures RomFS aléatoires
+
+Un mot de 64 bits par fichier réunit la position et la longueur du chemin. La longueur du fichier reste partagée avec la table des intervalles. La [contre-mesure des petites lectures](../../../docs/evidence/s2arm-ram-0495-0500.md#contre-mesure-romfs--0501) motive cette disposition.

@@ -1,8 +1,8 @@
 # Reprise manuelle · RAM S2Arm · A18 Pro
 
-- Base `7c476455b`, lot 0495–0500. Cartographie, chiffres et limites dans la [preuve RAM](../../docs/evidence/s2arm-ram-0495-0500.md). 0462, 0474–0476, 0480 et 0484 restent la référence des correctifs antérieurs.
+- Base `7c476455b`, lot 0495–0501. Cartographie, chiffres et limites dans la [preuve RAM](../../docs/evidence/s2arm-ram-0495-0500.md). 0462, 0474–0476, 0480 et 0484 restent la référence des correctifs antérieurs.
 - Compiler et vérifier la série via le workflow moteur officiel. Comparer le commit et les patches de l’artefact. Au moment du dépôt, résultats Linux disponibles, mesures iPhone en attente.
 - Sur iPhone17,2, faire les trois fenêtres appariées et trois cycles fermeture/relance avec une trace de résidence et de marge. Priorité à la part anonyme, aux pages fichier, au tas NativeAOT et aux piles encore vivantes après fermeture. Recouper les compteurs avec le [Banc d’essai](../../docs/s2arm-benchmark-protocol.md).
-- Quantifier la fréquence des déplacements distants chevauchants. Pour RomFS, séparer coût de première construction, ouverture de l’index existant, lectures normales et chemin rare de rebond après EFAULT. Mesurer débit et p95/p99 avant toute modification de ce rebond.
+- Le compromis 0501 rétablit le débit aléatoire de référence sur Linux et économise encore 1,56 Mio de tas vivant à 205 058 fichiers. Quantifier la fréquence des déplacements distants chevauchants. Pour RomFS, séparer coût de première construction, ouverture de l’index existant, lectures normales et chemin rare de rebond après EFAULT. Mesurer débit et p95/p99 avant toute modification de ce rebond.
 - Si les mesures le justifient, rechercher le poids des objets de fichiers froids et le coût de leur reconstruction, ou comptabiliser les pages fichier privées/partagées par backing. Ne fixer aucune limite physique à partir du seul VA ou de la capacité nominale de l’appareil.
 - Garder les données utilisateur, le cache shader/PSO, les permissions exécutables et le travail graphique hors du lot mémoire. Vérifier `Claude` et la prochaine numérotation avant reprise.
