@@ -203,6 +203,13 @@ extern "C" bool neostation_dolphin_wiimmfi_tls_files_valid(const std::string& ro
             'remoteHost && remoteHost->h_addr_list && remoteHost->h_addr_list[0] ? 0 : 1', 2)
     observe(top, '  int ret = getaddrinfo(pNodeName, pServiceName, hints_valid ? &hints : nullptr, &result);',
             'ret == 0 && result ? 0 : 1')
+    # Darwin requires output-only members of getaddrinfo hints to be zero.
+    # Copy only the four input fields from the Wii request.
+    insert(top, '  addrinfo hints;\n  const bool hints_valid = request.in_vectors.size() > 2 && request.in_vectors[2].size;',
+           '  addrinfo hints{};\n  const bool hints_valid = request.in_vectors.size() > 2 && request.in_vectors[2].size >= 0x10;')
+    insert(top, '    hints.ai_addrlen = memory.Read_U32(request.in_vectors[2].address + 0x10);\n'
+           '    hints.ai_canonname = nullptr;',
+           '    // Remaining members describe resolver output, not guest input.')
     # Darwin point-to-point VPN/cellular interfaces need not have a broadcast address.
     anchor = '    return reinterpret_cast<const sockaddr_in*>(addr)->sin_addr;'
     insert(top, anchor, '''#ifdef IPHONEOS

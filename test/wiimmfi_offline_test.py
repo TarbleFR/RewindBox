@@ -22,6 +22,8 @@ def main():
     ioctlv = function(top, 'std::optional<IPCReply> NetIPTopDevice::IOCtlV(')
     new_socket = function(socket, 's32 WiiSockMan::NewSocket(')
     logger = (root / 'Source/Core/Common/Logging/LogManager.cpp').read_text()
+    resolver = function(top, 'IPCReply NetIPTopDevice::HandleGetAddressInfoRequest(')
+    hints = resolver[resolver.index('  addrinfo hints'):resolver.index('  // getaddrinfo allows')]
     constants = sorted(set(re.findall(r'case (IOCTL\w+):', ioctl + ioctlv)))
     core = (Path(__file__).resolve().parents[1] /
             'packages/dolphin_internal_bridge/core/NeoStationWiimmfi.inc').read_text()
@@ -33,6 +35,7 @@ def main():
 #include <cstdint>
 #include <array>
 #include <string>
+#include <vector>
 using s32=int32_t;
 int host_work=0;
 int socket_observations=0;
@@ -52,6 +55,28 @@ struct WiiSockMan {
   s32 NewSocket(s32,s32,s32);
   int AddSocket(int fd,bool) {assert(fd==43);return fd;}
 };
+struct addrinfo {
+  int ai_flags, ai_family, ai_socktype, ai_protocol, ai_addrlen;
+  void *ai_addr, *ai_canonname, *ai_next;
+};
+struct ResolverVector { unsigned address, size; };
+struct ResolverMemory {
+  mutable unsigned fields=0;
+  unsigned Read_U32(unsigned offset) const { assert(offset<16); ++fields; return offset/4+4; }
+};
+'''
+    program += '''void CheckResolverHints(unsigned size) {
+  ResolverMemory memory;
+  struct { std::vector<ResolverVector> in_vectors; } request{{{0, 0}, {0, 0}, {0, size}}};
+''' + hints + '''
+  assert(!hints.ai_addrlen && !hints.ai_addr && !hints.ai_next && !hints.ai_canonname);
+  if (size >= 16) {
+    assert(hints_valid && memory.fields==4 && hints.ai_flags==4 && hints.ai_family==5 &&
+           hints.ai_socktype==6 && hints.ai_protocol==7);
+  } else {
+    assert(!hints_valid && memory.fields==0);
+  }
+}
 '''
     # Keep the real policy in its own translation unit, like the Core bridge.
     # The logger imports it weakly on Apple; ELF uses the equivalent weak symbol.
@@ -96,7 +121,7 @@ struct LogManager {
 '''
     program += function(logger, 'bool LogManager::IsEnabled(') + '\n'
     program += function(logger, 'void LogManager::LogWithFullPath(') + '\n'
-    program += 'int main(){NetIPTopDevice top;WiiSockMan sockets;\n'
+    program += 'int main(){NetIPTopDevice top;WiiSockMan sockets;for(unsigned size:{0, 8, 15, 16, 32}) CheckResolverHints(size);\n'
     program += 'for(int cycle=0;cycle<100;++cycle){g_wiimmfi_network_allowed=false;int before=host_work;\n'
     for constant in constants:
         target = 'IOCtlV' if constant.startswith('IOCTLV') else 'IOCtl'
@@ -136,6 +161,7 @@ struct LogManager {
         subprocess.run([str(binary)], check=True)
     print(f'PASS: real IOS IP/IOCtlV/NewSocket offline gates, {len(constants)} requests x100; zero host work offline')
     print('PASS: actual logger entry points suppress formatting/listeners online and restore offline x100')
+    print('PASS: Wii resolver hints initialize Darwin output-only members and read only the four input fields')
 
 
 if __name__ == '__main__':

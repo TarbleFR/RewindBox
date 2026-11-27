@@ -55,6 +55,7 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
   bool _busy = false;
   bool _importing = false;
   bool _cancelling = false;
+  double? _imageProgress;
   String? _selected = 'console';
   bool _showAdvanced = false;
   bool _showGames = false;
@@ -328,8 +329,17 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
 
   Future<bool> _declareGame() async {
     if (!await _confirm('patchHelp') || !mounted) return false;
-    await WiimmfiService.registerPatchedImage(widget.gamePath!);
-    return true;
+    try {
+      await WiimmfiService.registerPatchedImage(
+        widget.gamePath!,
+        onProgress: (value) {
+          if (mounted) setState(() => _imageProgress = value);
+        },
+      );
+      return true;
+    } finally {
+      if (mounted) setState(() => _imageProgress = null);
+    }
   }
 
   Future<void> _setOnline(bool value) => _run(() async {
@@ -340,8 +350,12 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
       // Like Nextendo's switch, complete the missing preparation first.
       if (!_nandReady && !await _importConsole()) return;
       if (!mounted) return;
-      if ((await WiimmfiService.status())['nandRecognized'] != true) {
+      final readiness = await WiimmfiService.status();
+      if (readiness['nandRecognized'] != true) {
         throw const WiimmfiException('nandMissing');
+      }
+      if (readiness['tlsFilesValid'] == false) {
+        throw const WiimmfiException('tlsFilesRejected');
       }
       if (widget.gamePath != null && !_declared && !await _declareGame()) {
         return;
@@ -583,6 +597,10 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
       ],
       if (widget.gamePath != null) ...[
         const SizedBox(height: 8),
+        if (_imageProgress case final double value) ...[
+          LinearProgressIndicator(value: value, semanticsLabel: t('gameSetup')),
+          Text('${t('gameSetup')} · ${(value * 100).round()}%'),
+        ],
         if (!declared)
           _button(
             'patcher',

@@ -4,7 +4,7 @@
 
 - ABI 4 contrôlait `User/Wii` mais l’amont peut modifier `D_WIIROOT_IDX` via `NANDRootPath`. IOS charge les clés depuis ce chemin, tandis que les certificats viennent de `D_SESSION_WIIROOT_IDX`. Le Core ABI 5 utilise la NAND importée pour toute la session Wiimmfi, vérifie les chemins avant la libération du jeu, observe l’identité réellement chargée par IOS et rétablit le chemin précédent après l’arrêt.
 - L’ancien état « structure reconnue » acceptait des fichiers TLS à la bonne taille mais rejetés par IOS SSL. Le contrôle reprend les trois empreintes attendues par le Dolphin épinglé, sans écrire leurs valeurs dans le diagnostic. IOS conserve ses contrôles TLS. L’identité Wii et les fichiers TLS IOS sont des vérifications distinctes.
-- Darwin n’expose pas forcément d’adresse de diffusion ni de masque IPv4 sur les interfaces point à point. La détection d’interface protège ces lectures et n’utilise pas l’adresse du pair VPN comme adresse de diffusion.
+- Le relais DNS pouvait transmettre à `getaddrinfo` des champs de sortie non initialisés. Il initialise la structure et ne lit que les quatre champs d’entrée, conformément au [contrat iOS](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/getaddrinfo.3.html). Darwin n’expose pas forcément d’adresse de diffusion ni de masque IPv4 sur les interfaces point à point. La détection d’interface protège ces lectures et n’utilise pas l’adresse du pair VPN comme adresse de diffusion.
 - Le site public et le réseau du jeu donnent des signaux différents. Le diagnostic Oui/Non/Non testé est remplacé par les signaux observables. Le code `23934` désigne un paramètre de connexion invalide et ne désigne pas à lui seul une identité Wii refusée.
 
 Aucun code en jeu ni dump réel fourni pour cette revue. Les défauts ci-dessus sont reproductibles dans l’intégration, mais leur présence sur l’iPhone de l’utilisateur et le point de refus du serveur restent à déterminer.
@@ -13,7 +13,13 @@ Aucun code en jeu ni dump réel fourni pour cette revue. Les défauts ci-dessus 
 
 Pour `RMCP01` (Europe), `RMCE01` (Amérique du Nord), `RMCJ01` (Japon) et `RMCK01` (Corée), DiscIO lit la région et la révision de l’image déclarée. L’application vérifie à nouveau ces éléments et l’empreinte complète avant de lancer cette copie. Aucun patchage ou réencodage du jeu n’est effectué sur iPhone.
 
-Le format Riivolution est prévu dans le Core pour des modifications de disque sans réécriture, mais l’existence de cette API ne fournit ni le patch MKW signé/autorisé pour chaque révision, ni sa compatibilité actuelle avec le serveur. Le patcher de bureau et ses composants n’ont pas été qualifiés pour iOS. Le panneau Wiimmfi ouvre son parcours officiel. Appliquer l’outil sur une copie ISO/WBFS sur ordinateur. Pour un RVZ, convertir une copie en ISO dans Dolphin, puis importer et déclarer la sortie. Le diagnostic indique « déclaré » et ne déduit pas la version du patch de l’ID disque.
+Le format Riivolution est prévu dans le Core pour des modifications de disque sans réécriture, mais l’existence de cette API ne fournit ni un paquet de patch MKW vérifiable pour chaque révision, ni sa compatibilité actuelle avec le serveur. Le patcher de bureau et ses composants n’ont pas été qualifiés pour iOS. Le panneau Wiimmfi ouvre son parcours officiel et affiche la progression de la vérification de la copie. Appliquer l’outil sur une copie ISO/WBFS sur ordinateur. Pour un RVZ, convertir une copie en ISO dans Dolphin, puis importer et déclarer la sortie. Le diagnostic indique « déclaré » et ne déduit pas la version du patch de l’ID disque.
+
+## Contrôles sur hôte
+
+- Dix tests Flutter réussis, dont navigation simulée, stockage, annulation, progression et empreinte de l’image, refus TLS et export sans champs privés. Analyse Dart ciblée réussie.
+- Vingt cycles natifs Wii/GameCube avec refus du mauvais chemin et de l’identité par défaut, restauration du dossier après arrêt et compteurs inactifs hors ligne. Les 27 requêtes IOS IP répétées 100 fois ne font aucun appel hôte hors ligne. Le banc de résolution contrôle les tailles 0, 8, 15, 16 et 32.
+- UBSan sur les vrais corps du précontrôle TLS et de la lecture d’interface, avec entrées synthétiques : trois fichiers valides, neuf refus (absents, altérés ou trop grands), adresses nulle, IPv6 et IPv4.
 
 ## Validation iPhone 16 Pro Max
 

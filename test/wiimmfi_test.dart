@@ -28,6 +28,7 @@ void main() {
   bool running = false;
   bool supported = true;
   bool nandRecognized = true;
+  bool? tlsFilesValid;
   bool cancelOnProtect = false;
   Future<int> Function(Map<dynamic, dynamic>)? nativeImport;
   List<Map<String, dynamic>>? picks;
@@ -62,6 +63,7 @@ void main() {
         'wiimmfiStatus' => {
           'supported': supported,
           'nandRecognized': nandRecognized,
+          'tlsFilesValid': ?tlsFilesValid,
         },
         'saveIdentity' => {
           'system': 'wii',
@@ -87,6 +89,7 @@ void main() {
     running = false;
     supported = true;
     nandRecognized = true;
+    tlsFilesValid = null;
     cancelOnProtect = false;
     nativeImport = null;
     picks = null;
@@ -461,13 +464,31 @@ void main() {
         'NeoStation/Dolphin/Library/wii/synthetic.iso',
         'public test bytes, no game',
       );
-      await WiimmfiService.registerPatchedImage(image.path);
+      final progress = <double>[];
+      await WiimmfiService.registerPatchedImage(
+        image.path,
+        onProgress: progress.add,
+      );
+      expect(progress, [0.0, 1.0]);
+      expect(await image.readAsString(), 'public test bytes, no game');
       await WiimmfiService.setEnabled(true);
       expect(await WiimmfiService.prepareLaunch(image.path), true);
+      tlsFilesValid = false;
+      await expectLater(
+        WiimmfiService.prepareLaunch(image.path, requested: true),
+        throwsA(
+          isA<WiimmfiException>().having(
+            (e) => e.code,
+            'code',
+            'tlsFilesRejected',
+          ),
+        ),
+      );
       expect(
         await WiimmfiService.prepareLaunch(image.path, requested: false),
         false,
       );
+      tlsFilesValid = true;
       await image.writeAsString('modified public test bytes');
       await expectLater(
         WiimmfiService.prepareLaunch(image.path),
@@ -642,7 +663,24 @@ void main() {
     expect(WiimmfiLocale.errorKey('23899'), 'activation');
     expect(WiimmfiLocale.errorKey('23904'), 'patchOld');
     expect(WiimmfiLocale.errorKey('23918'), 'nandError');
-    expect(WiimmfiLocale.errorKey('86420'), 'codeUnknown');
+    expect(WiimmfiLocale.errorKey('23934'), 'loginRejected');
+    expect(WiimmfiLocale.errorKey('86420'), 'matchmakingNat');
+    expect(WiimmfiLocale.errorKey('86030'), 'matchmakingDns');
+    expect(WiimmfiLocale.errorKey('23901'), 'maintenance');
+    expect(WiimmfiLocale.errorKey('99900'), 'codeUnknown');
+    final exported = WiimmfiService.diagnosticReport({
+      'abi': 5,
+      'tlsFilesValid': true,
+      'bootNand': 3,
+      'lastGame': {'gameId': 'RMCP01', 'region': 'PAL', 'secret': 'private'},
+      'gameNetwork': {'dnsFailed': 1, 'tlsHandshakes': 2, 'address': 'private'},
+      'nandPath': 'private',
+      'authentication': 'untrusted',
+    }, enteredCode: '86420');
+    expect(exported['authentication'], 'notObserved');
+    expect(exported['gameNetwork'], {'dnsFailed': 1, 'tlsHandshakes': 2});
+    expect(exported['gameCodeReportedByUser'], '86420');
+    expect(exported.toString(), isNot(contains('private')));
   });
 
   Future<File> selectSparseBackup() async {

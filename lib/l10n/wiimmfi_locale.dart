@@ -21,6 +21,9 @@ abstract final class WiimmfiLocale {
     "exportDiagnostic": "Export Wiimmfi diagnostic",
     "loginRejected": "Wiimmfi rejected a login parameter. Check the official advice for this code.",
     "timeout": "Timed out",
+    "matchmakingNat": "NAT negotiation with other players failed. Try a different Wi-Fi network.",
+    "matchmakingDns": "The game could not resolve the matchmaking host. Check the Wii network diagnostic.",
+    "maintenance": "Wiimmfi reports scheduled maintenance. Try again when it ends.",
     "simpleIntro":
         "Prepare your Wii console once and your game with the official patcher, then enable online services.",
     "servicesConsolePrepared":
@@ -121,6 +124,9 @@ abstract final class WiimmfiLocale {
       "exportDiagnostic": "Exporter le diagnostic Wiimmfi",
       "loginRejected": "Wiimmfi a refusé un paramètre de connexion. Consulte l’aide officielle pour ce code.",
       "timeout": "Délai dépassé",
+      "matchmakingNat": "La négociation NAT avec les autres joueurs a échoué. Essaie sur un autre Wi-Fi.",
+      "matchmakingDns": "Le jeu ne résout pas l’hôte du matchmaking. Consulte le diagnostic réseau Wii.",
+      "maintenance": "Wiimmfi signale une maintenance. Réessaie après sa fin.",
       "simpleIntro":
           "Préparez votre console Wii une seule fois et votre jeu avec le patcher officiel, puis activez les services en ligne.",
       "servicesConsolePrepared":
@@ -227,6 +233,9 @@ abstract final class WiimmfiLocale {
       "exportDiagnostic": "Wiimmfi-Diagnose exportieren",
       "loginRejected": "Wiimmfi hat einen Anmeldeparameter abgelehnt. Prüfe die offizielle Hilfe für diesen Code.",
       "timeout": "Zeitüberschreitung",
+      "matchmakingNat": "Die NAT-Aushandlung mit anderen Spielern ist fehlgeschlagen. Probiere ein anderes WLAN.",
+      "matchmakingDns": "Das Spiel kann den Matchmaking-Host nicht auflösen. Prüfe die Wii-Netzwerkdiagnose.",
+      "maintenance": "Wiimmfi meldet Wartungsarbeiten. Versuche es danach erneut.",
       "simpleIntro":
           "Bereite deine Wii-Konsole einmal vor und patche dein Spiel mit dem offiziellen Patcher. Aktiviere dann die Online-Dienste.",
       "servicesConsolePrepared":
@@ -335,6 +344,9 @@ abstract final class WiimmfiLocale {
       "exportDiagnostic": "Exportar diagnóstico de Wiimmfi",
       "loginRejected": "Wiimmfi rechazó un parámetro de inicio de sesión. Consulta la ayuda oficial del código.",
       "timeout": "Tiempo agotado",
+      "matchmakingNat": "Falló la negociación NAT con otros jugadores. Prueba otra red Wi-Fi.",
+      "matchmakingDns": "El juego no pudo resolver el host de emparejamiento. Consulta el diagnóstico de red Wii.",
+      "maintenance": "Wiimmfi indica que está en mantenimiento. Inténtalo de nuevo cuando termine.",
       "simpleIntro":
           "Prepara tu consola Wii una vez y tu juego con el parcheador oficial; después activa los servicios en línea.",
       "servicesConsolePrepared":
@@ -443,6 +455,9 @@ abstract final class WiimmfiLocale {
       "exportDiagnostic": "Esporta la diagnostica Wiimmfi",
       "loginRejected": "Wiimmfi ha rifiutato un parametro di accesso. Consulta la guida ufficiale per il codice.",
       "timeout": "Tempo scaduto",
+      "matchmakingNat": "Negoziazione NAT con gli altri giocatori non riuscita. Prova un’altra rete Wi-Fi.",
+      "matchmakingDns": "Il gioco non ha risolto l’host del matchmaking. Controlla la diagnostica di rete Wii.",
+      "maintenance": "Wiimmfi segnala una manutenzione. Riprova al termine.",
       "simpleIntro":
           "Prepara la tua console Wii una volta e il gioco con il patcher ufficiale, poi attiva i servizi online.",
       "servicesConsolePrepared":
@@ -554,6 +569,9 @@ abstract final class WiimmfiLocale {
       "exportDiagnostic": "Exportar diagnóstico Wiimmfi",
       "loginRejected": "O Wiimmfi rejeitou um parâmetro de autenticação. Consulta a ajuda oficial do código.",
       "timeout": "Tempo esgotado",
+      "matchmakingNat": "Falhou a negociação NAT com outros jogadores. Experimenta outra rede Wi-Fi.",
+      "matchmakingDns": "O jogo não conseguiu resolver o servidor de emparelhamento. Consulta o diagnóstico de rede Wii.",
+      "maintenance": "O Wiimmfi está em manutenção. Tenta novamente quando terminar.",
       "simpleIntro":
           "Prepare a sua consola Wii uma vez e o jogo com a ferramenta oficial de patches; depois ative os serviços online.",
       "servicesConsolePrepared":
@@ -660,6 +678,9 @@ abstract final class WiimmfiLocale {
       "exportDiagnostic": "Экспорт диагностики Wiimmfi",
       "loginRejected": "Wiimmfi отклонил параметр входа. См. официальную справку по коду.",
       "timeout": "Время ожидания истекло",
+      "matchmakingNat": "Не удалось согласовать NAT с другими игроками. Попробуйте другую сеть Wi-Fi.",
+      "matchmakingDns": "Игра не смогла разрешить адрес сервера подбора игроков. Проверьте диагностику сети Wii.",
+      "maintenance": "Wiimmfi сообщает о технических работах. Повторите попытку после их окончания.",
       "simpleIntro":
           "Подготовьте консоль Wii один раз и обработайте игру официальным патчером, затем включите сетевые службы.",
       "servicesConsolePrepared":
@@ -769,6 +790,9 @@ abstract final class WiimmfiLocale {
       "exportDiagnostic": "Ekspor diagnostik Wiimmfi",
       "loginRejected": "Wiimmfi menolak parameter login. Lihat bantuan resmi untuk kode tersebut.",
       "timeout": "Waktu habis",
+      "matchmakingNat": "Negosiasi NAT dengan pemain lain gagal. Coba jaringan Wi-Fi lain.",
+      "matchmakingDns": "Game tidak dapat menemukan alamat host matchmaking. Lihat diagnostik jaringan Wii.",
+      "maintenance": "Wiimmfi sedang dalam pemeliharaan. Coba lagi setelah selesai.",
       "simpleIntro":
           "Siapkan konsol Wii Anda sekali dan game dengan patcher resmi, lalu aktifkan layanan daring.",
       "servicesConsolePrepared":
@@ -873,6 +897,9 @@ abstract final class WiimmfiLocale {
       "exportDiagnostic": "Wiimmfi診断をエクスポート",
       "loginRejected": "Wiimmfiがログインのパラメーターを拒否しました。公式のエラーコード案内を確認してください。",
       "timeout": "タイムアウト",
+      "matchmakingNat": "他のプレイヤーとのNATネゴシエーションに失敗しました。別のWi-Fiでお試しください。",
+      "matchmakingDns": "ゲームがマッチメイクサーバーの名前を解決できませんでした。Wiiネットワーク診断を確認してください。",
+      "maintenance": "Wiimmfiはメンテナンス中です。終了後に再試行してください。",
       "simpleIntro": "Wii本体を一度準備し、公式パッチャーでゲームを準備してから、オンラインサービスを有効にしてください。",
       "servicesConsolePrepared":
           "本体の準備完了 · 公式ツールでゲームにパッチを適用し、そのゲームのWiimmfi設定で登録してください。",
@@ -962,6 +989,9 @@ abstract final class WiimmfiLocale {
       "exportDiagnostic": "Wiimmfi 진단 내보내기",
       "loginRejected": "Wiimmfi가 로그인 매개변수를 거부했습니다. 해당 코드의 공식 도움말을 확인하세요.",
       "timeout": "시간 초과",
+      "matchmakingNat": "다른 플레이어와의 NAT 협상에 실패했습니다. 다른 Wi-Fi에서 시도하세요.",
+      "matchmakingDns": "게임이 매치메이킹 서버 주소를 확인하지 못했습니다. Wii 네트워크 진단을 확인하세요.",
+      "maintenance": "Wiimmfi 점검 중입니다. 점검이 끝난 후 다시 시도하세요.",
       "simpleIntro": "Wii 본체를 한 번 준비하고 공식 패치 도구로 게임을 준비한 다음 온라인 서비스를 활성화하세요.",
       "servicesConsolePrepared":
           "본체 준비 완료 · 공식 도구로 게임을 패치한 다음 해당 게임의 Wiimmfi 설정에서 등록하세요.",
@@ -1052,6 +1082,9 @@ abstract final class WiimmfiLocale {
       "exportDiagnostic": "导出 Wiimmfi 诊断",
       "loginRejected": "Wiimmfi 拒绝了某个登录参数。请查看此代码的官方帮助。",
       "timeout": "已超时",
+      "matchmakingNat": "与其他玩家的 NAT 协商失败。请尝试其他 Wi-Fi 网络。",
+      "matchmakingDns": "游戏无法解析匹配服务器。请查看 Wii 网络诊断。",
+      "maintenance": "Wiimmfi 正在维护。请在维护结束后重试。",
       "simpleIntro": "首次准备好您的 Wii 主机，并使用官方补丁工具准备游戏，然后启用在线服务。",
       "servicesConsolePrepared":
           "主机已准备好 · 请使用官方工具为游戏打补丁，然后在该游戏的 Wiimmfi 设置中登记。",
@@ -1139,6 +1172,9 @@ abstract final class WiimmfiLocale {
       "exportDiagnostic": "匯出 Wiimmfi 診斷",
       "loginRejected": "Wiimmfi 拒絕了某個登入參數。請查看此代碼的官方說明。",
       "timeout": "已逾時",
+      "matchmakingNat": "與其他玩家的 NAT 協商失敗。請嘗試其他 Wi-Fi 網路。",
+      "matchmakingDns": "遊戲無法解析配對伺服器。請查看 Wii 網路診斷。",
+      "maintenance": "Wiimmfi 正在維護。請在維護結束後重試。",
       "simpleIntro": "首次準備好您的 Wii 主機，並使用官方修補工具準備遊戲，然後啟用線上服務。",
       "servicesConsolePrepared":
           "主機已準備好 · 請使用官方工具為遊戲套用修補程式，然後在該遊戲的 Wiimmfi 設定中登記。",
@@ -1220,6 +1256,9 @@ abstract final class WiimmfiLocale {
   };
 
   static String errorKey(String code) {
+    if (code == '23901') return 'maintenance';
+    if (code == '86030') return 'matchmakingDns';
+    if (code == '86420') return 'matchmakingNat';
     if (code == '23904') return 'patchOld';
     if (code == '23905') return 'patchRestart';
     if (code == '23918') return 'nandError';

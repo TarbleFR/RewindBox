@@ -45,8 +45,14 @@ abstract final class WiimmfiService {
 
   static Future<void> setEnabled(bool value) =>
       DolphinInternalV2Service.withSystemMutation(() async {
-        if (value && (await status())['supported'] != true) {
-          throw const WiimmfiException('engineUnavailable');
+        if (value) {
+          final readiness = await status();
+          if (readiness['supported'] != true) {
+            throw const WiimmfiException('engineUnavailable');
+          }
+          if (readiness['tlsFilesValid'] == false) {
+            throw const WiimmfiException('tlsFilesRejected');
+          }
         }
         final store = await _store();
         await store.save({...await store.load(), 'enabled': value});
@@ -180,30 +186,60 @@ abstract final class WiimmfiService {
 
   /// Explicit user declaration, never a claim that the security patch was
   /// certified by RewindBox. Hash the exact image and bind its native metadata.
-  static Future<void> registerPatchedImage(String gamePath) =>
-      DolphinInternalV2Service.withSystemMutation(() async {
-        final library = await DolphinInternalV2Service.libraryDirectory('wii');
-        final file = File(gamePath);
-        if (!p.isWithin(
-          await library.resolveSymbolicLinks(),
-          await file.resolveSymbolicLinks(),
-        )) {
-          throw const WiimmfiException('unsafePath');
-        }
-        final meta = await identity(gamePath);
-        final digest = (await sha256.bind(file.openRead()).first).toString();
-        final store = await _store();
-        final state = await store.load();
-        final images = Map<String, dynamic>.from(state['images'] as Map);
-        images[p.normalize(p.absolute(gamePath))] = {
-          ...meta,
-          'sha256': digest,
-          'size': await file.length(),
-          'patchVerification': 'userDeclaredOfficial',
-          'registeredAt': DateTime.now().toUtc().toIso8601String(),
-        };
-        await store.save({...state, 'images': images});
-      });
+  static Future<void> registerPatchedImage(
+    String gamePath, {
+    void Function(double)? onProgress,
+  }) => DolphinInternalV2Service.withSystemMutation(() async {
+    final library = await DolphinInternalV2Service.libraryDirectory('wii');
+    final file = File(gamePath);
+    if (!p.isWithin(
+      await library.resolveSymbolicLinks(),
+      await file.resolveSymbolicLinks(),
+    )) {
+      throw const WiimmfiException('unsafePath');
+    }
+    final before = await file.stat();
+    if (before.type != FileSystemEntityType.file || before.size <= 0) {
+      throw const WiimmfiException('gameUnknown');
+    }
+    final meta = await identity(gamePath);
+    var bytesRead = 0;
+    var percent = 0;
+    onProgress?.call(0);
+    final digest =
+        (await sha256
+                .bind(
+                  file.openRead().map((chunk) {
+                    bytesRead += chunk.length;
+                    final next = (bytesRead * 100 ~/ before.size).clamp(0, 100);
+                    if (next != percent) {
+                      percent = next;
+                      onProgress?.call(percent / 100);
+                    }
+                    return chunk;
+                  }),
+                )
+                .first)
+            .toString();
+    final after = await file.stat();
+    if (bytesRead != before.size ||
+        after.size != before.size ||
+        after.modified != before.modified ||
+        after.changed != before.changed) {
+      throw const WiimmfiException('imageChanged');
+    }
+    final store = await _store();
+    final state = await store.load();
+    final images = Map<String, dynamic>.from(state['images'] as Map);
+    images[p.normalize(p.absolute(gamePath))] = {
+      ...meta,
+      'sha256': digest,
+      'size': bytesRead,
+      'patchVerification': 'userDeclaredOfficial',
+      'registeredAt': DateTime.now().toUtc().toIso8601String(),
+    };
+    await store.save({...state, 'images': images});
+  });
 
   static Future<bool> prepareLaunch(String gamePath, {bool? requested}) async {
     if (requested == false) {
