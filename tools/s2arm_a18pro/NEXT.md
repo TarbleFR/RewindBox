@@ -1,7 +1,9 @@
-# S2Arm GPU — reprise (boucle A18 Pro)
+# S2Arm GPU — reprise manuelle A18 Pro
 
 Périmètre : GPU seulement (passes Metal/TBDR, load/store, barrières, encodage, transferts). Runtime CPU, RAM et services : voir `NEXT_CPU.md` (Sol).
 Rappel : iOS 26 tourne sur **Metal 3** (`nvn_be.h`, `ios26x`), le chemin à optimiser en priorité pour A18 Pro.
+
+**Mode de travail (27/11) : reprise manuelle exclusivement, sur demande du mainteneur.** Aucune relance planifiée, aucun agent automatique : ne pas recréer ni réactiver de boucle T3. Conserver les preuves, vérifier les CI existantes et reprendre uniquement le chantier demandé, sans duplicata.
 
 ## État au 27 novembre 2026
 - Rejeu synthétique (CI 46001412062, `0471`) : `load_bytes = 0`, `store_bytes = 1,65 Mo` (6 passes, toutes `store`),
@@ -19,8 +21,7 @@ Rappel : iOS 26 tourne sur **Metal 3** (`nvn_be.h`, `ios26x`), le chemin à opti
 2. Axe fences abandonné (27/11, analyse) : 14 = 7 encodeurs × (wait+update) ; chaque paire ordonne upload→rendu, rendu→rendu
    ou rendu→relecture, accès bindless non suivis par Metal → aucune paire prouvable sans dépendance. Ne pas rouvrir.
    Arène : 677 allocs ≈ minimum 256 o (173 Ko/image), transfert négligeable → pas un goulet GPU.
-   **Ne pas désactiver la relance** (consigne du 27/11, relance toutes les 5 min, tâche `scheduled-task:3bf356cf-…`) : si 0477/0478
-   sont verts et fidèles, le banc synthétique actuel est épuisé, pas la mission GPU → passer au point 4.
+   Si 0477/0478 sont verts et fidèles, le banc synthétique actuel est épuisé, pas la mission GPU. Lors d’une reprise manuelle explicitement demandée, passer au point 4.
 3. Ne pas refaire : coupures 0/4/16/64, vidage des tables de ressources (retiré), comparaisons de temps mural du runner (bruit ±30 %).
 4. Diversifier les charges (une par itération, compteurs exacts + pixels/état, puis correctif générique si goulet prouvé) :
    - rejeu NVN : textures échantillonnées avec mips et formats compressés (BC/ASTC → chemins de décompression et de téléversement),
