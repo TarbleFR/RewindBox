@@ -13,11 +13,22 @@ Référence `5a4b9ef24`, moteur épinglé `6b6a5715`. Cible iPhone 16 Pro Max, A
 | Patch | Changement | Banc hôte apparié |
 |---|---|---|
 | 0502 | Lire le plan valide sans reprendre le verrou de mesure. La génération invalidée ou la publication incomplète repasse par le verrou. | 16 paires de 640 000 lectures à huit threads. 10 240 000 → 16 passages par le verrou. Même nombre de relevés (16). Temps CPU médian cumulé 219,51 → 17,72 ms par lot dans le banc. |
-| 0503 | En RUN borné, les libérations notifient quand un quota plein redevient disponible. | 16 000 libérations, 6 000 passages d’un quota plein à disponible. Appels de notification 32 000 → 12 000. Les deux budgets 2 et 4, ONE et les réveils de fermeture gardent leurs règles. Ce sont des appels, distincts des réveils observés en jeu. |
-| 0504 | Deux relevés indépendants de la sonde après calibration, avec charge jeu corroborante, peuvent limiter les admissions facultatives à un seul worker. | 3 000 cycles synthétiques, y compris régime déjà lent au départ, trou, pic, données périmées, chaud, reprise et nouvelle session. Exemple de 60 intervalles, 102 → 75 admissions facultatives et 51/51 prioritaires dans les deux bras. |
+| 0503 | En RUN borné, les libérations notifient quand un quota plein redevient disponible. | 16 000 libérations, 6 000 passages d’un quota plein à disponible. Appels de notification 32 000 → 12 000. Les deux budgets 2 et 4, ONE et les réveils de fermeture gardent leurs règles. Avec quatre workers sans travail et 100 libérations sous le quota, les sorties d’attente pour signal passent de 400 à 0. Réveils en jeu non mesurés. |
+| 0504 | Deux relevés indépendants de la sonde après calibration, avec charge jeu corroborante, peuvent limiter les admissions facultatives à un seul worker. | 3 000 cycles synthétiques et 120 000 observations perturbées, y compris régime déjà lent au départ, trou, pic, données périmées, chaud, reprise et nouvelle session. Exemple de 60 intervalles, 102 → 75 admissions facultatives et 51/51 prioritaires dans les deux bras. |
 | 0505 | Les notifications thermiques et Low Power Mode invalident la mesure et réveillent seulement le worker chargé du relevé. | Sept paires avec événement à 20 ms et délai de secours de 500 ms. Attente médiane du worker 500,15 → 20,15 ms dans le banc. Les doublons durant l’invalidation n’ajoutent aucun signal. |
 
-En simulation, 0504 signale l’écart au second relevé lent à t=17, avec l’état OS critique simulé à t=43. Ce décalage imposé au scénario sert à vérifier que les deux sources restent distinctes. Quatre états thermiques, fermeture, seuils de mémoire et PSO liés au dessin restent pilotés comme avant. Le test `t_rb_spec_gate` existant et les cas de fermeture sous ASan/UBSan passent sur hôte.
+En simulation, 0504 signale l’écart au second relevé lent à t=17, avec l’état OS critique simulé à t=43. Ce décalage imposé au scénario sert à vérifier que les deux sources restent distinctes. Quatre états thermiques, fermeture, seuils de mémoire et PSO liés au dessin restent pilotés comme avant. Le test `t_rb_spec_gate` existant et les cas de fermeture sous ASan/UBSan passent sur hôte. TSan a aussi passé la lecture concurrente du plan et le réveil sur invalidation.
+
+### Rejouer le banc hôte
+
+Compiler le [banc manuel](s2arm-thermal-0502-0505/thermal_bench.c) avec les en-têtes de la source S2Arm après application du lot. Les états OS et la sonde sont simulés. Les mutex, conditions et temps CPU Linux sont réels.
+
+```bash
+cc -std=gnu11 -O3 -Wall -Wextra -Werror -pthread \
+  -I "$S2ARM_PATCHED_ROOT/graphics/nvn/gfx/nvn" \
+  docs/evidence/s2arm-thermal-0502-0505/thermal_bench.c -o /tmp/s2arm-thermal-bench
+/tmp/s2arm-thermal-bench bench
+```
 
 ### Réglages et limites
 
@@ -30,6 +41,10 @@ En simulation, 0504 signale l’écart au second relevé lent à t=17, avec l’
 
 Avec le [Banc d’essai](../s2arm-benchmark-protocol.md), configurer trois paires par titre sur iPhone17,2, en alternant A/B et B/A. Tester Mario Kart World 1.0.0 Coupe Champignon 150 cc, Zelda, Fire Emblem et un autre NVN2. Même réglage 1×, même route et sauvegarde, caches compatibles de départ équivalents, éclairage et luminosité fixes, chauffe et batterie comparables, appareil débranché, Frame Generation désactivée, mêmes versions GPU/CPU/RAM.
 
-Tracer le démarrage, le chargement, l’arrivée en jeu, la pause et le retour au premier plan. Faire 30 min par bras et prendre les fenêtres à 1/5/10/20/30 min. Rapporter séparément les FPS natifs, frametimes p50/p95/p99, GPU p50/p95/p99, sonde, latence des travaux indispensables, admissions et files, réveils secondaires, CPU actif, seuil et récupération de la sonde, temps mural dans chaque état OS. Utiliser les mesures CPU en W déjà disponibles en tant que mesure du CPU du processus. Puissance GPU, puissance totale et mJ/image exigent leur propre source de mesure. Comparer les diagnostics désactivés/activés par une paire dédiée avant de les utiliser pour mesurer leur surcoût.
+Tracer le démarrage, le chargement, l’arrivée en jeu, la pause et le retour au premier plan. Faire 30 min par bras et prendre les fenêtres à 1/5/10/20/30 min. Le [compagnon de cadence du lot parallèle](../../tools/s2arm_a18pro/NEXT_PARALLELISM.md) peut fournir ces jalons si `S2A_RB_PARALLEL_LONG=1` est identique dans les deux bras. Rapporter séparément les FPS natifs, frametimes p50/p95/p99, GPU p50/p95/p99, sonde, latence des travaux indispensables, admissions et files, réveils secondaires, CPU actif, seuil et récupération de la sonde, temps mural dans chaque état OS. Utiliser les mesures CPU en W déjà disponibles en tant que mesure du CPU du processus. Puissance GPU, puissance totale et mJ/image exigent leur propre source de mesure. Comparer les diagnostics désactivés/activés par une paire dédiée avant de les utiliser pour mesurer leur surcoût.
 
 Les résultats de ce lot établissent une réduction du travail d’ordonnancement sur hôte. L’effet réel sur l’énergie et le délai avant plafonnement reste à mesurer sur appareil.
+
+### Compilations Apple
+
+Le [run 46024696863](https://github.com/TarbleFR/RewindBox/actions/runs/46024696863) compile le moteur `584435cb9` pour iPhoneOS sur macOS 15 et 26. Les patches parallèles 0506–0512 s’appliquent après lui et le banc hôte repasse avec les en-têtes combinés de `174731462`.
