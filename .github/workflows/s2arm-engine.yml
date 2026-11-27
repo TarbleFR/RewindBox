@@ -194,7 +194,7 @@ jobs:
           python3 build-utils/s2arm/engine/prefetch_sources.py "$RUNNER_TEMP/s2arm" \
             "$RUNNER_TEMP/s2arm-build-cache/sources" | tee -a proof/inputs.txt
       - name: Locate the Metal compiler for the iOS framework
-        if: env.TEST_ONLY != 'yes' || (matrix.os == 'macos-26' && (contains(github.event.head_commit.message, '[s2arm-gpu-textures]') || contains(github.event.head_commit.message, '[s2arm-pipeline-driver]') || contains(github.event.head_commit.message, '[s2arm-homebrew-check]') || contains(github.event.head_commit.message, '[s2arm-first-draw]') || contains(github.event.head_commit.message, '[s2arm-wide-mem-check]') || contains(github.event.head_commit.message, '[s2arm-global-opt-check]')))
+        if: env.TEST_ONLY != 'yes' || (matrix.os == 'macos-26' && (contains(github.event.head_commit.message, '[s2arm-gpu-textures]') || contains(github.event.head_commit.message, '[s2arm-pipeline-driver]') || contains(github.event.head_commit.message, '[s2arm-homebrew-check]') || contains(github.event.head_commit.message, '[s2arm-first-draw]') || contains(github.event.head_commit.message, '[s2arm-wide-mem-check]') || contains(github.event.head_commit.message, '[s2arm-global-opt-check]') || contains(github.event.head_commit.message, '[s2arm-gpu-ab]')))
         run: |
           if ! xcrun --sdk iphoneos metal --version >/dev/null 2>&1; then
             xcodebuild -downloadComponent MetalToolchain
