@@ -1,0 +1,202 @@
+{
+  "schema": 1,
+  "date": "2026-11-27",
+  "branch": "Claude",
+  "reviewedSource": "e0c4a54c441f52ec285cc98fb871698ec5d86195",
+  "correctedSource": "e19a37ac497102d1c45c0ff47e8d309f69257f31",
+  "previousAudit": "docs/evidence/wiimmfi-counteraudit-2026-11-27.json",
+  "previousCorrectionsConfirmed": true,
+  "findings": [
+    {
+      "code": "emptyCurrentSave",
+      "state": "corrected",
+      "cause": "Dolphin creates data directories before a player save; an empty current directory replaced imported files",
+      "scope": [
+        "game saves",
+        "Mii"
+      ],
+      "beforeReproduction": "Imported profile removed from committed snapshot; source dump unchanged",
+      "afterReproduction": "Imported profile survives empty current save directory: true"
+    },
+    {
+      "code": "unmonitoredPropertiesLaunch",
+      "state": "corrected",
+      "cause": "Direct GameLaunchService call bypassed GameLaunchManager monitor and GameLaunchDialog cleanup",
+      "change": "Use existing launchGameWithDialog and pass nullable dolphinWiimmfi through GameService"
+    },
+    {
+      "code": "imperativeCloseWhileBusy",
+      "state": "corrected",
+      "cause": "Parent Navigator.pop bypassed PopScope; system tab switching disposed busy panel",
+      "change": "User maybePop, persistent PopScope, prevent system tab switch while busy"
+    },
+    {
+      "code": "backgroundDuringNativeBoot",
+      "state": "corrected",
+      "cause": "Background stop waited behind BootCore/shader preparation on runtime queue",
+      "change": "Owned ABI4 atomic interruption export; sticky plugin latch; checks after boot wait, inside host release and before success; shutdown/join remains on runtime owner"
+    },
+    {
+      "code": "gamepadPanelNavigation",
+      "state": "open",
+      "severity": "ergonomic",
+      "cause": "Wiimmfi panel is absent from manual controller selection model",
+      "availableInput": "touch",
+      "nextStep": "Selectable Wiimmfi entry and a modal owning existing GamepadNavigation"
+    }
+  ],
+  "checks": {
+    "flutterSDK": "3.47.2",
+    "pubspecLockUnchanged": true,
+    "existingWiimmfiTests": 10,
+    "existingLaunchRouteTests": 7,
+    "nativeLifecycleCycles": 20,
+    "dartAnalysis": "no issues",
+    "patchAppliedToCleanUpstream": true,
+    "offlineGate": {
+      "requests": 27,
+      "iterations": 100,
+      "hostCallsOffline": 0
+    },
+    "loggerGate": {
+      "iterations": 100,
+      "onlineOutputFormattingInsideTestedBodies": 0,
+      "onlineListenerWrites": 0,
+      "offlineOutputRestored": true
+    },
+    "sdkAdapter": "iPhoneOS arm64 syntax compilation passed with -Wall -Wextra -Werror",
+    "testScope": "Existing tests strengthened; no new suite. Host tests do not execute a real UIKit background transition or a multiplayer course."
+  },
+  "producerRun": 45979848094,
+  "producerJob": 140440663671,
+  "producerResult": "success",
+  "producerIdentity": {
+    "schema_version": 1,
+    "repository": "https://github.com/OatmealDome/dolphin-ios.git",
+    "host_commit": "e19a37ac497102d1c45c0ff47e8d309f69257f31",
+    "source_revision": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
+    "sha256": "a8c4540d0bca712a3197d66e3263410218187d71c9012fb6ff9e032d1fb4aee6",
+    "architectures": [
+      "arm64"
+    ],
+    "abi": "NeoStation Dolphin internal v3 + cheat manager",
+    "wiimmfi_abi": 4,
+    "cheat_catalogues": [
+      "Gecko/WiiRD",
+      "Action Replay/local INI"
+    ],
+    "device_runtime_tested": false,
+    "achievement_presenter": 1,
+    "use_retro_achievements": true,
+    "source_inputs": {
+      "build-utils/patch_dolphin_internal_core_v2.py": "d5bc300c3b65f9c304e829cfa78c31ca5fac961abd38e97d1347ac52c1295d16",
+      "build-utils/dolphin_wiimmfi.py": "df9d3618fd03002f9d5eda8a2f015e89551fda504f66b3d964f2de47110bf06a",
+      "packages/dolphin_internal_bridge/core/NeoStationAchievementPresentation.inc": "8402b3b8600a6b95ac71582023257eca506f223933ff4ca8994ace7560228980",
+      "packages/dolphin_internal_bridge/core/NeoStationAchievementSession.inc": "8daa7fb8fe786a654fb7ebb5ae997628397ebb3afec7dc31fe55918e020fa1b5",
+      "packages/dolphin_internal_bridge/core/NeoStationPerformance.inc": "b4947587e2f45c1047c0467be6f8d9df677e7259aff4f5b7b34a130bd71ea1ff",
+      "packages/dolphin_internal_bridge/core/NeoStationSavestates.inc": "69117c5733537908036917c213c4cf009e87fb61be88bc976dab5dfa4d4e84ac",
+      "packages/dolphin_internal_bridge/core/NeoStationSession.inc": "d55e46324fa5502870cb2db5eb4a1c14ab2cdfd6681759c80c70da42f7639616",
+      "packages/dolphin_internal_bridge/core/NeoStationStateCompression.inc": "fa197967e0adcf490631559d525952cb5b926e9c154d2e519c27067216ffa757",
+      "packages/dolphin_internal_bridge/core/NeoStationWiimmfi.inc": "8718dffd3f5a6adb0ec84085e3754699c613b70194bb45ad1252909420065245"
+    }
+  },
+  "artifacts": [
+    {
+      "id": 15190145133,
+      "name": "DolphinCore-diagnostics-e19a37ac497102d1c45c0ff47e8d309f69257f31",
+      "digest": "sha256:1a923341324593b6ac7b8ae59b23b296865c8e4142189f8947888d82a64ed5c7",
+      "size": 307084
+    },
+    {
+      "id": 15189836303,
+      "name": "DolphinCore-AchievementTranslation-e19a37ac497102d1c45c0ff47e8d309f69257f31",
+      "digest": "sha256:0f3393ab603c7eded2957ad96775a6c71d7a12f01aca16c88d3f2467dd1d984e",
+      "size": 11023237
+    }
+  ],
+  "downloadVerification": {
+    "archiveSha256": "0f3393ab603c7eded2957ad96775a6c71d7a12f01aca16c88d3f2467dd1d984e",
+    "coreSha256": "a8c4540d0bca712a3197d66e3263410218187d71c9012fb6ff9e032d1fb4aee6",
+    "identityMatches": true,
+    "sourceInputsMatch": true,
+    "symbols": [
+      {
+        "symbol": "_neostation_dolphin_wiimmfi_interrupt_boot",
+        "type": 15,
+        "section": 1,
+        "description": 0,
+        "value": 37456,
+        "defined": true
+      },
+      {
+        "symbol": "_neostation_dolphin_wiimmfi_network_allowed",
+        "type": 15,
+        "section": 1,
+        "description": 0,
+        "value": 34584,
+        "defined": true
+      }
+    ]
+  },
+  "warnings": {
+    "coreBaseline": 35,
+    "coreFinal": 35,
+    "newCoreWarnings": [],
+    "hostFunctionAddressWarningsFromPreviousProducerAbsent": true
+  },
+  "otherCI": {
+    "menuLaunchRun": 45979848204,
+    "menuLaunchResult": "success",
+    "nextendoRun": 45979848118,
+    "nextendoResult": "success",
+    "ipaPolicyRun": 45979848487,
+    "ipaPolicyResult": "success",
+    "preexistingFailures": [
+      {
+        "run": 45979848301,
+        "job": 140440662255,
+        "reason": "Donor release 0.0.1/NeoStation.ipa unavailable"
+      },
+      {
+        "run": 45979848301,
+        "job": 140440662726,
+        "reason": "External display assertion conflicts with import present before Wiimmfi"
+      },
+      {
+        "run": 45979848301,
+        "job": 140440662786,
+        "reason": "RPCS3 build306 fixture expects old neostation-ios repository; files unchanged since pre-Wiimmfi dd8a6da8"
+      },
+      {
+        "run": 45979848361,
+        "job": 140440662703,
+        "reason": "Storage log rotation tests expect old Dolphin Logs path"
+      },
+      {
+        "run": 45979848361,
+        "job": 140440662927,
+        "reason": "Libretro bridge line719 undeclared identifier invalid"
+      },
+      {
+        "run": 45979848361,
+        "job": 140440663963,
+        "reason": "Pinned libretro cores artifact unavailable"
+      }
+    ]
+  },
+  "limits": {
+    "fullAppBuilt": false,
+    "completeUIKitBridgeBuilt": false,
+    "iPhoneValidated": false,
+    "realNandImportValidated": false,
+    "realIOSFileProtectionValidated": false,
+    "serverAuthenticationValidated": false,
+    "publicRaceValidated": false,
+    "privateRoomValidated": false,
+    "exactlySimultaneousBackgroundAfterLastCoreGate": "Handled by owned stop path; zero executed instructions not guaranteed",
+    "noPerformanceGainClaimed": true
+  },
+  "ipaProduced": false,
+  "deliveryManifestChanged": false,
+  "realConsoleSecretsUsed": false
+}
