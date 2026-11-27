@@ -25,7 +25,7 @@ index 950099a..ab44602 100644
 +    pthread_mutex_unlock(&g_res_mu);
 +    const NSUInteger count = allocations.count;
 +    if (!count) return;
-+    __unsafe_unretained id<MTLResource> *resources = calloc(count, sizeof(*resources));
++    __unsafe_unretained id<MTLResource> *resources = (__unsafe_unretained id<MTLResource> *)calloc(count, sizeof(*resources));
 +    if (!resources) abort();
 +    NSUInteger used = 0;
 +    for (id allocation in allocations)
