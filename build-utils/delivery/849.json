@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "build": 849,
-  "status": "draft",
-  "note": "S2Arm 0471–0529, contre-expertise thermique et sonde. Dolphin ABI 5 et parcours Wiimmfi correspondant. Azahar rc5, deuxième série 10×, trente-cinq autres empreintes libretro reprises de 848.",
+  "status": "frozen",
+  "note": "S2Arm 0471\u20130529, contre-expertise thermique et sonde. Dolphin ABI 5 et parcours Wiimmfi correspondant. Azahar rc5, deuxi\u00e8me s\u00e9rie 10\u00d7, trente-cinq autres empreintes libretro reprises de 848.",
   "s2armAsyncPSOTestDefault": true,
   "components": {
     "rpcs3": {
@@ -268,7 +268,8 @@
           "path": "S2ArmSystemData/SHA256SUMS",
           "binary": "sysdata/SHA256SUMS"
         }
-      ]
+      ],
+      "pinSha256": "b65db18456ea8777353c6317692945576f5752176bb69518efffb29d6f99758d"
     }
   },
   "recipient": {
@@ -287,12 +288,12 @@
     "flutter": {
       "mode": "not-run",
       "commands": [],
-      "reason": "Compilation des derniers ajouts demandée ; suites Flutter/natives non exécutées conformément à AGENTS.md, contrôles de livraison conservés."
+      "reason": "Compilation des derniers ajouts demand\u00e9e ; suites Flutter/natives non ex\u00e9cut\u00e9es conform\u00e9ment \u00e0 AGENTS.md, contr\u00f4les de livraison conserv\u00e9s."
     },
     "native": {
       "mode": "not-run",
       "commands": [],
-      "reason": "Compilation des derniers ajouts demandée ; suites Flutter/natives non exécutées conformément à AGENTS.md, contrôles de livraison conservés."
+      "reason": "Compilation des derniers ajouts demand\u00e9e ; suites Flutter/natives non ex\u00e9cut\u00e9es conform\u00e9ment \u00e0 AGENTS.md, contr\u00f4les de livraison conserv\u00e9s."
     },
     "awaitMinutes": 75
   },
@@ -498,7 +499,7 @@
       },
       {
         "commit": "93348ebdeaed4936be14cf51bdcbd43c63faee7b",
-        "note": "S2Arm: qualify the atlas fixture’s Metal resource array for Objective-C ARC [s2arm-shadow-checks]"
+        "note": "S2Arm: qualify the atlas fixture\u2019s Metal resource array for Objective-C ARC [s2arm-shadow-checks]"
       },
       {
         "commit": "f3724e8b9c9273cba4e5df39d57409bddb3b93fd",
@@ -546,7 +547,1308 @@
       }
     ],
     "sourceOnly": [],
-    "promotedCommits": []
+    "promotedCommits": [],
+    "freezeCommit": "3c84321841bc4061c206eda5b268554247ecf581",
+    "freezeTree": "13092a9f468d07c2fe57eb42661e8466f56d6081",
+    "baseEffectiveDigest": "2b585cfe2940be1cdd485dd5870bb90a7aa33fcd344bf8bbf1a671016681e3b0",
+    "inheritedDeferredPaths": [
+      "build-utils/maintenance/actions-cleanup-2026-11-10-followup.json",
+      "build-utils/maintenance/actions-cleanup-2026-11-10.json",
+      "build-utils/maintenance/actions-cleanup-2026-11-13-bulk.json",
+      "build-utils/maintenance/actions-cleanup-2026-11-23-pass2.json",
+      "build-utils/maintenance/actions-cleanup-2026-11-23.json",
+      "build-utils/maintenance/cleanup_actions.py",
+      "build-utils/melonx/metal-archive/README.md",
+      "build-utils/melonx/metal-archive/moltenvk-v1.4.2-binary-archives.patch",
+      "build-utils/s2arm/engine/benchmarks/README.md",
+      "build-utils/s2arm/engine/benchmarks/coreml/IOSApp.swift",
+      "build-utils/s2arm/engine/benchmarks/coreml/Main.swift",
+      "build-utils/s2arm/engine/benchmarks/coreml/ReconstructionBench.swift",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/README.md",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.manifest.json",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Data/com.apple.CoreML/model.mlmodel",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Data/com.apple.CoreML/weights/weight.bin",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Manifest.json",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.manifest.json",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Data/com.apple.CoreML/model.mlmodel",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Data/com.apple.CoreML/weights/weight.bin",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Manifest.json",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/generate_probe.py",
+      "build-utils/s2arm/engine/benchmarks/coreml/model/requirements.txt",
+      "build-utils/s2arm/engine/benchmarks/coreml/run_macos.sh",
+      "build-utils/s2arm/engine/benchmarks/ga.c",
+      "build-utils/s2arm/engine/benchmarks/ga_guard.c",
+      "build-utils/s2arm/engine/benchmarks/push_bench.c",
+      "build-utils/s2arm/engine/benchmarks/push_selective.c",
+      "build-utils/s2arm/engine/benchmarks/rid_bench.m",
+      "build-utils/s2arm/engine/benchmarks/run_coreml.py",
+      "build-utils/s2arm/engine/benchmarks/ubo_bench.c",
+      "build-utils/s2arm/engine/benchmarks/ubo_guard.c",
+      "native/enhancements/catalogue/r/2026-11-16T2112Z.a85f516925ab/index.json.gz",
+      "native/enhancements/catalogue/r/2026-11-16T2139Z.d8b055350a6c/index.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/index.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-00.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-01.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-02.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-03.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-04.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-05.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-06.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-07.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-08.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-09.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-10.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-11.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-12.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-13.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-14.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-15.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-16.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-17.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-18.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-19.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-20.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-21.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-22.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-23.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-24.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-25.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-26.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-27.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-28.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-29.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-30.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-31.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-00.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-01.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-02.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-03.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-04.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-05.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-06.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-07.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-08.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-09.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-10.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-11.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-12.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-13.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-14.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-15.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-16.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-17.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-18.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-19.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-20.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-21.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-22.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-23.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-24.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-25.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-26.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-27.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-28.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-29.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-30.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-31.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-00.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-01.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-02.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-03.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-04.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-05.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-06.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-07.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-08.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-09.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-10.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-11.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-12.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-13.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-14.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-15.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-16.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-17.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-18.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-19.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-20.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-21.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-22.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-23.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-24.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-25.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-26.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-27.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-28.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-29.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-30.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-31.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-00.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-01.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-02.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-03.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-04.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-05.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-06.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-07.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-08.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-09.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-10.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-11.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-12.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-13.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-14.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-15.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-16.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-17.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-18.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-19.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-20.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-21.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-22.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-23.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-24.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-25.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-26.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-27.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-28.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-29.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-30.json.gz",
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-31.json.gz",
+      "source.json",
+      "test/actions_cleanup_test.py",
+      "test/melonx_metal_binary_archive/generate_shaders.py",
+      "test/melonx_metal_binary_archive/metal_probe.mm",
+      "test/melonx_metal_binary_archive/mvk_archive_test.cpp",
+      "test/melonx_metal_binary_archive/run_mvk.py",
+      "test/melonx_metal_binary_archive/run_probe.py",
+      "test/melonx_metal_binary_archive/shaders.spvz"
+    ],
+    "recipeDefinitionSHA256": "bb612f4a43186a801232ffa15ad61fcd22e4df60e31a7392b69cd7ab094f2b2a",
+    "recipeDefinition": {
+      "prefixes": [
+        ".github/",
+        "docs/",
+        ".claude/",
+        "build-utils/delivery/"
+      ],
+      "files": [
+        "build-utils/rpcs3/core-pin.json",
+        "build-utils/melonx/reads-core-pin.json",
+        "build-utils/melonx/arrays-core-pin.json",
+        "build-utils/melonx/dma-core-pin.json",
+        "test/standard_delivery_contract_test.py",
+        "build-utils/verify_downloaded_delivery.py"
+      ],
+      "globs": [
+        "build-utils/delivery-*-recipient.pem"
+      ],
+      "rootMarkdown": true
+    },
+    "commits": [
+      {
+        "commit": "da0e8f7a9b81585fd68a9f1a23729cf461d8b305",
+        "subject": "s2arm: 0471 covering first draws proven from vertex shaders' position tables [s2arm-engine] [s2arm-pipeline-driver] [s2arm-homebrew-check] [s2arm-homebrew-pacing] [s2arm-pacing-host] [s2arm-thermal-checks] [s2arm-replay-metrics] [s2arm-shader-metrics]",
+        "role": "reviewed",
+        "productPaths": 5
+      },
+      {
+        "commit": "dd53717b6346c4665be550aed12d568545fe22c6",
+        "subject": "s2arm: reduce runtime page accounting and shadow directory scans [s2arm-engine] [s2arm-thermal-checks]",
+        "role": "reviewed",
+        "productPaths": 5
+      },
+      {
+        "commit": "65f122925ccbe2107bb7cb4f7c56486fda3eb81f",
+        "subject": "s2arm: batch uniform guest pages and accelerate native handle allocation [s2arm-engine] [s2arm-thermal-checks]",
+        "role": "reviewed",
+        "productPaths": 5
+      },
+      {
+        "commit": "067bc2347344ed807d5640b041b4b5673317b7ec",
+        "subject": "s2arm: reuse the transfer-memory handle count [s2arm-engine] [s2arm-thermal-checks]",
+        "role": "reviewed",
+        "productPaths": 4
+      },
+      {
+        "commit": "3878b8b0bcd146fbd02057156d1d497eb93f72be",
+        "subject": "docs: record verified private848 delivery and unchanged device estimates [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "ec545cae6a3807ffaae2251a02612adc01eebae8",
+        "subject": "docs: update S2Arm legal series through runtime patch 0476 [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "3952c45ad0c9bd60f163ea6f2e2bb6af207fc4b1",
+        "subject": "s2arm: 0477 Metal 3 argument blocks bound from their arena buffer without the residency lookup [s2arm-engine] [s2arm-replay-metrics] [s2arm-homebrew-check] [s2arm-thermal-checks]",
+        "role": "reviewed",
+        "productPaths": 5
+      },
+      {
+        "commit": "068e4c4a5123756b3f6ef512a47eec83e10d177b",
+        "subject": "docs: S2Arm legal series through patch 0477 [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "b9d304763df584eb67bd7251b051d75b0b273910",
+        "subject": "s2arm: note the 0477 CI run to resume from [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "26562819eccbc22c79a8973a99c0d757c08c1cfe",
+        "subject": "s2arm: 0478 Metal 3 skips identical slot binds and rebinds the same buffer by offset only [s2arm-engine] [s2arm-replay-metrics] [s2arm-homebrew-check] [s2arm-thermal-checks]",
+        "role": "reviewed",
+        "productPaths": 5
+      },
+      {
+        "commit": "9c791bcf89ac541974a442bef96dcdced3d298a8",
+        "subject": "s2arm: note the 0478 CI run to resume from [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "5b1739e8c70b3c07b2e0db5f45f77af881480ffe",
+        "subject": "s2arm: GPU fence axis closed, 0477/0478 CI pending [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "09a2aa490cd941fa87095a1f48e98b068158a221",
+        "subject": "docs(s2arm): record 0471 (full-screen passes open without load), next bandwidth axis [skip ci]",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "8dfb1be96c276f5e8327245732b2ec1b449d0e16",
+        "subject": "s2arm: keep the 5-minute relaunch, diversify synthetic loads once the current bench is exhausted [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "8fbe6ddca4f4345d493680a38a6b80c4b55b0d91",
+        "subject": "s2arm: avoid per-slot modulo in IPC session allocation [s2arm-engine]",
+        "role": "reviewed",
+        "productPaths": 4
+      },
+      {
+        "commit": "a498ba53af1199ff7c86e3515e85fa8f7bfe0740",
+        "subject": "docs(s2arm): retire automatic GPU relaunch and preserve manual handoff [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "5b72632432bd5c1e36104565ab5dd6f94d0c6eef",
+        "subject": "docs: record verified S2Arm runtime and IPC compilation [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "14c9940ccdf8bfc152ff8f91e9da0f95794a407d",
+        "subject": "s2arm: enforce transfer-memory quota at handle allocation [s2arm-engine] [s2arm-thermal-checks]",
+        "role": "reviewed",
+        "productPaths": 4
+      },
+      {
+        "commit": "434ee35ae2b6295819f681e8e7563249a8eb7a43",
+        "subject": "s2arm: reduce tiled upload staging, mesh barriers and zero-mask pass breaks [s2arm-engine] [s2arm-mesh-barrier] [s2arm-gob-clear]",
+        "role": "reviewed",
+        "productPaths": 12
+      },
+      {
+        "commit": "865e6519f114698fb7321fdbb066dc8fe82fba26",
+        "subject": "s2arm: retain the full guest memory peak after physical unmap [s2arm-engine] [s2arm-thermal-checks]",
+        "role": "reviewed",
+        "productPaths": 4
+      },
+      {
+        "commit": "cb5522e43c57bd23fe96197ded948937aae0a215",
+        "subject": "s2arm: stage only the dirty array mip and validate retained render passes [s2arm-engine] [s2arm-mesh-barrier] [s2arm-gob-clear]",
+        "role": "reviewed",
+        "productPaths": 10
+      },
+      {
+        "commit": "7d11d8df15267ef233c5f4fa666de0d4b807aaaa",
+        "subject": "docs: record S2Arm CPU counteraudit and validated runtime fixes [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "5ed52e8d92a56e3099297ffef338b287075724e7",
+        "subject": "docs(s2arm): record Apple replay, texture readbacks and mesh hardware limit [skip ci]",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "7c476455bfd77bb181565aa3bb9c2a182a0ea404",
+        "subject": "s2arm: close runtime admission and memory snapshot gaps [s2arm-engine] [s2arm-thermal-checks]",
+        "role": "reviewed",
+        "productPaths": 8
+      },
+      {
+        "commit": "97663ea594f50e416f62ab34d85c3551a60d2351",
+        "subject": "s2arm: reduce runtime memory overhead and close failed RomFS opens [s2arm-engine] [s2arm-thermal-checks]",
+        "role": "reviewed",
+        "productPaths": 9
+      },
+      {
+        "commit": "5a4b9ef24e028d46fb4038daeb4c6b2a5bfd0703",
+        "subject": "s2arm: pack RomFS path metadata for random reads [s2arm-engine]",
+        "role": "reviewed",
+        "productPaths": 4
+      },
+      {
+        "commit": "7215a4380edefbc03e84198ea064c223fdf92c85",
+        "subject": "docs: record compiled S2Arm CPU counter-review [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "584435cb90894c561f8adcbdb65b68a16971cf5e",
+        "subject": "s2arm: reduce speculative governor work and add an optional energy guard [s2arm-engine]",
+        "role": "reviewed",
+        "productPaths": 7
+      },
+      {
+        "commit": "1a7ecf53a4d14b7cac595f22146a2e2ebedbf60e",
+        "subject": "docs: record S2Arm RAM NativeAOT and Apple validation [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "174731462d9c1728a792e274fa2bc913e6acfd92",
+        "subject": "S2Arm: overlap encoder preparation, retire refused presents and measure bounded native work [s2arm-engine] [s2arm-parallel-bench]",
+        "role": "reviewed",
+        "productPaths": 17
+      },
+      {
+        "commit": "3e9bee458901626b67ea467cedde3b9b5332e972",
+        "subject": "docs: record S2Arm thermal regression bench and verified Apple builds [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "198a699894cd4c87f19cd301e5e096f53be47311",
+        "subject": "S2Arm: verify native GPU halt and correlate before/after replay frames [s2arm-engine] [s2arm-parallel-bench]",
+        "role": "reviewed",
+        "productPaths": 4
+      },
+      {
+        "commit": "9c05b902da6925a7c3b3b80bb6c2a8a79d889fd1",
+        "subject": "s2arm: fix stale energy limits, late Metal 4 halt and RomFS path bounds [s2arm-engine] [s2arm-parallel-bench]",
+        "role": "reviewed",
+        "productPaths": 7
+      },
+      {
+        "commit": "28b5ab491d4c44f28752f2f557c7d34c03aa00f4",
+        "subject": "s2arm: retry the energy probe after a Metal allocation refusal [s2arm-engine]",
+        "role": "reviewed",
+        "productPaths": 4
+      },
+      {
+        "commit": "56d09d52ed15ec3c3f16415b3e4e38846983891b",
+        "subject": "S2Arm: verify native fence positions across dynamic splits and fixed work [s2arm-engine] [s2arm-parallel-replay]",
+        "role": "reviewed",
+        "productPaths": 5
+      },
+      {
+        "commit": "1df80b4160196a369697ab96eafdb068e9130045",
+        "subject": "S2Arm: recognize the conservative downsample wait after adaptive cuts [s2arm-parallel-bench]",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "abf35b935d860e5d750e944ddeb242fcbad0289a",
+        "subject": "S2Arm: verify the archived 189-frame replay and publish CPU/GPU overlap measurements [s2arm-parallel-recheck 46029548889]",
+        "role": "reviewed",
+        "productPaths": 4
+      },
+      {
+        "commit": "dda1622f58b39fadeb6aa684da7598efebb93ce3",
+        "subject": "docs: link verified S2Arm iPhoneOS builds and Apple capture recheck [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "33fb8dd82b4d0d6fea58bfd2b20bb8ff9ee618d7",
+        "subject": "docs: record successful S2Arm counterreview builds and replay [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "d2838526a76a4a9770e36e7558002d768dae0ae4",
+        "subject": "azahar: keep frame clears for their render pass, keep render targets across fills, compressible RGBA8 targets, arm64 fast dispatch, JIT and frame-time measures [libretro-source-cores]",
+        "role": "reviewed",
+        "productPaths": 3
+      },
+      {
+        "commit": "ab8b6b1743c58d58894b69c9f6a4c32ee19ab596",
+        "subject": "S2Arm: keep depth snapshots across proven disjoint atlas clears and protect depth-only feedback [s2arm-engine] [s2arm-shadow-checks]",
+        "role": "reviewed",
+        "productPaths": 7
+      },
+      {
+        "commit": "a9513516c1341577ade5394fae6586511a611cc2",
+        "subject": "S2Arm: preserve coarse invalidation when atlas clears flush unclassified writes [s2arm-engine] [s2arm-shadow-checks]",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "9effc1770e21aa13d3d574a2ca144f8c0c6199e9",
+        "subject": "S2Arm: run the atlas oracle with explicit resource declarations on virtual Metal [s2arm-shadow-checks]",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "5cb30f917aaf701691a312d3ebe415b9dbfbe23b",
+        "subject": "Dolphin: boot Wiimmfi from its imported NAND and export Wii network diagnostics",
+        "role": "reviewed",
+        "productPaths": 12
+      },
+      {
+        "commit": "93348ebdeaed4936be14cf51bdcbd43c63faee7b",
+        "subject": "S2Arm: qualify the atlas fixture\u2019s Metal resource array for Objective-C ARC [s2arm-shadow-checks]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "f3724e8b9c9273cba4e5df39d57409bddb3b93fd",
+        "subject": "Dolphin: initialize Wii resolver hints and show preparation progress",
+        "role": "reviewed",
+        "productPaths": 6
+      },
+      {
+        "commit": "40f4de0fc61d9a6235b36e774e134e2c339be0a3",
+        "subject": "docs: record measured Metal atlas copies and the verified iPhoneOS build [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "7b39ac05338a59faf72d31de603465449459b9c2",
+        "subject": "docs(azahar): record the iOS build of the second x10 series [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "5eeaa53079f98429b17156e27d0dd470f6f491f1",
+        "subject": "Dolphin: restore NAND ownership on Wiimmfi reconfiguration and reject incomplete identity fields",
+        "role": "reviewed",
+        "productPaths": 2
+      },
+      {
+        "commit": "a330652e9ec3429366771244c0547e1ffc0397c5",
+        "subject": "Dolphin: present an automatic host-network profile to Wiimmfi sessions for error 50130",
+        "role": "reviewed",
+        "productPaths": 8
+      },
+      {
+        "commit": "e3d17a726d2dfff1d7613a558aca10b1e1065ede",
+        "subject": "Dolphin: preserve the Wii network profile if the guest writes during Wiimmfi",
+        "role": "reviewed",
+        "productPaths": 4
+      },
+      {
+        "commit": "6e8fe15df38cdb1bd1d62fa36b6a3d74f177e08b",
+        "subject": "test(dolphin): match the upstream FileSystem class tag in the Wiimmfi fixture",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "e18f9e559aef1eb069a9af3dfdb4bb2bbbfe5c49",
+        "subject": "ci(dolphin): validate changes to the Wiimmfi network fixture in the existing producer",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "cb6a302a3e7c8e4f06921dcc886de5e9b71eb1a5",
+        "subject": "docs(dolphin): record the verified iPhoneOS Core for Wiimmfi error 50130 [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "4526a952f6682cf93e48f647c4cc45ebaa3bc272",
+        "subject": "s2arm: measure and reduce competing work before sustained GPU slowdown [s2arm-engine] [s2arm-energy-checks]",
+        "role": "reviewed",
+        "productPaths": 7
+      },
+      {
+        "commit": "d65376e07d603c61a6d3dbd41761d13984598f31",
+        "subject": "Dolphin: validate imported Wii TLS files before replacing the NAND and refresh diagnostics",
+        "role": "reviewed",
+        "productPaths": 6
+      },
+      {
+        "commit": "4e3125b592cc6330d264eeac1d2dfd356a318046",
+        "subject": "docs(s2arm): record endurance verification and add the iPhone A/B tools [skip ci]",
+        "role": "reviewed",
+        "productPaths": 4
+      },
+      {
+        "commit": "a8a27bfc183a04ab16356273e4bd353868119f0e",
+        "subject": "docs(dolphin): record verified import and diagnostic counterreview [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "491008cffa8051913ff2ee21c6427fc3e2f19190",
+        "subject": "s2arm: require corroborated recovery and keep fixed-probe results session-local [s2arm-engine]",
+        "role": "reviewed",
+        "productPaths": 4
+      },
+      {
+        "commit": "f776b89897cc5abcf557b5e3badf03dcc05ae0c4",
+        "subject": "pin(s2arm,libretro): authenticate S2Arm through 0529 and the latest Azahar iOS collection [skip ci]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "3c84321841bc4061c206eda5b268554247ecf581",
+        "subject": "chore(delivery): prepare private IPA 849 with S2Arm, Azahar x10 and Wiimmfi [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      }
+    ],
+    "deferred": {},
+    "effective": {
+      "build-utils/dolphin_wiimmfi.py": {
+        "mode": "100644",
+        "gitBlob": "6ccc9b35cc14cd25ef5046307a7e75d93c67ec63",
+        "sha256": "d9981a47f505dc4bb0cb122e28f573ae144088cea6b51ef3b99ae821dcf70629"
+      },
+      "build-utils/patch_dolphin_internal_core_v2.py": {
+        "mode": "100644",
+        "gitBlob": "1d277cbcc6680af850ea0208b6387d00b0cc3f1e",
+        "sha256": "45b58968977c07375613f99118a86f0a23512860ff0c7fca0aa9ede894e23c03"
+      },
+      "build-utils/s2arm/engine-pin.json": {
+        "mode": "100644",
+        "gitBlob": "91c54d02d3ade537c4d9839e4179431d20ff5b06",
+        "sha256": "b65db18456ea8777353c6317692945576f5752176bb69518efffb29d6f99758d"
+      },
+      "build-utils/s2arm/engine/README.md": {
+        "mode": "100644",
+        "gitBlob": "fc6c59cfe25d63346ee02041b961e4338358cad2",
+        "sha256": "c43000a54bdf9e1f853b615d2827e8012e6e98864a0a0f304c89e3c4c8cd6e1e"
+      },
+      "build-utils/s2arm/engine/RewindBox-S2Arm-NOTICE.txt": {
+        "mode": "100644",
+        "gitBlob": "3d8d3d4eeea06acdf1adb59e87fc22edfb13e41c",
+        "sha256": "4f00153a9ebb869510c7b45450f3071375c551c0b401cd2d8e56497cc0f01977"
+      },
+      "build-utils/s2arm/engine/patches/0471-rb-cover-load-position-tables.patch": {
+        "mode": "100644",
+        "gitBlob": "0ceb10d5a0e6cd615fa0f463f53083364d3d4648",
+        "sha256": "6906dc734c3d09959a0066beab68a40f2f51bdf96a61a51a168b31d40a63a531"
+      },
+      "build-utils/s2arm/engine/patches/0472-runtime-count-new-physical-pages-with-bitmap-words.patch": {
+        "mode": "100644",
+        "gitBlob": "a724741238875a80199eb5e6140fe2a9c4969b7c",
+        "sha256": "d10077800aeb59ea1dce2875f901b0ed4cfdb9843c0906cb2a1e6e0bcb357860"
+      },
+      "build-utils/s2arm/engine/patches/0473-runtime-skip-empty-far-directory-blocks.patch": {
+        "mode": "100644",
+        "gitBlob": "f3673ed67bbddd8d0c17739a389b859bbce74604",
+        "sha256": "7428490a3db95b716a985dee0429f7317a0dd6d2fe86387fd938e848ca398acc"
+      },
+      "build-utils/s2arm/engine/patches/0474-runtime-record-uniform-mapped-page-groups.patch": {
+        "mode": "100644",
+        "gitBlob": "97a48c76bdfdbdada7599edb1c88dbb2931e24bb",
+        "sha256": "8d18f707e4ada36b2f04404e6496d5637ba2b9320f2fcbbba76af20d7b93b2cd"
+      },
+      "build-utils/s2arm/engine/patches/0475-runtime-find-first-free-handle-with-bitmap.patch": {
+        "mode": "100644",
+        "gitBlob": "45944298e6339c7760c2c40ca7fc4f6c8ca6414c",
+        "sha256": "ee2555796fd0ce1751b89663df7af10cad78ffc5846a57e0d41ed58b3e1b2b6f"
+      },
+      "build-utils/s2arm/engine/patches/0476-runtime-reuse-transfer-memory-handle-count.patch": {
+        "mode": "100644",
+        "gitBlob": "e0655278751d73129c05e905165d2166c9a62eaf",
+        "sha256": "c7501043b115ea48320900f42d87f9e3b11a3979a141dc277d081fa94c981a24"
+      },
+      "build-utils/s2arm/engine/patches/0477-rb-m3-arena-argument-hint.patch": {
+        "mode": "100644",
+        "gitBlob": "b01572ad51f93e78d512ef73a27cdf63c637616b",
+        "sha256": "a58474b5af6997912d89d7dcc762e218f10967792d8734d0819b0e51fec73758"
+      },
+      "build-utils/s2arm/engine/patches/0478-rb-m3-bound-slot-cache.patch": {
+        "mode": "100644",
+        "gitBlob": "06b57ea901da9479afd1a23fb30c15a77cd7fd24",
+        "sha256": "dae183903a50ad6694afc6ab6472e949f2d42a898551cf32ed14db22eaa1a7de"
+      },
+      "build-utils/s2arm/engine/patches/0479-services-scan-session-slots-without-modulo.patch": {
+        "mode": "100644",
+        "gitBlob": "aa99485c3973675dd1b07e78e8319e0e9e7a6c80",
+        "sha256": "b22c7644a1d6865a6c82720373a1fbf3c96a6ec6f5cf8e62f547fff916746b78"
+      },
+      "build-utils/s2arm/engine/patches/0480-runtime-transfer-memory-quota-under-handle-lock.patch": {
+        "mode": "100644",
+        "gitBlob": "e2b784d6a0ef8b7d5ff9395f0a9c9d1e891ac443",
+        "sha256": "2fdeace6db933ecf3f285f483275428b0656f57a505501c5e5a7cba720b42c9d"
+      },
+      "build-utils/s2arm/engine/patches/0481-rb-tight-gob-rects.patch": {
+        "mode": "100644",
+        "gitBlob": "191a959af2e3ca5dc182d483cb1f4b6c378e53b1",
+        "sha256": "b7868c99c98edf23581aead4bc12851de1ca012e6d293b6baa4a418db879b1b1"
+      },
+      "build-utils/s2arm/engine/patches/0482-dsh-mesh-group-barrier.patch": {
+        "mode": "100644",
+        "gitBlob": "3bae9ea278d0fb59a21b93574677fd4ad07a1ead",
+        "sha256": "4835a4b67f18748895841e92f4c3542c46c7a25829f999e852972fb12c8ca8a8"
+      },
+      "build-utils/s2arm/engine/patches/0483-rb-empty-depth-stencil-clear.patch": {
+        "mode": "100644",
+        "gitBlob": "872c64a0a0b2b25329dbfb4c541a98678ac54cf5",
+        "sha256": "eb4f1841d75c83995a5b0e4ac00be56da31c4d5b6faebfdbd69482653c8502d7"
+      },
+      "build-utils/s2arm/engine/patches/0484-runtime-record-total-memory-peak-after-physical-mapping.patch": {
+        "mode": "100644",
+        "gitBlob": "fda798d39220e320c612fe98715cc779de4348f0",
+        "sha256": "db75844cc9fed180ef8082ad431ec81e5a9bbdb5c2b02132857cf067137e8c55"
+      },
+      "build-utils/s2arm/engine/patches/0485-rb-tiled-subresource-rects.patch": {
+        "mode": "100644",
+        "gitBlob": "13ce6c505ae422d009e7425eb4dd26b8c1cdea21",
+        "sha256": "37f7e5608cae7b37fa6db7e4f9de17eeadd960e2026f3b319a3b6752eabc2392"
+      },
+      "build-utils/s2arm/engine/patches/0490-runtime-enforce-thread-quota-at-insertion.patch": {
+        "mode": "100644",
+        "gitBlob": "d99df541e975637c78d4a898f3ad713e08a7b55c",
+        "sha256": "9f1a9dd2fe1e23d75a87345e9c89cf84a4e6c9be4af6d4ad09308f0a25b58265"
+      },
+      "build-utils/s2arm/engine/patches/0491-runtime-read-resource-memory-under-lock.patch": {
+        "mode": "100644",
+        "gitBlob": "0ca5861b266f5b2ba2643d7fa739a01f3b07d216",
+        "sha256": "f13de3d812fb696511e0fec8b226adb85c9dba5f080c0ebb827b857af6e39824"
+      },
+      "build-utils/s2arm/engine/patches/0492-runtime-restore-transfer-count-comparison-switch.patch": {
+        "mode": "100644",
+        "gitBlob": "e2aef0671dcc9d3a178c60cfeeea5129da7de6d2",
+        "sha256": "51fa55c63dadef4eaf6b92cef798635475a046ec727cc2accfe5a92cd9c1fa5d"
+      },
+      "build-utils/s2arm/engine/patches/0493-services-restore-session-scan-comparison-switch.patch": {
+        "mode": "100644",
+        "gitBlob": "ebbb6d365a248c0aaebf403d53ee9990b8c0862b",
+        "sha256": "6384a8aa0332d04cc7d061805f4147f39f7296cefc5a93c19d0429b961f69035"
+      },
+      "build-utils/s2arm/engine/patches/0494-runtime-read-memory-info-from-locked-snapshots.patch": {
+        "mode": "100644",
+        "gitBlob": "d3b9bb27787d8605ce9120e80e6efc3156e6233c",
+        "sha256": "2ff12b8645970274de6e01c27bcdb9a52cf396af45740fe6981cca2e3a02cd75"
+      },
+      "build-utils/s2arm/engine/patches/0495-services-close-romfs-image-on-open-failure.patch": {
+        "mode": "100644",
+        "gitBlob": "be564fb757b0f805ddda093c1a2909dda136f425",
+        "sha256": "1adfb643eb22de978ffd86089073865b9909a1aebcbcb3e5aadcda0966afc96c"
+      },
+      "build-utils/s2arm/engine/patches/0496-services-reuse-romfs-file-records-from-index.patch": {
+        "mode": "100644",
+        "gitBlob": "b6e1c803737ff978d3b1bd6acdbb3b9c64d4036a",
+        "sha256": "1e5ac17ddaa9d8ba59bbacafeb5ecac0c2bc0c41a6769efde03b6ee4245ae7b1"
+      },
+      "build-utils/s2arm/engine/patches/0497-services-reuse-romfs-index-padding-buffer.patch": {
+        "mode": "100644",
+        "gitBlob": "76033107297eabc3b73e6c7ae61cccc18cab82f3",
+        "sha256": "97d86a44204eb82dc73ef6d2ea0e9bba1cd132216120e5466f3f96826dca091d"
+      },
+      "build-utils/s2arm/engine/patches/0498-runtime-pack-deferred-zero-page-map.patch": {
+        "mode": "100644",
+        "gitBlob": "13ab4f3e7b8582e29ebbed58d091739acece3585",
+        "sha256": "9f623c16ee080f621b710da605f1a477bef83874625ea240c386b836470dbdda"
+      },
+      "build-utils/s2arm/engine/patches/0499-runtime-avoid-touching-unused-mapping-tables-on-reset.patch": {
+        "mode": "100644",
+        "gitBlob": "8ef19362bb951924039783733699e67ea15be5cd",
+        "sha256": "27c0edeaaa524ccab48bf9001b58deb6628e5b9712c22932435324dc4d4e7558"
+      },
+      "build-utils/s2arm/engine/patches/0500-runtime-move-overlapping-far-memory-without-staging.patch": {
+        "mode": "100644",
+        "gitBlob": "d0021cc530a4e79e73b557a4049e7a64c711dd8e",
+        "sha256": "c9974805d71daf7af928cecbf36f7a0d0a13cdd7fba0c1e27770ef55893d3a6c"
+      },
+      "build-utils/s2arm/engine/patches/0501-services-pack-hot-romfs-path-metadata.patch": {
+        "mode": "100644",
+        "gitBlob": "1276f2a5b9a410de2a6f415e5251107ee3b68898",
+        "sha256": "1496e61b58c3fea63b083de3c4c3c988772257c668b43a2c006d4a620b95f878"
+      },
+      "build-utils/s2arm/engine/patches/0502-thermal-reuse-published-speculative-plan-on-fast-path.patch": {
+        "mode": "100644",
+        "gitBlob": "cdef8655dcb09228f1f392d2056e800b137977a0",
+        "sha256": "9f7b01922987f1937e4e33417673ea060b82b1fd0802ae0f241a603b067e92fe"
+      },
+      "build-utils/s2arm/engine/patches/0503-thermal-wake-speculative-workers-when-slots-open.patch": {
+        "mode": "100644",
+        "gitBlob": "5a6cd1320da15d77ca156ee9a6d11b6a78a895a6",
+        "sha256": "a84f904f3c6472808e7ed3f8fddebdc44a94bf693f0a8f1b4930a9f4560db99e"
+      },
+      "build-utils/s2arm/engine/patches/0504-thermal-cap-optional-work-on-sustained-fixed-probe-slowdown.patch": {
+        "mode": "100644",
+        "gitBlob": "1d5d676377cdd80deba77765031d9dd3d5e532b1",
+        "sha256": "0fbb7f30a7b894dcdcfbd76f81a6a0a8722c40e74fb41bc988f1304a79652000"
+      },
+      "build-utils/s2arm/engine/patches/0505-thermal-wake-governor-on-system-power-and-thermal-events.patch": {
+        "mode": "100644",
+        "gitBlob": "2112587eff1bc45eaa9f360c3f0e5b1b4807f0e7",
+        "sha256": "8b870c8232e3559262c842932e577c0721d361d91489f2e747275b8ac2e71ebf"
+      },
+      "build-utils/s2arm/engine/patches/0506-nvn-publish-first-ready-encode-block.patch": {
+        "mode": "100644",
+        "gitBlob": "11f3a11182d012a1606d85f08be4d89191ac1eb3",
+        "sha256": "b6fdb12adadc6f2d53fedb184e6613fcebd3a6238c5b81a822d0c146d2e2c58b"
+      },
+      "build-utils/s2arm/engine/patches/0507-nvn-allow-independent-scalar-queries-during-replay.patch": {
+        "mode": "100644",
+        "gitBlob": "e787ddf49b46ce933ab8fc128ee5c1f00ec445e6",
+        "sha256": "21b5b234d2eef6ca258afbac9fd756d9e1a857d0ce1de37d98ee8faf90513a33"
+      },
+      "build-utils/s2arm/engine/patches/0508-metal3-retire-refused-presentation.patch": {
+        "mode": "100644",
+        "gitBlob": "6e71bb290e19c4b0c15fc396fdd376bc86c811a8",
+        "sha256": "c3907d4c6cd2e57b552c2a0b55ed4edd5676ee4186ad0a9445a55011a74cf99d"
+      },
+      "build-utils/s2arm/engine/patches/0509-nvn-choose-free-presentation-slot.patch": {
+        "mode": "100644",
+        "gitBlob": "0186a0398d763873a22c399224e64e35c3d982a1",
+        "sha256": "f18509c9bfba92100be6878441d66392577617f6311859a18c108df9ed14e3d8"
+      },
+      "build-utils/s2arm/engine/patches/0510-nvn-correlate-bounded-cpu-gpu-display-timestamps.patch": {
+        "mode": "100644",
+        "gitBlob": "df56958adf574b7a373f011a52fcb3ae9784d0ef",
+        "sha256": "1484673e9e8f7e0198c399dcc6667ba80bbf579428b542d1cf8928f731a76d4f"
+      },
+      "build-utils/s2arm/engine/patches/0511-nvn-finish-presentation-reads-before-slot-release.patch": {
+        "mode": "100644",
+        "gitBlob": "73c4a9ae77d89a6ea598044bbc6426680f9c66ec",
+        "sha256": "7ee906c0d0f7217592911b0db8d7f46e19380dc9d4695a57d0adbe9d6c25c7ab"
+      },
+      "build-utils/s2arm/engine/patches/0512-nvn-observe-native-cadence-at-30-minute-milestones.patch": {
+        "mode": "100644",
+        "gitBlob": "ed3dc26d610e71b15b8ea2b728d52e0c9b4e3202",
+        "sha256": "48f44bcf44998c16a5df65095ac7027d8d3b766aeb31b0cb842ac44d6cc2f84a"
+      },
+      "build-utils/s2arm/engine/patches/0513-thermal-release-energy-cap-after-light-or-ineligible-work.patch": {
+        "mode": "100644",
+        "gitBlob": "515c1065b9b21a98c175d41e43f504caf55c0e68",
+        "sha256": "10a174baaa9b234548c7c975b72c8858b2feb9d82f671bcd1995aa35b43adce8"
+      },
+      "build-utils/s2arm/engine/patches/0514-thermal-age-gpu-probe-by-submission.patch": {
+        "mode": "100644",
+        "gitBlob": "082bd6418d3ce91ad603add9276c377f8e9a64da",
+        "sha256": "60b15196c66855b6a0099929dd127fb6fd4c0f42273d040019fb88d608b6a66f"
+      },
+      "build-utils/s2arm/engine/patches/0515-nvn-gate-metal4-presentation-at-submission.patch": {
+        "mode": "100644",
+        "gitBlob": "333182d17a04d248dfb1f45b17eec3960f8cba12",
+        "sha256": "602b378d94412016f87abd635a2da666b025fb7317c2bb78ca329cf606dc461f"
+      },
+      "build-utils/s2arm/engine/patches/0516-services-check-packed-romfs-path-bounds.patch": {
+        "mode": "100644",
+        "gitBlob": "bbf0148076af2009782963938a6e0754459fac4a",
+        "sha256": "606240ab75611191fd19dd4ca7d64e7c6b1ed30d6dd6b14409b76f36a5c7ab24"
+      },
+      "build-utils/s2arm/engine/patches/0517-thermal-release-probe-on-metal-allocation-failure.patch": {
+        "mode": "100644",
+        "gitBlob": "caea4626fdf6e7c34f1b66c2b31d1a5fb15a9f43",
+        "sha256": "4b11647209f6f7b2ae3d0994af4037d2a8fe8beeccecc92ccc8fe5d62aa830cc"
+      },
+      "build-utils/s2arm/engine/patches/0518-rb-shadow-depth-accounting.patch": {
+        "mode": "100644",
+        "gitBlob": "63326c2536602085a53866c7c111ae3598ac2bba",
+        "sha256": "64956d6bc46e27cdb28da95688ef0c8befe25dce3f4aec6dc12364a0874f7231"
+      },
+      "build-utils/s2arm/engine/patches/0519-rb-keep-depth-snapshots-across-disjoint-clears.patch": {
+        "mode": "100644",
+        "gitBlob": "1acd0ebdef14f2de0ca7eca4e24607ea8e719785",
+        "sha256": "14c5f104a4700d21716a907ed4a5dc1235a28b4fb5787a17664a1ff6054e79b6"
+      },
+      "build-utils/s2arm/engine/patches/0520-rb-isolate-feedback-in-depth-only-draws.patch": {
+        "mode": "100644",
+        "gitBlob": "ffb168736f9153ccaa9579a3383241a4cab2898b",
+        "sha256": "58260af0c95cc6f058d437fe8b82d73d87119c47f6d9544d60064ab39f5898fb"
+      },
+      "build-utils/s2arm/engine/patches/0521-rb-verify-shadow-snapshots-and-depth-stencil.patch": {
+        "mode": "100644",
+        "gitBlob": "90dac256ab46f25e04084d27c9cef7442694769b",
+        "sha256": "d2ce216031241ef80c7cf84ef5ab3c0e80cf2a5b0d958c09b2484d01c7c17680"
+      },
+      "build-utils/s2arm/engine/patches/0522-rb-guard-atlas-reuse-around-pending-producers.patch": {
+        "mode": "100644",
+        "gitBlob": "b4a71291dd361578c3543ea718c674129b623fbc",
+        "sha256": "6e436183c9ace96d34fea1573d22fd17278fe195fca3f754ce04dc0cd6d18fbc"
+      },
+      "build-utils/s2arm/engine/patches/0523-rb-run-atlas-fixture-on-virtual-metal.patch": {
+        "mode": "100644",
+        "gitBlob": "6a27a7d313a80ac2a70bfa05b389418f95e8e146",
+        "sha256": "bcef496caba23ccc1a088eb309811eb0cec10a8f203e83cccfb95ec6d7e7ab15"
+      },
+      "build-utils/s2arm/engine/patches/0524-thermal-predict-fixed-work-slowdown-with-optional-admission.patch": {
+        "mode": "100644",
+        "gitBlob": "0b04ea386fb1c0a2f52387be0a3b9a2d9c6b038d",
+        "sha256": "944150217f89739a32892a7ee1e91392a990a55a38dd1deb0ef3c6745c7bf67b"
+      },
+      "build-utils/s2arm/engine/patches/0525-thermal-adapt-the-fixed-probe-and-distinguish-queue-delay.patch": {
+        "mode": "100644",
+        "gitBlob": "2674a72deee81a212b50218e1b5859d263113027",
+        "sha256": "0b4ac20143efa49807492490e49f11303106a5a0346f965bb167a8188b70ea55"
+      },
+      "build-utils/s2arm/engine/patches/0526-thermal-wake-the-archive-writer-on-admission-changes.patch": {
+        "mode": "100644",
+        "gitBlob": "3a30f71b449159666ffb7aacd03b956f9144155c",
+        "sha256": "ada089ab6f17097a79d44a1d31ad566c710b713ff37e5696c3a2b4f0e6c4082a"
+      },
+      "build-utils/s2arm/engine/patches/0527-thermal-preserve-probe-and-writer-timing-across-transitions.patch": {
+        "mode": "100644",
+        "gitBlob": "9ad368cdafc686016f019174934db6a22a1fd7e7",
+        "sha256": "04ef549bb089d4f5ba1e659ae6f46d688975a2d4b4ca3efdb9f7e317eaedb40f"
+      },
+      "build-utils/s2arm/engine/patches/0528-thermal-confirm-recovery-before-reopening-optional-slots.patch": {
+        "mode": "100644",
+        "gitBlob": "7063b972e2a9c7076f2ec333c00784e2d0d9fc3d",
+        "sha256": "b48a3a00df9c7c415d7d5375eaccc2151378c891f00f03aff736eb0b7320d3b5"
+      },
+      "build-utils/s2arm/engine/patches/0529-thermal-keep-late-probe-completions-out-of-the-next-session.patch": {
+        "mode": "100644",
+        "gitBlob": "332369e273fc3a09894e3ede8e44ca0bccadd4b3",
+        "sha256": "fcbb96d7f7c808f666e10d4669819877fec06d625508569fe224f27b8a161ff6"
+      },
+      "build-utils/s2arm/engine/tests/host-tests.mk": {
+        "mode": "100644",
+        "gitBlob": "aea708c988494d8f8967a9056650b2c4082987de",
+        "sha256": "fe0e10d08e827ed7afb802a7d926afdc659c42daf9cd248d01cf8070858a50dc"
+      },
+      "build-utils/s2arm/engine/tests/mesh-barrier/mesh_raster.m": {
+        "mode": "100644",
+        "gitBlob": "9a7b48b97ca95aa7e0684690ad8857b7b44d5307",
+        "sha256": "ef7e6b355702785776300a7a599e45801e632c21d1e7b8d12649d96a5618ffd2"
+      },
+      "build-utils/s2arm/engine/tests/mesh-barrier/mesh_raster.mk": {
+        "mode": "100644",
+        "gitBlob": "47c8a1226438e5b0edcad0fbfcd17eb267f1b562",
+        "sha256": "3014f6e1320cb7be9e65bb4e2a8b92fbac5165c36baeb60236b89cb6354c4ee9"
+      },
+      "build-utils/s2arm/engine/tests/mesh-barrier/mesh_sources.py": {
+        "mode": "100644",
+        "gitBlob": "7b4fe6168da61bc8979f91ad11e483b62a9a9b76",
+        "sha256": "9c4f7c34f9f7b4c7fe33c2d7e9130ce82cd97701aafc274872d4e552971da812"
+      },
+      "build-utils/s2arm/engine/tests/mesh-barrier/run.sh": {
+        "mode": "100644",
+        "gitBlob": "9c3217d8eaa29b7110ed183eaec1a2e147a099c3",
+        "sha256": "7b9cef142d5252230aa48ea2110de1a292c221ff58e64c49dcd9fc17a03e1496"
+      },
+      "build-utils/s2arm/engine/tests/parallel_replay.py": {
+        "mode": "100644",
+        "gitBlob": "f143d2111cf8085f52c5d9ba5156ebab8e0fb8b8",
+        "sha256": "2f3197bee12f6e12190c0cf7fe06bc827df5a449bf519ed265a86af0224af7f0"
+      },
+      "build-utils/s2arm/engine/tests/recheck_parallel_artifact.py": {
+        "mode": "100644",
+        "gitBlob": "8a3c8366317d01550d57f16885b61d560e170af8",
+        "sha256": "d0d57ba7e4d2c2c117a8e080ea425b3275ba9fae3abcb3eb000cbdd238070878"
+      },
+      "build-utils/s2arm/engine/tests/replay_compare.py": {
+        "mode": "100644",
+        "gitBlob": "88ceebb56f724ee37011e5567f08a4f3775fbcfe",
+        "sha256": "6c310367ff76ca7028802f1ef5ffd0d8682e66774ae5890f5f451868afe4bb18"
+      },
+      "build-utils/s2arm/engine/tests/replay_sync_oracle.py": {
+        "mode": "100644",
+        "gitBlob": "13c40d1730c8546e26fcd563a935b5fc8da4b171",
+        "sha256": "3b32b56955496b628e9172d88db6f91fcc6861ba0d25ff837fbd5c21764854eb"
+      },
+      "build-utils/s2arm/engine/tests/replay_variants.txt": {
+        "mode": "100644",
+        "gitBlob": "7a154233b883943177e93a1a034f1f41e83f9af1",
+        "sha256": "8ad6b293b53ee7cbc5d85c7833ad8e627a1728de1309deb742a39a0e16853109"
+      },
+      "build-utils/s2arm/engine/tests/t_rb_replay_metrics.m": {
+        "mode": "100644",
+        "gitBlob": "21082c6505e7b94f9d898cae3477b13559e2c727",
+        "sha256": "3ee01b884ec2555650a8986bd7cdc00e98d0c2386282e919bce403ba0371ae46"
+      },
+      "build-utils/s2arm/engine/tests/test_metal_archive.m": {
+        "mode": "100644",
+        "gitBlob": "ecba2cf637fdee184b61fcf1eda60bd9ac50e5f5",
+        "sha256": "d2f8e1fba9324c9a7fae0e203dd00881f933cca170aaed6bca83cd02c9316f72"
+      },
+      "build-utils/s2arm/engine/tests/test_pos_const.py": {
+        "mode": "100644",
+        "gitBlob": "67f464b85b7757cd0c2bb6bf1b9b63387d4b93d5",
+        "sha256": "25f2b097ec3c3684806a756f1035436500de3a25d0fb6c901ef68127c225cbfc"
+      },
+      "lib/l10n/wiimmfi_locale.dart": {
+        "mode": "100644",
+        "gitBlob": "0af76052bdea62cd6b92523370e5c17b6dab0f8d",
+        "sha256": "4d26610075746d7d57e5ab33500e41b6fed1db6609dcef862d4884510e43ac99"
+      },
+      "lib/services/game/game_launch_service.dart": {
+        "mode": "100644",
+        "gitBlob": "35a097c2ede493637cc0395516e709e5a9f407ff",
+        "sha256": "cb85cd5b629ebe977eb6368ee9a796afa05cbd4148d969d4b898363dab078bce"
+      },
+      "lib/services/wiimmfi/wiimmfi_service.dart": {
+        "mode": "100644",
+        "gitBlob": "be92a96bad87b56dd5af000589b1f9c33af8b884",
+        "sha256": "5055e5dd55bdf07314aa13806ddbdc0a92fa342ad1822f13f02e900a164695c1"
+      },
+      "lib/widgets/wiimmfi_panel.dart": {
+        "mode": "100644",
+        "gitBlob": "ba97172b6548ad96616b11c1a001a68875511981",
+        "sha256": "a024354131ea60b356be3eeff6609db446a000f566d752fc709eac01d24fb1a5"
+      },
+      "native/azahar/README.md": {
+        "mode": "100644",
+        "gitBlob": "7c2a42cc566d0f0dece4dcc1d3b3106b5d2d4827",
+        "sha256": "6ad57070b4cadcf7d5cfb5a58e9b31378f0819ee0b8cecd7b2659140d9c32c08"
+      },
+      "native/azahar/rewindbox-jit.patch": {
+        "mode": "100644",
+        "gitBlob": "c666a60c3cc733bbf93a4cd43545a3aec1d2dbc7",
+        "sha256": "82b6a4d943da8893d6442e1380dcd8ee386b328ddf8fde677e102db2e34bcc03"
+      },
+      "native/azahar/source.json": {
+        "mode": "100644",
+        "gitBlob": "e1b340f9ca2717d54bed4d3ef402b1019e69fe59",
+        "sha256": "65e677d5e95ccfb8a3c1f5b9e173a54c7ebf54b494a78165c3508dab926eada1"
+      },
+      "packages/dolphin_internal_bridge/core/NeoStationWiimmfi.inc": {
+        "mode": "100644",
+        "gitBlob": "ee95b528e5e462dc52b615824d9d772e300ab160",
+        "sha256": "f93e871315d6e32abb76b829cd8dd9228cde99e6d53089eac67b6ad45473b277"
+      },
+      "packages/dolphin_internal_bridge/ios/Classes/DOLWiimmfi.h": {
+        "mode": "100644",
+        "gitBlob": "fcb496df06ec591d9240f8bf5aa262fa3484814b",
+        "sha256": "d3f5723fa9f7d1990d5d3a2266ae473be53d1ef830985fd28482cb8160e170bf"
+      },
+      "packages/dolphin_internal_bridge/ios/Classes/DolphinInternalBridgePlugin.mm": {
+        "mode": "100644",
+        "gitBlob": "0a9d6bece4ca9284b7305b61560d4e03ad1d20f2",
+        "sha256": "867d2d6ee326bcc3b049f1b6e30c33bca5d537405077532ae19451b178217016"
+      },
+      "test/dolphin_process_lifecycle_test.py": {
+        "mode": "100644",
+        "gitBlob": "17e6338950f2e4acd39c94ebc2fd7d187f0f96bb",
+        "sha256": "02d0e322cf50b1ba763a0c2d82aa42c400f4625cc8d433a8f1dcb6775552663d"
+      },
+      "test/wiimmfi_offline_test.py": {
+        "mode": "100644",
+        "gitBlob": "92415c730721f571a56598e2f337b7bb4cebccd6",
+        "sha256": "6e9e5784238a7883d2d670923cf67a0d1ab6c6eb3facd2b6afb021b1fa9b95f7"
+      },
+      "test/wiimmfi_sdk_test.py": {
+        "mode": "100644",
+        "gitBlob": "2cf09fa6bd93a99af443f6f516272c2e187e45f0",
+        "sha256": "fea4ecbda72b90403cd568c98464ad4af9ecc97e081b3d5faed6f5c09f997e90"
+      },
+      "test/wiimmfi_test.dart": {
+        "mode": "100644",
+        "gitBlob": "5fe4b30c557f3d1e74a8b56e9208e43bfd38e95a",
+        "sha256": "4d215c5fb3d63b39401303734b52a2e7260cf788faaf78243b65f7aa1a85a3c7"
+      },
+      "tools/s2arm_a18pro/NEXT.md": {
+        "mode": "100644",
+        "gitBlob": "09d4ac673a60e1acba0552d8b180a239431023d8",
+        "sha256": "ea73aa69aaa192bac562a70600067d9b344c5a9588dddf2446c4ab7745963026"
+      },
+      "tools/s2arm_a18pro/NEXT_CPU.md": {
+        "mode": "100644",
+        "gitBlob": "6db9575e2e6ef53e19a4ffbdbfecac57cb9b2715",
+        "sha256": "327087b78a57667b588015d7ef057a63178dd675cc5698ebc42380edfb305c95"
+      },
+      "tools/s2arm_a18pro/NEXT_PARALLELISM.md": {
+        "mode": "100644",
+        "gitBlob": "d42a14dcd07024f7ef933790373ac89b63705105",
+        "sha256": "6b2c7943fd76a63dd15fcf3b71f17324e6ca66d47f76ef87e7ed66b24dcfd2e6"
+      },
+      "tools/s2arm_a18pro/NEXT_RAM.md": {
+        "mode": "100644",
+        "gitBlob": "9009bb5e70bdc22fbf77c1692fca383b27be3d27",
+        "sha256": "b95dde341ad6afa9ca079d823284dbc080aca7e8cb9eed83d6facca2abf5cc5a"
+      },
+      "tools/s2arm_a18pro/NEXT_SHADOWS.md": {
+        "mode": "100644",
+        "gitBlob": "f08b971f173c43ff753917ff4514d4d47867d05f",
+        "sha256": "8e31cadd494e8ef5b0442c497368cb63dd9cb2346cf879ae241a84de4ed314e4"
+      },
+      "tools/s2arm_a18pro/NEXT_THERMAL.md": {
+        "mode": "100644",
+        "gitBlob": "22c787d54476ce5556c5a95058be42d70f76c4a9",
+        "sha256": "da774a9b537ef3e17ad95ff9f1b25754891cb3b5d3bd2d1bd8ef9b66ba7f3434"
+      },
+      "tools/s2arm_a18pro/parallelism/test_timeline.py": {
+        "mode": "100644",
+        "gitBlob": "22a2304bf4bb16b20fbde2a0600f9314d30793d3",
+        "sha256": "199e382b96cf3af6dbda83bd3986871776b77a3f79395895c28627bbe62b6c9e"
+      },
+      "tools/s2arm_a18pro/parallelism/test_wait_summary.py": {
+        "mode": "100644",
+        "gitBlob": "e405acffcf9b78c53753b520d0b7edc50b483189",
+        "sha256": "7149747d078af2a0b81a7d138b3964cc36c83c5d1f468189929af037adc9820a"
+      },
+      "tools/s2arm_a18pro/parallelism/timeline.py": {
+        "mode": "100644",
+        "gitBlob": "2e0fdb75feb2ad188a9f9ce75015d5b130ae184d",
+        "sha256": "0355d9e890c7a36e2c476faa97eef17308bae5ccaae4b1068967426c6409d467"
+      },
+      "tools/s2arm_a18pro/parallelism/wait_summary.py": {
+        "mode": "100644",
+        "gitBlob": "f293a9ba655fe1be5991eb499fdbd462fb9d4bc5",
+        "sha256": "d1ff279e7175c7cf319123cd2a0438b346d7ca199730d65c7463dd60f7a89573"
+      },
+      "tools/s2arm_a18pro/perf_history.json": {
+        "mode": "100644",
+        "gitBlob": "7c941b3071d336a066d13dea855696653576de74",
+        "sha256": "9dcca795e66a1bf4c3c7803ef6cefb8834693f3ba9b404e67d9d18f1d853cd21"
+      },
+      "tools/s2arm_a18pro/thermal/README.md": {
+        "mode": "100644",
+        "gitBlob": "44b1696518beb39739a575114bf142302bcc8ed4",
+        "sha256": "209d576b435897a397b0977bc8fcd10de37551e9b0f1dbb9dace9277f175cdf6"
+      },
+      "tools/s2arm_a18pro/thermal/analyze.py": {
+        "mode": "100644",
+        "gitBlob": "5c5f49acf9658ad01540d96e44c0151c4a912e48",
+        "sha256": "2d80abe7c7be7ded8780a81a2fb5602a7d1665d74608c13206fd0fe6ef506cca"
+      },
+      "tools/s2arm_a18pro/thermal/energy_bench.c": {
+        "mode": "100644",
+        "gitBlob": "6bdd8b2c227e5d2f6684447576dea29cab0c4b35",
+        "sha256": "7d1f107c84538ef26345d43c0645f1bb787e1e988b4be80f7bf014458e3e2896"
+      }
+    },
+    "restore": {
+      "build-utils/maintenance/actions-cleanup-2026-11-10-followup.json": null,
+      "build-utils/maintenance/actions-cleanup-2026-11-10.json": null,
+      "build-utils/maintenance/actions-cleanup-2026-11-13-bulk.json": null,
+      "build-utils/maintenance/actions-cleanup-2026-11-23-pass2.json": null,
+      "build-utils/maintenance/actions-cleanup-2026-11-23.json": null,
+      "build-utils/maintenance/cleanup_actions.py": {
+        "mode": "100644",
+        "gitBlob": "d9d9eebd0b5f280598442a336aaf958cc9d033b6",
+        "sha256": "9e491611b6146032815aac0b8934e6edbdbc14e2f817350c006e7e8541773b97"
+      },
+      "build-utils/melonx/metal-archive/README.md": null,
+      "build-utils/melonx/metal-archive/moltenvk-v1.4.2-binary-archives.patch": null,
+      "build-utils/s2arm/engine/benchmarks/README.md": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/IOSApp.swift": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/Main.swift": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/ReconstructionBench.swift": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/README.md": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.manifest.json": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Data/com.apple.CoreML/model.mlmodel": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Data/com.apple.CoreML/weights/weight.bin": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe.mlpackage/Manifest.json": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.manifest.json": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Data/com.apple.CoreML/model.mlmodel": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Data/com.apple.CoreML/weights/weight.bin": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/ReconstructionProbe960x540.mlpackage/Manifest.json": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/generate_probe.py": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/model/requirements.txt": null,
+      "build-utils/s2arm/engine/benchmarks/coreml/run_macos.sh": null,
+      "build-utils/s2arm/engine/benchmarks/ga.c": null,
+      "build-utils/s2arm/engine/benchmarks/ga_guard.c": null,
+      "build-utils/s2arm/engine/benchmarks/push_bench.c": null,
+      "build-utils/s2arm/engine/benchmarks/push_selective.c": null,
+      "build-utils/s2arm/engine/benchmarks/rid_bench.m": null,
+      "build-utils/s2arm/engine/benchmarks/run_coreml.py": null,
+      "build-utils/s2arm/engine/benchmarks/ubo_bench.c": null,
+      "build-utils/s2arm/engine/benchmarks/ubo_guard.c": null,
+      "native/enhancements/catalogue/r/2026-11-16T2112Z.a85f516925ab/index.json.gz": {
+        "mode": "100644",
+        "gitBlob": "93c81ad2f4f9e33d61a61f57259ec8595c62ae12",
+        "sha256": "ef2f17505620e6e5c38154f2289196b3fdf69bc524991c83112ecfb7b956a7e8"
+      },
+      "native/enhancements/catalogue/r/2026-11-16T2139Z.d8b055350a6c/index.json.gz": {
+        "mode": "100644",
+        "gitBlob": "93c81ad2f4f9e33d61a61f57259ec8595c62ae12",
+        "sha256": "ef2f17505620e6e5c38154f2289196b3fdf69bc524991c83112ecfb7b956a7e8"
+      },
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/index.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-00.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-01.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-02.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-03.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-04.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-05.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-06.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-07.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-08.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-09.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-10.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-11.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-12.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-13.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-14.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-15.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-16.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-17.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-18.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-19.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-20.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-21.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-22.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-23.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-24.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-25.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-26.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-27.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-28.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-29.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-30.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/armsx2-31.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-00.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-01.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-02.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-03.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-04.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-05.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-06.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-07.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-08.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-09.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-10.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-11.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-12.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-13.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-14.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-15.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-16.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-17.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-18.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-19.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-20.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-21.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-22.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-23.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-24.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-25.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-26.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-27.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-28.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-29.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-30.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/dolphin-31.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-00.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-01.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-02.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-03.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-04.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-05.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-06.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-07.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-08.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-09.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-10.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-11.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-12.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-13.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-14.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-15.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-16.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-17.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-18.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-19.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-20.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-21.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-22.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-23.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-24.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-25.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-26.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-27.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-28.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-29.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-30.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/melonx-31.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-00.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-01.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-02.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-03.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-04.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-05.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-06.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-07.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-08.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-09.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-10.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-11.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-12.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-13.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-14.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-15.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-16.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-17.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-18.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-19.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-20.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-21.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-22.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-23.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-24.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-25.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-26.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-27.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-28.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-29.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-30.json.gz": null,
+      "native/enhancements/catalogue/r/2026-11-17T1313Z.50379e12bf9d/shards/rpcs3-31.json.gz": null,
+      "source.json": null,
+      "test/actions_cleanup_test.py": {
+        "mode": "100644",
+        "gitBlob": "b45856faaeaea9078ae6f1fab4f4dc420b3c2704",
+        "sha256": "3436f073837177c60de87fa823bcd4c46a3f06e78e06636713ac7daa2d4b78b0"
+      },
+      "test/melonx_metal_binary_archive/generate_shaders.py": null,
+      "test/melonx_metal_binary_archive/metal_probe.mm": null,
+      "test/melonx_metal_binary_archive/mvk_archive_test.cpp": null,
+      "test/melonx_metal_binary_archive/run_mvk.py": null,
+      "test/melonx_metal_binary_archive/run_probe.py": null,
+      "test/melonx_metal_binary_archive/shaders.spvz": null
+    },
+    "effectiveDigest": "b76c094c0588e63dd85b7c2db39a03de847cf3b0e4ec0d9564a093868b1378eb",
+    "productFiles": 10084,
+    "embeddedRecipeInputs": {
+      "LICENSE.md": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "NOTICE.md": "3943d6fb637c747d3ab7c8b0ec54108a6c44afa8666dd99a06d7e871bfbbcf58",
+      "docs/CHEAT_CATALOG_SOURCES.md": "b99792de4c9e917758628869bfc948ca8f653f47cb926378f3d8ad61d9c755f1",
+      "docs/ENGINE_CORRESPONDING_SOURCES.md": "d79c0a19a08dccedf3c7e1c65fdea6ae307e7dbd0b1c310430e9de7a7a5c4dd5",
+      "docs/HD_TEXTURE_CATALOG_SOURCES.md": "ca835a124356907c6ba68067a2399d55ba9326988e0fb732978cd4fe910d4392",
+      "docs/HD_TEXTURE_SOURCES_AND_CREDITS.md": "058e36570f6b4b3e374ea790dad6d684192e65b526fe64dd7f40f09dda0c4041",
+      "docs/LEGAL_AND_CREDITS.md": "8748bbba251fd104421f412976d4138fcadcf517c2f41b81610840012af0dd91",
+      "docs/OVERLAY_SOURCES_AND_CREDITS.md": "463aeaf75b5f39f058e7bc1fbb80fefddc9a977cc5ba3a0bdfe70b565d70ef20",
+      "docs/PACKAGE_SOURCES_AND_LICENSES.md": "2fdae2151390207cab5953651448e181912e9270347f7fe5129a211f2056e21c",
+      "docs/PPSSPP_SOURCE_AND_LICENSE_AUDIT.md": "fbeced8b72541b2ba8aac27334f749c6f870aff7506b1efde8de6958ff600e2e",
+      "docs/SOURCE_CODE_ACCESS.md": "93aa12f4cd110446325a63ff0c5c85c3daa01d543cd361643f112161dfcf490c",
+      "docs/evidence/achievement-translation-declarations-2026-10-31.json": "c8edd7472b7944348e39499ef1d2a59cd4e8a9e91338c3d7da46c8baf582df6b",
+      "docs/evidence/engine-source-license-audit-2026-10-21.json": "866e0a743ddaa4881fd8428dbce235c252e0773fb58ddefaaf1cef364d7607fd",
+      "docs/evidence/modified-sources-since-0.0.8-2026-10-21.json": "18a2c562d9271554e54644aeea3c66e7b498c8e5761f3532f04e8f5be2d4e9e7",
+      "docs/evidence/package-sources-license-audit-2026-10-21.json": "348c5c7840a9262e095519b46aca8d632341ba82483c386a96653108f4a8b72c",
+      "docs/evidence/pocket-originals-declarations-2026-11-03.json": "37388cacfd4623de2d580476e6d5f48a50daf8af449c42aed75fb4a4164e5641",
+      "docs/evidence/ppsspp-source-license-audit-2026-10-21.json": "34d4df4576cac7a5c2a6b1e89bed95e98870165146e11b058fd624cf009946ce",
+      "docs/evidence/retro-achievements-session-declarations-2026-11-01.json": "7d341d4f57dfdfc4abe32a6b8f6845ba4d6236f32615fc0eed848c9b9679ad1e",
+      "docs/evidence/rewindbox-glacier-declarations-2026-11-02.json": "3c391df6cfc68f6ee4aa3691f8c4e8e2fcd37fc9d596060fbb7946ab7810c924",
+      "docs/evidence/rpcs3-retroachievements-declarations-2026-11-02.json": "12abf0d5396a77c8457da822d328bcee5d68338058afc848df51fc73ea15b876",
+      "docs/evidence/wiimmfi-playlist-declarations-2026-11-27.json": "6ae4f03fa3ef861f37262a3bcd948fbf8becae907ee05e1444957519975f9a01",
+      "docs/licenses/cheats/Admentus-Enhancement-Codes-Credits.txt": "ea9f46181d8a6eed2c318a2795f73ff1dfa2a838f8992d6b07be74ed0d9fb93b",
+      "docs/licenses/cheats/Admentus-Enhancement-Codes-LICENSE.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "docs/licenses/cheats/Mupen64Plus-GPL-2.0.txt": "6774e66e59957ebf1da6c9e22be4e7b97fb169a534ab37e085e92831ff414fdd",
+      "docs/licenses/cheats/Mupen64Plus-mupencheat-header.txt": "39023c3dc42e1f1ea6085d79d44bdf9b59adf5846137496f9d73268f6ae7ecd5",
+      "docs/licenses/cheats/README.md": "191a16de4712ffb71f9604f0ed480b5ef1105e6f139575e77cff4b1b4d0dc340",
+      "docs/licenses/cheats/TAbdiukov-PPSSPP-patches-LICENCE.txt": "47a7bfd6b3e12546207665bcd53558b4087ac04fbcfc2592966968a3adab7987",
+      "docs/licenses/cheats/artemis-LICENSE.txt": "6a3e4ba999067b1c412f1740282bc077f8edf5f7178ea085acb5f5cca6fecb46",
+      "docs/licenses/cheats/provenance.json": "6a1ed0158a9f2c2c4f4ebed42b1c5e963baeac0c7c56fddfc4e84bf3c98ee843",
+      "docs/licenses/cheats/szTheory-NDS-Cheat-Databases-LICENSE.txt": "20b067f86de375aae6db0f283ab2e65de24d537733b89bd58432c101259d84cf",
+      "docs/licenses/cheats/tyler-EMERALD-NOTICE.txt": "868b4e7215a9a5835be022dc4d3c469ea18ce71598b20280d02b7b4c83f8621e",
+      "docs/licenses/cheats/tyler-GPL-3.0-LICENSE.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "docs/licenses/rpcs3-wiki-2026-10-28.json": "e844cbcf720d9f8af0f6dc38bb1dd9fed67bd2c83e17299db21cff95e2a54628",
+      "docs/licenses/rpcs3-wiki-2026-10-28.md": "6ae6c89711313c17a0f4585b02760688b75114dd76e6e994a40d9acdaadaf075",
+      "docs/retroarch-rollback-2026-10-08.md": "0d76d77ba6e51bfeda4c84388cf0fa8eb25af3c221943a4d41999a6692eeea0c"
+    }
   },
   "images": {
     "retained": {
@@ -617,11 +1919,175 @@
     },
     "mustChange": [
       "Frameworks/App.framework/App",
+      "Frameworks/DolphinCore.framework/DolphinCore",
       "Frameworks/S2ArmEngine.framework/S2ArmEngine",
       "Frameworks/azahar_libretro.framework/azahar_libretro",
+      "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
       "Runner"
     ],
     "added": [],
-    "removed": []
+    "removed": [],
+    "baseImages": [
+      "Frameworks/ARMSX2Core.framework/ARMSX2Core",
+      "Frameworks/App.framework/App",
+      "Frameworks/DolphinCore.framework/DolphinCore",
+      "Frameworks/Flutter.framework/Flutter",
+      "Frameworks/GTMSessionFetcher.framework/GTMSessionFetcher",
+      "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec",
+      "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil",
+      "Frameworks/MeloNXCore.framework/MeloNXCore",
+      "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport",
+      "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK",
+      "Frameworks/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone",
+      "Frameworks/MeloNXSDL3.framework/MeloNXSDL3",
+      "Frameworks/MoltenVK.framework/MoltenVK",
+      "Frameworks/NS2Pro.framework/NS2Pro",
+      "Frameworks/PDFium.framework/PDFium",
+      "Frameworks/S2ArmEngine.framework/S2ArmEngine",
+      "Frameworks/StikJIT.framework/StikJIT",
+      "Frameworks/XeniaCore.framework/XeniaCore",
+      "Frameworks/a5200_libretro.framework/a5200_libretro",
+      "Frameworks/achievement_translation.framework/achievement_translation",
+      "Frameworks/ardens_libretro.framework/ardens_libretro",
+      "Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge",
+      "Frameworks/azahar_libretro.framework/azahar_libretro",
+      "Frameworks/battery_plus.framework/battery_plus",
+      "Frameworks/desmume_libretro.framework/desmume_libretro",
+      "Frameworks/device_info_plus.framework/device_info_plus",
+      "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+      "Frameworks/external_display.framework/external_display",
+      "Frameworks/external_folder_access.framework/external_folder_access",
+      "Frameworks/fbneo_libretro.framework/fbneo_libretro",
+      "Frameworks/file_picker.framework/file_picker",
+      "Frameworks/flutter_7zip.framework/flutter_7zip",
+      "Frameworks/flutter_localization.framework/flutter_localization",
+      "Frameworks/flutter_secure_storage_darwin.framework/flutter_secure_storage_darwin",
+      "Frameworks/freechaf_libretro.framework/freechaf_libretro",
+      "Frameworks/freeintv_libretro.framework/freeintv_libretro",
+      "Frameworks/gambatte_libretro.framework/gambatte_libretro",
+      "Frameworks/gamepads_darwin.framework/gamepads_darwin",
+      "Frameworks/gearcoleco_libretro.framework/gearcoleco_libretro",
+      "Frameworks/genesis_plus_gx_libretro.framework/genesis_plus_gx_libretro",
+      "Frameworks/genesis_plus_gx_wide_libretro.framework/genesis_plus_gx_wide_libretro",
+      "Frameworks/gw_libretro.framework/gw_libretro",
+      "Frameworks/handy_libretro.framework/handy_libretro",
+      "Frameworks/libRPCS3Core.dylib",
+      "Frameworks/libmetalirconverter.dylib",
+      "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge",
+      "Frameworks/mednafen_ngp_libretro.framework/mednafen_ngp_libretro",
+      "Frameworks/mednafen_pce_fast_libretro.framework/mednafen_pce_fast_libretro",
+      "Frameworks/mednafen_pcfx_libretro.framework/mednafen_pcfx_libretro",
+      "Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro",
+      "Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro",
+      "Frameworks/mednafen_vb_libretro.framework/mednafen_vb_libretro",
+      "Frameworks/mednafen_wswan_libretro.framework/mednafen_wswan_libretro",
+      "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
+      "Frameworks/mesen_libretro.framework/mesen_libretro",
+      "Frameworks/mgba_libretro.framework/mgba_libretro",
+      "Frameworks/mupen64plus_next_libretro.framework/mupen64plus_next_libretro",
+      "Frameworks/neo_cheat_catalog.framework/neo_cheat_catalog",
+      "Frameworks/neo_shader_kit.framework/neo_shader_kit",
+      "Frameworks/neo_swap.framework/neo_swap",
+      "Frameworks/neo_texture_catalog.framework/neo_texture_catalog",
+      "Frameworks/neo_touch_layout.framework/neo_touch_layout",
+      "Frameworks/nestopia_libretro.framework/nestopia_libretro",
+      "Frameworks/o2em_libretro.framework/o2em_libretro",
+      "Frameworks/objective_c.framework/objective_c",
+      "Frameworks/package_info_plus.framework/package_info_plus",
+      "Frameworks/pdfium_flutter.framework/pdfium_flutter",
+      "Frameworks/picodrive_libretro.framework/picodrive_libretro",
+      "Frameworks/pokemini_libretro.framework/pokemini_libretro",
+      "Frameworks/potator_libretro.framework/potator_libretro",
+      "Frameworks/ppsspp_libretro.framework/ppsspp_libretro",
+      "Frameworks/prosystem_libretro.framework/prosystem_libretro",
+      "Frameworks/retro_achievements_session.framework/retro_achievements_session",
+      "Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
+      "Frameworks/sameduck_libretro.framework/sameduck_libretro",
+      "Frameworks/share_plus.framework/share_plus",
+      "Frameworks/shared_preferences_foundation.framework/shared_preferences_foundation",
+      "Frameworks/snes9x_libretro.framework/snes9x_libretro",
+      "Frameworks/sqlite3.framework/sqlite3",
+      "Frameworks/stella_libretro.framework/stella_libretro",
+      "Frameworks/stikjit_bridge.framework/stikjit_bridge",
+      "Frameworks/url_launcher_ios.framework/url_launcher_ios",
+      "Frameworks/uzem_libretro.framework/uzem_libretro",
+      "Frameworks/video_player_avfoundation.framework/video_player_avfoundation",
+      "Frameworks/wakelock_plus.framework/wakelock_plus",
+      "Frameworks/wasm4_libretro.framework/wasm4_libretro",
+      "Frameworks/xenia_internal_bridge.framework/xenia_internal_bridge",
+      "PlugIns/ARMSX2JITHelper.appex/ARMSX2JITHelper",
+      "PlugIns/DolphinJITHelper.appex/DolphinJITHelper",
+      "PlugIns/LibretroJITHelper.appex/LibretroJITHelper",
+      "PlugIns/MeloNXJITHelper.appex/MeloNXJITHelper",
+      "PlugIns/MeloNXRamDonor.appex/MeloNXRamDonor",
+      "PlugIns/NeoSwapDonor.appex/NeoSwapDonor",
+      "PlugIns/NeoSwapPageRelay.appex/NeoSwapPageRelay",
+      "PlugIns/RPCS3JITHelper.appex/RPCS3JITHelper",
+      "PlugIns/S2ArmJITHelper.appex/S2ArmJITHelper",
+      "PlugIns/XeniaJITHelper.appex/XeniaJITHelper",
+      "Runner"
+    ],
+    "retainedFingerprints": {
+      "Frameworks/ARMSX2Core.framework/ARMSX2Core": "e94131ab3e246a6f6162747a7cd0dd5c985b13121ef33bfaf61e8249d22a5998",
+      "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec": "cad556ba3651eece2068166f1fb61671d33d56ff68444475865a0055d316c01d",
+      "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil": "15acad8827f4dc80c453647c5196c91e393c8eb52e3f6367d1838454f7dee1c9",
+      "Frameworks/MeloNXCore.framework/MeloNXCore": "1f344f3cc0e58c01b2ec4d9af93520209bcfd4713e8588288ca7c21ff0905be4",
+      "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport": "b85104bbc6e7464cd949b1cbf51989b6c3d6af16bddc10c33728cacca043700e",
+      "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK": "ea81c0e4728457b9e2fa6faf6360232467bda505f5f2c3927376fe7535083aac",
+      "Frameworks/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone": "38fd2da5cac56fe93580a021008837cf1e72d93a19cfd12263f2a92f0de658d8",
+      "Frameworks/MeloNXSDL3.framework/MeloNXSDL3": "cfd1e95b4fe64309b8f16efd2b2d3134cef3390cd6d5172bb13c4b8520aba942",
+      "Frameworks/MoltenVK.framework/MoltenVK": "7cbd35be66c78e741768528c7b0fbf3cf20f5b468dc5361893033d4924741520",
+      "Frameworks/NS2Pro.framework/NS2Pro": "8a3320df120185bf7f88c4b46ee9ca6293fb1c10a869f38485bf02ed7ee88654",
+      "Frameworks/XeniaCore.framework/XeniaCore": "5adfe13dde3c681773d4f1be915f8a7d03fad5db2d6db23fd8ac040d3b23b613",
+      "Frameworks/a5200_libretro.framework/a5200_libretro": "cfa6fedeb2b2ae954565491f0e103c67d62c0168edf3480fc08a301a9ca1a19b",
+      "Frameworks/ardens_libretro.framework/ardens_libretro": "5b1b62c69036580263c57d482cb8be16faa793a42614b556b5a32c7ff08ababc",
+      "Frameworks/desmume_libretro.framework/desmume_libretro": "fab54cb3b77f57a1a239c900f2c01221b3abab23514fb2f76b064215f548375d",
+      "Frameworks/fbneo_libretro.framework/fbneo_libretro": "18102405bbe565cbba25fc822871ba87bee1db7dda5cf1da02302f6904ce5aec",
+      "Frameworks/freechaf_libretro.framework/freechaf_libretro": "fd60db6eac893840535a18cf3e025730a5682814120f4aacf339f437c37aab1c",
+      "Frameworks/freeintv_libretro.framework/freeintv_libretro": "dcccda5d6ca628c30dea61694cbe3115f4d35e04eef1615875b69ed02d15b9c1",
+      "Frameworks/gambatte_libretro.framework/gambatte_libretro": "3e803dca4a105e7d8469c3cd1ec79c41c5fe5d87137ebe3a91afbafc25957e30",
+      "Frameworks/gearcoleco_libretro.framework/gearcoleco_libretro": "9f5496ac38b3b464ac3dfe0b2d90c0ac5a1a365fe6c160e07d5f67be0b8a276e",
+      "Frameworks/genesis_plus_gx_libretro.framework/genesis_plus_gx_libretro": "e732f8a67cce93ad7bf2a3ad0c27bd8c6444882cb6ab67855b2354f1e838c7c1",
+      "Frameworks/genesis_plus_gx_wide_libretro.framework/genesis_plus_gx_wide_libretro": "145e71994f9cf2d7b72bd8e30ba49a348099aebb805450e7736619dee916b904",
+      "Frameworks/gw_libretro.framework/gw_libretro": "1561851ab719f3c1063bce1059d93982bd6fd0ad7ed8fa99144961ccd8fbd7c0",
+      "Frameworks/handy_libretro.framework/handy_libretro": "7a46ec1712e3e0f95db8a2c04c6626cc0882c374d904c4e1673d9e7781fcad31",
+      "Frameworks/libRPCS3Core.dylib": "57693835b7c0d41656a6fa6ef98361cc07e1469312242953fd48a6afa0cc92e4",
+      "Frameworks/libmetalirconverter.dylib": "c7f9161b2bb302c77f2ecc07d7f440a883c1a5016da947ab997d2e24fe1cf8db",
+      "Frameworks/mednafen_ngp_libretro.framework/mednafen_ngp_libretro": "7a22292d47f0d92c7fcc75c9b4b72b71172edd0f11132d5edc20afc11ae36c3f",
+      "Frameworks/mednafen_pce_fast_libretro.framework/mednafen_pce_fast_libretro": "e9f0abcb0f5b71111a6631e4e29f3ee0387325af3804e20a2a7a2717ec51a354",
+      "Frameworks/mednafen_pcfx_libretro.framework/mednafen_pcfx_libretro": "ad5aa730fb7862d5185da7b4c66fea236bbbdeb981d83f1be856800e5d675887",
+      "Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro": "35e355127154edc8250a2d4715f6a28586830f707ba745c20f811ea05c826d2a",
+      "Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro": "20a8bbd1d5db1c17b36adb13a5f1583ae2afb2f7257387a9d1f3d3134b8ec2a2",
+      "Frameworks/mednafen_vb_libretro.framework/mednafen_vb_libretro": "8eb3437fa0c5e247c15c959a18a9d3179f7646d1c616f6d6d6dc07ad59d70d16",
+      "Frameworks/mednafen_wswan_libretro.framework/mednafen_wswan_libretro": "29cce20057b765de6d99d962ea5e55a1a4a47e86cee83255e6d16b0e1ba0c545",
+      "Frameworks/mesen_libretro.framework/mesen_libretro": "e76d6c1dd46f8eb51a5478a1a21b2808d79bae0c7175199594b0f6781ee38684",
+      "Frameworks/mgba_libretro.framework/mgba_libretro": "a8f8613a1895d58cbac8effd04ccd84bb6dbb4c59a60cbc18efc2bf268a6d181",
+      "Frameworks/mupen64plus_next_libretro.framework/mupen64plus_next_libretro": "ba845fc8a78edf87639a750203b2d09eb0fd294cd7969473115ad816f9280286",
+      "Frameworks/nestopia_libretro.framework/nestopia_libretro": "847be8672c95558feebe0be55bdf3264e7e241009451b11a023a835b44d3e0ef",
+      "Frameworks/o2em_libretro.framework/o2em_libretro": "535cdf027548eab1117dff0522d9a589ac403d996e8fc569b81996c5bc3f1209",
+      "Frameworks/picodrive_libretro.framework/picodrive_libretro": "65d6dc5a241efda5ea1965443b3c9fe1e763538a36e14ca290d9ec571377d9e1",
+      "Frameworks/pokemini_libretro.framework/pokemini_libretro": "c1c03e755afc328ba64bfce2f8491f8838d224e6f9685a73f2bd060c67b4ff6e",
+      "Frameworks/potator_libretro.framework/potator_libretro": "19a67f1d4f65a819cc87cb1576d7348a8eb1451e1b509aad25d7d73636fea681",
+      "Frameworks/ppsspp_libretro.framework/ppsspp_libretro": "377f669eacb492181ca3681e6ccd017bea78263b45320a575d8172dab2bd88c1",
+      "Frameworks/prosystem_libretro.framework/prosystem_libretro": "82b4af35d8c61093d1e7edb0f6c3eeca361acb4b8c96d3e83ddf3ffbad5150af",
+      "Frameworks/sameduck_libretro.framework/sameduck_libretro": "f648c6efc1455c280441c1f70dd62d3f2451a6e36b57268f3acf7ed6ff2256cb",
+      "Frameworks/snes9x_libretro.framework/snes9x_libretro": "e0326b241edce3f8860b85e3a08684806e611e292a21204534456b3af08ba788",
+      "Frameworks/stella_libretro.framework/stella_libretro": "a44e78a4e58dc481233737681fa3547ecebdfef0178219de8213aa067e8cf368",
+      "Frameworks/uzem_libretro.framework/uzem_libretro": "ae053a29eff0b1490f7cedd6af8a79d0df45950ef71fd604a93703ceaa039d93",
+      "Frameworks/wasm4_libretro.framework/wasm4_libretro": "41dec5ccf2fdb0153db049f027424f42993ae0c83df61e4bd1db24b0cf9a4dde"
+    },
+    "replacedFingerprints": {
+      "Frameworks/DolphinCore.framework/DolphinCore": "d37c014b7e2e55ec2e5da1ee17e027800b733072e5601833bbba6b87fcddb943"
+    },
+    "derivedMustChange": [
+      "Frameworks/App.framework/App",
+      "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge"
+    ]
+  },
+  "frozen": {
+    "at": "2026-11-27T17:58:56Z",
+    "commit": "3c84321841bc4061c206eda5b268554247ecf581",
+    "tool": "standard_delivery.py freeze",
+    "inCI": false
   }
 }
