@@ -18,4 +18,8 @@ ASan, UBSan et TSan réussissent pour le banc thermique. La simulation à 60 int
 
 Le découpage adaptatif peut fermer puis rouvrir une passe sur les mêmes textures. Il peut aussi reporter la frontière suivante avant la première passe de réduction, qui attend alors dès le vertex. [Exécution d’origine](https://github.com/TarbleFR/RewindBox/actions/runs/46029548889) sur Metal 3. Les dépendances requises, les positions et les pixels sont contrôlés dans les deux profils. Le profil fixe compare également tous les opérandes et l’ordre exact de chaque opcode. Le contrôle corrigé valide a posteriori les 105 images du profil adaptatif et les 84 du profil fixe sur sept variantes chacun. L’empreinte des pixels est commune aux deux profils. Les 14 assertions entre files passent avec et sans reprise ciblée sur l’exécution d’origine.
 
+Les [deux compilations iPhoneOS](https://github.com/TarbleFR/RewindBox/actions/runs/46029300326) de `28b5ab49` passent avec les SDK 26.2 et 26.5. Le [nouveau rejeu Metal 3](https://github.com/TarbleFR/RewindBox/actions/runs/46031374731) de `1df80b41` passe dans les deux profils et confirme l’empreinte pixel `f2c8d5939b7f046b`. La [vérification d’archive](https://github.com/TarbleFR/RewindBox/actions/runs/46031706619) confirme le résultat avec le contrôle renforcé.
+
+Sur la scène synthétique à découpage habituel, le p95 passe de 7,95 à 22,53 ms lorsque toutes les options de parallélisme sont combinées. Ce profil reste expérimental. [Résultats détaillés](s2arm-parallelism/apple-56d09d52/README.md).
+
 La ligne `direct backend: Metal 4` dans le journal identifie le backend réel sur appareil. Les résultats de cette contre-expertise n’établissent aucun changement de FPS, de chauffe ou de consommation sur A18 Pro.
