@@ -6860,12 +6860,13 @@
     "0469 draft, submit-thread wrappers (enc_r_* / enc_c_*) writing the stand-in's record directly (shared rec_w_* writers) instead of messaging DmRecEnc. Apple runtime probe (rec_bench.m submit side, 12 alternated pairs, record parity): class test per call +30.00% (run 45956794549, p25 +9.77%, p75 +56.54%); class test cached per receiver (strong-held) +11.26% (run 45957340416, p25 +2.51%, p75 +17.50%). The message path is not slower; rejected, patch withdrawn and its engine run 45956522519 cancelled."
   ],
   "remaining_bottlenecks": [
+    "CPU micro-paths of the submit and encode threads checked on 2026-11-27 (0468 kept; 0469 submit direct records, sdx bucket reuse, lock merge rejected; hash and stand-in reuse dismissed at < 10 us a frame). The remaining levers are GPU work and on-device frame pacing, which need an A/B inside one Metal CI run or a device measurement",
     "Metal encode-thread command recording: dispatch share reduced by 0468 (per-class IMP); the Metal work inside each call and DmRecEnc stand-in allocation (~35 ns per encoder) remain, unmeasured on device",
     "Submission lookahead and render-pass/copy analysis CPU cost (sdx_walk, udc/fb/defer lookaheads) and GPU frametime pacing",
     "First-use pipeline compilation and residency measured separately from CPU key construction",
     "Presentation queue scheduling, native frame pacing and physical iPhone 16 Pro Max 1x 60 FPS / thermal validation (unmeasured)"
   ],
-  "next_axis": "Submission lookahead CPU (prog_peek_jobs string keys per draw while a combined program is unresolved: snprintf/NSString/shmap lookups under g_shader_lock in sdx_walk and pso_predict_rest_), measured by a synthetic A/B with identical outcomes (>= 12 alternated pairs), then GPU frametime pacing of the homebrew in one run. iPhone 1x FPS and thermal remain unmeasured.",
+  "next_axis": "GPU A/B inside one macOS-26 CI run: offscreen synthetic draws with existing S2A_RB_* switches (wide memory 0394-0395, shader opt 0396) measuring gpu_work p50/p95 over >= 5 alternated pairs in the same process; keep only reproducible gains. CPU micro-paths of submit/encode threads are exhausted at the microbenchmark level.",
   "legacy_note": "First 21 entries are original host summaries. Their draft patch numbers describe historical experiments; numbers may differ from integrated engine patches. Cachegrind counters are on x86. The uncalibrated projections were withdrawn. No legacy entry establishes fidelity, A18 Pro frametime, GPU time, energy, RAM or FPS.",
   "initial_reference": "0426",
   "intermediate_reference": "0436 (8be902ac0)",
@@ -7119,6 +7120,12 @@
       "date": "2026-11-27",
       "candidate": "Engine Metal A/B test counting re-encoded argument slots after pso_predict_rest_ (args_dirty_all), as the next axis of the 0469 cycle",
       "why_not_done": "Bound: args_dirty_all after a lookahead forces at most one fully dirty argument/vertex-buffer encode of the draw at hand per lookahead (0465 bench: 16 dirty vertex buffers cost 51 ns per draw; M03 argument walk in the same range), while the lookahead itself replays state_op for every remaining op of the submission and runs only at pipeline misses. The rebind share is below one replayed op per remaining op and cannot reach a measurable fraction; changing the 0464 clocks carries correctness risk for no measurable gain. Closed without code change; not counted as a rejection."
+    },
+    {
+      "date": "2026-11-27",
+      "candidate": "Faster internal slot hash for long nvn_hmap keys (184 / 344-byte pipeline keys)",
+      "measure": "hm_parts.c, Linux x86, CPU 0, 3 runs: hash 16-25 ns (184 B) / 26-28 ns (344 B), lookup 34-41 ns / 49-53 ns",
+      "why_not_done": "These lookups happen when pipeline state changes, about once per draw at most: even halving the hash saves a few microseconds per frame. 8-byte lookups (about 15 ns on this host, two cache lines a probe) would need keys and values interleaved, but 72 engine sites read m->keys / m->vals directly."
     }
   ],
   "measurement_notes": [

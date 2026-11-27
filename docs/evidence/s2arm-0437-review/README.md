@@ -212,3 +212,9 @@ Axe précédent (coût de reliaison après `pso_predict_rest_`) **clos par analy
 - **Shaders synthétiques et homebrew, même run** : `pipeline_driver` (48 stages iPhoneOS, 12 paires) `fresh 3,584`, `one_fresh 1,569`, `vertex_fresh 1,898`, `crossed 0,049`, `repeated 0,053 ms` ; run `0468` (`45953045391`) : `1,566`, `1,017`, `1,224`, `0,052`, `0,049 ms`. Ce banc n’exécute pas le code moteur : l’écart vient du runner. Homebrew : 3 programmes, **6/6 relectures Metal exactes** chacun dans les deux runs.
 
 Temps d’image, FPS et chauffe sur iPhone : non mesurés. Échecs consécutifs : 0 après `0470`. Prochain axe : clés texte de `prog_peek_jobs` (formatage hexadécimal, `NSString`, recherches sous `g_shader_lock`) par dessin tant qu’un programme combiné n’est pas résolu, dans `sdx_walk` et `pso_predict_rest_`, en A/B synthétique à résultats identiques ; puis cadence GPU du homebrew dans un même run.
+
+### Bilan CPU du 27 novembre
+
+- **Tables de hachage.** [`hm_parts.c`](dispatch/hm_parts.c) : le hachage d’une clé de pipeline coûte `16–25 ns` (184 o) ou `26–28 ns` (344 o), pour une recherche de `34–53 ns`. Ces recherches n’ont lieu qu’aux changements d’état : gain possible de quelques microsecondes par image. Pistes non poursuivies.
+- **Chemins CPU des fils de soumission et d’encodage.** Épuisés à l’échelle des microbancs : `0468` est retenu ; trois candidats sont rejetés à la mesure et deux sont écartés à moins de 10 µs par image.
+- **Prochain levier.** Le travail GPU, à mesurer en A/B dans un même run Metal macOS 26 avec les interrupteurs `S2A_RB_*` existants, ou sur appareil.
