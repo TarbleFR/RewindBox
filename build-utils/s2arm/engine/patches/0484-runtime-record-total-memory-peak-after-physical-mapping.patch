@@ -1,0 +1,33 @@
+diff --git a/runtime/src/svc_mem.c b/runtime/src/svc_mem.c
+--- a/runtime/src/svc_mem.c
++++ b/runtime/src/svc_mem.c
+@@ -1065,9 +1065,8 @@
+         if (p == a || !offset) {
+             was = *m;
+             if (!offset && end - p >= HPG && bulk) {
+-                if (!was && g_phys + HPG <= g_mem_peak) {
+-                    // Empty groups are already zero. Use the subpage path
+-                    // when peak accounting could run inside the group.
++                if (!was) {
++                    // Empty groups are already zero.
+                     *m = full;
+                     g_phys += HPG;
+                     if (!run) run = p;
+@@ -1089,7 +1088,6 @@
+             if (was) zero_sub(p, we);
+             *m |= bit;
+             g_phys += 0x1000;
+-            if (g_phys > g_mem_peak) mem_peak_note();
+             if (!run) run = p;
+         } else if (run) {
+             perm_set(run, p, -1);
+@@ -1097,6 +1095,9 @@
+         }
+     }
+     if (run) perm_set(run, end, -1);
++    // Physical use only grows in this operation. Record its final total
++    // under g_mu so the high-water mark survives a later unmap.
++    mem_peak_note();
+ }
+ #endif
+ // 地址 / 大小 / 回绕三项公共校验（Ryujinx Syscall 各内存调用开头同一套）：地址 4 KB 对齐 → 大小 4 KB 对齐且非零 → 不回绕

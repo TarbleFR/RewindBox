@@ -137,3 +137,7 @@ the final slot. This runtime change is provided under Apache-2.0.
 RewindBox patches 0481 through 0483 modify tiled texture upload staging,
 task and mesh shader translation, and empty depth/stencil clear handling.
 These changes are provided under Apache-2.0.
+
+RewindBox patch 0484 records the full guest resource-memory high-water mark at
+the end of physical mapping, while holding the memory lock. This runtime change
+is provided under Apache-2.0.

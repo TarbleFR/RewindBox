@@ -862,3 +862,7 @@ La création d’un handle recontrôle le quota de mémoire de transfert sous le
 | 0483 | Continuer une passe de rendu ordinaire sur un effacement profondeur/stencil à masques nuls lorsque les dépendances le permettent. | `S2A_RB_EMPTY_DS=0` |
 
 [Charges, limites et preuves](../../../docs/evidence/s2arm-gpu-0481/README.md).
+
+### 0484 — pic total après mappage des pages physiques
+
+Le pic des ressources mémoire est actualisé une seule fois à la fin du marquage, sous le verrou mémoire, à partir de l’usage total. La valeur retenue conserve les pages mappées même après leur libération. Le regroupement des pages neuves couvre ainsi tous les pics. [Contre-expertise et vérification des octets](../../../docs/evidence/s2arm-cpu-counteraudit-0480.md).
