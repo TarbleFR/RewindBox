@@ -192,3 +192,23 @@ Temps d’image, FPS et chauffe sur iPhone : non mesurés. Échecs consécutifs 
 - **0468 confirmé.** Les mêmes runs redonnent `−42,77 %`, `−39,76 %` et `−46,84 %` sur la répartition côté encodage.
 
 Échecs consécutifs : 2.
+
+## 0470 : index de stockage, emplacements vivants par étage
+
+Axe précédent (coût de reliaison après `pso_predict_rest_`) **clos par analyse, sans code** : `args_dirty_all` force au plus un encodage complet des arguments du dessin en cours par pré-analyse (banc `0465` : `51 ns` par dessin pour 16 tampons de sommets sales), alors que la pré-analyse rejoue elle-même `state_op` sur tout le reste de la soumission et ne tourne qu’aux défauts de pipeline. La part de la reliaison reste sous le bruit ; toucher aux horloges de `0464` exposerait l’exactitude sans gain mesurable. Non compté comme échec.
+
+- **Retenu : `0470` (`nvn_mtl.m`, `sdx_walk`).** Un dessin dont le programme n’est pas encore chargé parcourait les `6 × 288` emplacements de `g_pp_slot`. Chaque étage garde la liste croissante de ses emplacements occupés, refaite après une liaison de cet étage. Mêmes événements, même ordre ; `S2A_RB_SDX_LIVE=0` rétablit l’ancien balayage.
+- **Mesure** ([`bench_0470_sdx_slots.c`](dispatch/bench_0470_sdx_slots.c), Linux `-O2`, 2 000 dessins par soumission, 200 soumissions, 12 paires alternées, deux séries sur deux cœurs, hachage des événements identique à chaque paire, ASan+UBSan) :
+
+| Dessins sans programme chargé | Série 1 (médiane appariée, p25 / p75) | Série 2 |
+| --- | --- | --- |
+| 0 % (régime stable) | `−0,24 %` (`−2,71` / `+1,47`) | `−1,00 %` (`−2,00` / `+0,41`) |
+| 2 % | `−0,48 %` (`−1,10` / `+0,02`) | `−0,30 %` (`−1,08` / `+3,93`) |
+| 10 % | `−3,37 %` (`−3,87` / `−2,56`) | `−3,56 %` (`−4,52` / `−3,21`) |
+| 100 % | `−9,92 %` (`−13,91` / `−9,38`) | `−10,28 %` (`−11,76` / `−8,18`) |
+
+  La référence `0426` et le meilleur intermédiaire `0468` ont le même code sur ce chemin. Aucune dégradation mesurée en régime stable (écarts traversant zéro). Le gain ne vaut que pendant les chargements de shaders ; ce sont les ajouts d’événements, pas le balayage, qui dominent ensuite.
+- **Compilation moteur seul** : run [`45958486174`](https://github.com/TarbleFR/RewindBox/actions/runs/45958486174) (commit `d451b0074`), vert sur macOS 15 et 26 ; `153` exports, `S2ArmDirectChain 0be3f28548fd`, `thermal_gpu_checks` verts (`t_svc_mem 213/213`, `t_far 111/111`, `t_nvn_xqueue 14/14`, `t_crash`, `t_tdump_stress 300/300`).
+- **Shaders synthétiques et homebrew, même run** : `pipeline_driver` (48 stages iPhoneOS, 12 paires) `fresh 3,584`, `one_fresh 1,569`, `vertex_fresh 1,898`, `crossed 0,049`, `repeated 0,053 ms` ; run `0468` (`45953045391`) : `1,566`, `1,017`, `1,224`, `0,052`, `0,049 ms`. Ce banc n’exécute pas le code moteur : l’écart vient du runner. Homebrew : 3 programmes, **6/6 relectures Metal exactes** chacun dans les deux runs.
+
+Temps d’image, FPS et chauffe sur iPhone : non mesurés. Échecs consécutifs : 0 après `0470`. Prochain axe : clés texte de `prog_peek_jobs` (formatage hexadécimal, `NSString`, recherches sous `g_shader_lock`) par dessin tant qu’un programme combiné n’est pas résolu, dans `sdx_walk` et `pso_predict_rest_`, en A/B synthétique à résultats identiques ; puis cadence GPU du homebrew dans un même run.

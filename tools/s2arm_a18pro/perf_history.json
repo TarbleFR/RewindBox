@@ -6833,6 +6833,11 @@
       "basis": "Encode-thread rec_exec calls the frequent encoder and argument-table records through an IMP cached per record kind and receiver class (as RO_T_ADDR since 0073); nil receiver stays a no-op; S2A_RB_REC_IMP=0 restores objc_msgSend. Real Apple runtime probe (macOS 26 arm64 runner, run 45952496588, rec_bench.m, trivial bodies, 12 alternated pairs, hash parity): 7.735 -> 4.653 ns per record median (paired -34.73%, p25 -48.42%, p75 -29.02%). Metal work inside each call not measured; frame time and iPhone not measured. Stand-in reuse ([DmRecEnc new] per pass, 34.97 vs 0.38 ns) left out: ~35 ns per encoder, not worth changing ownership.",
       "status": "compiled: engine CI run 45953045391 (commit 6f5bb0772), macos-15 and macos-26 green, patch 0468 applied (sha256 221a745e...); iOS frame time not measured",
       "repeats": "0468 dispatch probe repeated in runs 45956516278 (-42.77%), 45956794549 (-39.76%), 45957340416 (-46.84%), all with p75 below -29%"
+    },
+    {
+      "patches": "0470",
+      "basis": "Store lookahead walk (sdx_walk): a draw whose program is not loaded yet (prog_peek nil) scanned all 6 x 288 g_pp_slot entries; each stage now keeps an ascending list of its non-zero slots, rebuilt only after a bind of that stage (one OR per bind op). Same events, same order; S2A_RB_SDX_LIVE=0 restores the full scan. Linux -O2 synthetic bench (docs/evidence/s2arm-0437-review/dispatch/bench_0470_sdx_slots.c, 2000 draws per submission, 200 submissions, 12 alternated pairs, two series on cores 0 and 1, event hashes identical every pair, ASan+UBSan verify): nil 10% -3.37% / -3.56% (p75 -2.56% / -3.21%), nil 100% -9.92% / -10.28% (p75 -9.38% / -8.18%); steady nil 0% -0.24% / -1.00% and nil 2% -0.48% / -0.30%, IQR crossing zero (no measured degradation). Reference 0426 and best intermediate 0468 share the baseline code on this path. Gain limited to phases where shaders are still loading; frame time and iPhone not measured.",
+      "status": "compiled: engine CI run 45958486174 (commit d451b0074), macos-15 and macos-26 green, patch 0470 applied (sha256 e837089d...), 153 exports, S2ArmDirectChain 0be3f28548fd, thermal_gpu_checks green (t_svc_mem 213/213, t_far 111/111, t_nvn_xqueue 14/14, t_crash, t_tdump_stress 300/300); iOS frame time not measured"
     }
   ],
   "rejected_optimizations": [
@@ -6860,7 +6865,7 @@
     "First-use pipeline compilation and residency measured separately from CPU key construction",
     "Presentation queue scheduling, native frame pacing and physical iPhone 16 Pro Max 1x 60 FPS / thermal validation (unmeasured)"
   ],
-  "next_axis": "PSO prediction scan rebind cost (pso_predict_rest_ ends with args_dirty_all): add an engine Metal test that replays a synthetic submission with a pipeline miss and counts re-encoded argument slots and vertex buffers, with an S2A_RB_* A/B switch measured in the same CI run (>= 5 alternated pairs), proving identical encoded state before changing the clocks. Then first-use pipeline compilation (pipeline_driver) A/B inside one run. iPhone 1x FPS and thermal remain unmeasured.",
+  "next_axis": "Submission lookahead CPU (prog_peek_jobs string keys per draw while a combined program is unresolved: snprintf/NSString/shmap lookups under g_shader_lock in sdx_walk and pso_predict_rest_), measured by a synthetic A/B with identical outcomes (>= 12 alternated pairs), then GPU frametime pacing of the homebrew in one run. iPhone 1x FPS and thermal remain unmeasured.",
   "legacy_note": "First 21 entries are original host summaries. Their draft patch numbers describe historical experiments; numbers may differ from integrated engine patches. Cachegrind counters are on x86. The uncalibrated projections were withdrawn. No legacy entry establishes fidelity, A18 Pro frametime, GPU time, energy, RAM or FPS.",
   "initial_reference": "0426",
   "intermediate_reference": "0436 (8be902ac0)",
@@ -6877,12 +6882,13 @@
     "consecutive_rejections_after_0463_before_0464": 0,
     "rejected_during_0464_0466_cycle": 1,
     "consecutive_rejections_at_0466": 0,
-    "last_updated": "2026-11-27T09:30:00Z",
+    "last_updated": "2026-11-27T08:00:00Z",
     "consecutive_rejections_at_0467": 0,
     "consecutive_rejections_after_0468_lock_merge": 1,
     "consecutive_rejections_at_0468": 0,
     "consecutive_rejections_after_0469_sdx_bucket": 1,
-    "consecutive_rejections_after_0469_submit_direct": 2
+    "consecutive_rejections_after_0469_submit_direct": 2,
+    "consecutive_rejections_at_0470": 0
   },
   "device_metrics": {
     "native_fps": null,
@@ -7108,12 +7114,25 @@
       "date": "2026-11-27",
       "candidate": "Restore the argument dirty state saved before the PSO prediction / no-load / coverage scans (pso_predict_rest_, pass_color_unwritten, fz_probe_cov2) instead of args_dirty_all()",
       "why_not_done": "args_dirty_all bumps 0464's monotonic per-slot generation clocks; restoring older generations would reuse values that per-shader snapshots compare against. Runs only at pipeline misses (at most a few per submission), not in steady frames. Needs an engine Metal test that counts re-encoded slots with an A/B switch inside one CI run before any change."
+    },
+    {
+      "date": "2026-11-27",
+      "candidate": "Engine Metal A/B test counting re-encoded argument slots after pso_predict_rest_ (args_dirty_all), as the next axis of the 0469 cycle",
+      "why_not_done": "Bound: args_dirty_all after a lookahead forces at most one fully dirty argument/vertex-buffer encode of the draw at hand per lookahead (0465 bench: 16 dirty vertex buffers cost 51 ns per draw; M03 argument walk in the same range), while the lookahead itself replays state_op for every remaining op of the submission and runs only at pipeline misses. The rebind share is below one replayed op per remaining op and cannot reach a measurable fraction; changing the 0464 clocks carries correctness risk for no measurable gain. Closed without code change; not counted as a rejection."
     }
   ],
   "measurement_notes": [
     {
       "date": "2026-11-27",
       "note": "Homebrew pacing host (measure.m, engine-independent) gave gpu_work p50 0.776-0.818 ms in run 45945441918 and 0.355-0.458 ms in run 45953045391: runner-to-runner variance on GitHub macOS 26 VMs. Numbers from different CI runs are not comparable; only pairs inside one run count."
+    },
+    {
+      "date": "2026-11-27",
+      "note": "Run 45953045391 (engine 0468, macOS 26 runner): pipeline_driver 48 iPhoneOS stages, 12 pairs, medians fresh 1.5656, one_fresh 1.0169, vertex_fresh 1.2240, crossed 0.0515, repeated 0.0486 ms (pair 0 fresh 104.41 ms cold outlier); homebrew metal_readback 3 programs x 6/6 exact (256, 16384, 16384 bytes). Not comparable with run 45945441918 (different runner)."
+    },
+    {
+      "date": "2026-11-27",
+      "note": "Run 45958486174 (engine 0470, macOS 26 runner): pipeline_driver 48 iPhoneOS stages, 12 pairs, medians fresh 3.5844, one_fresh 1.5689, vertex_fresh 1.8978, crossed 0.0491, repeated 0.0525 ms; homebrew metal_readback 3 programs x 6/6 exact. pipeline_driver does not run engine code (pinned pairbench builder): the shift against run 45953045391 is runner variance, not an engine effect."
     }
   ]
 }
