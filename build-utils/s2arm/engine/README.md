@@ -828,3 +828,7 @@ Série `0468–0470` compilée ensemble sur `macos-15` et `macos-26` (run [`4598
 - **0475** (`runtime/src/thread.c`) — un bitmap de 1 Kio permet de trouver le premier handle libre par mot. Les codes de retour, générations et partitions déterministes restent identiques. `S2A_RB_HANDLE_BITMAP=0` rétablit la recherche linéaire.
 
 [Bancs CPU, parité et limites](../../../docs/evidence/s2arm-runtime-0474-0475.md).
+
+### 0476 — contrôle du quota des handles de mémoire de transfert
+
+`CreateTransferMemory` lit le compteur natif de handles du type demandé sous le même verrou. Le parcours des 8 191 entrées disparaît. Le seuil, les codes de retour et l’ordre de libération du verrou sont conservés. [Mesures et portée](../../../docs/evidence/s2arm-runtime-0476.md).

@@ -1,0 +1,18 @@
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -3510,8 +3510,12 @@
+           if ((n & 0xfff) || !n) { regs[0] = 0xCA01; return 1; }          // InvalidSize
+           if (a + n <= a) { regs[0] = 0xD401; return 1; }                 // InvalidMemState
+           if (pm > 3 || pm == 2) { regs[0] = 0xD801; return 1; }          // InvalidPermission
+-          if (lim_on()) { int c = 0; glock(); for (int i = 1; i < MAX_H; i++) c += g_h[i].kind == S2A_OBJ_TMEM; pthread_mutex_unlock(&G);
+-              if (c >= LIM_TMEM) { regs[0] = 0x10801; return 1; } } }     // ResLimitExceeded
++          if (lim_on()) {
++              glock();
++              int count = g_kcnt[S2A_OBJ_TMEM];
++              pthread_mutex_unlock(&G);
++              if (count >= LIM_TMEM) { regs[0] = 0x10801; return 1; }    // ResLimitExceeded
++          } }
+         // 分配失败回 OutOfResource（11-01 审计 P2-11）；源借出（权限账记成建立时的权限）照 Ryujinx KTransferMemory.Initialize 在发句柄前，发不出句柄即还回
+         tmem_t *tm = malloc(sizeof *tm); if (!tm) { regs[0] = 0xCE01; return 1; }
+         tm->addr = regs[1]; tm->size = regs[2]; tm->perm = (uint32_t)regs[3];

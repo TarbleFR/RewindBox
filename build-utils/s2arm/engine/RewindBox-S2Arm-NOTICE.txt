@@ -123,3 +123,6 @@ These runtime changes are provided under Apache-2.0.
 RewindBox patches 0474 and 0475 record uniform guest page groups together and
 use a bitmap to find the first free guest handle in its existing partition.
 These runtime changes are provided under Apache-2.0.
+
+RewindBox patch 0476 reuses the native per-kind handle count to check the
+transfer-memory limit. This runtime change is provided under Apache-2.0.
