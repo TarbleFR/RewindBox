@@ -6858,6 +6858,39 @@
       },
       "reading": "0394 gain repeated (-28.07%). With one raw load per thread (4M threads), the 13-step pool-table binary search costs the same as the 2 MiB hint (29.57 vs 29.49 ms scalar): lanes read the same table words, the lookup is not a GPU hotspot. A SIMD-group shared lookup (simd_broadcast_first) was therefore not implemented.",
       "physical_device_status": "not measured"
+    },
+    {
+      "schema_version": "2.0",
+      "timestamp": "2026-11-27T10:40:00+00:00",
+      "label": "0469_replay_and_shader_metrics_lab",
+      "host": {
+        "gpu": "Apple Paravirtual device (no residency sets, Metal 3 path)",
+        "run": 45974878139,
+        "commit": "221062340",
+        "earlier_failed_runs": [
+          45969449378,
+          45971054149,
+          45972678814
+        ]
+      },
+      "runs_per_variant": 1,
+      "results": {
+        "replay_per_frame_baseline": {
+          "records": 1206,
+          "render_encoders": 7,
+          "draws": 372,
+          "argument_records": 703,
+          "arena_allocs": 677,
+          "arena_bytes": 173312,
+          "load_bytes": 344064,
+          "store_bytes": 1916928
+        },
+        "replay_variants": "rec_imp_off, draw_barriers_full, producer_cover_on, noload_off, tab_cache_off: same counts, pixels identical. tbdr_store_lookahead (DM_NVN_TBDR=1): render_encoders 7->6, load_bytes -76.2%, store_bytes -13.7%, pixels identical.",
+        "state_digest": "different for every variant, including rec_imp_off which changes only call dispatch; residency_adds 0.3 in the baseline (first process) and 0 elsewhere: per-process noise, not an engine effect. One run per variant: not a comparison.",
+        "shader_corpus": "11 synthetic Ampere fragment shaders, MSL and AIR (-O2) identical for baseline, S2A_RB_SHADER_OPT=0 and S2A_RB_WIDE_MEM=0, GPU output words identical. raw_reads_24: 60 guest instructions -> 19660 MSL bytes, 2675 AIR instructions (raw pool lookup inlined per load). ssbo_vec_16: each LDG.128 becomes 4 scalar loads with 4 min() clamps; 0395 WideLoads does not fire (constant indices, several loads per statement)."
+      },
+      "reading": "Hardware-independent counts only; no timing. The corpus does not exercise either translator switch, so it cannot measure them. The state digest needs a repeat of the baseline before it can serve as an equivalence check: replay_compare.py now runs each variant 5 times in rotating order and compares the state digest only when the baseline's own runs agree.",
+      "physical_device_status": "not measured"
     }
   ],
   "accepted_optimizations": [
@@ -6947,7 +6980,7 @@
     "First-use pipeline compilation and residency measured separately from CPU key construction",
     "Presentation queue scheduling, native frame pacing and physical iPhone 16 Pro Max 1x 60 FPS / thermal validation (unmeasured)"
   ],
-  "next_axis": "GPU: memory access helpers are efficient on the runner GPU (0394 kept, lookup not a hotspot, 0395 neutral). Remaining GPU levers are Metal 4 encoding (barriers, argument tables, residency), which the runner cannot run, and texture/sampling translation, which needs licensed shader inputs (homebrew only). Without a Metal 4 device, keep the harness for regressions and stop the GPU search.",
+  "next_axis": "Compile the full engine with 0469's two guards ([s2arm-engine], macOS 15 and 26) with pipeline_driver (12 pairs), homebrew metal_readback (3 programs x 6) and homebrew pacing; rerun the replay metrics 5x per variant to validate the state digest. Then, if the digest is stable: use it to test submit-side CPU candidates (record counts per draw, arena allocations per draw: 677 for 372 draws) on the synthetic frame. GPU timing search stays closed on the runner (no Metal 4).",
   "legacy_note": "First 21 entries are original host summaries. Their draft patch numbers describe historical experiments; numbers may differ from integrated engine patches. Cachegrind counters are on x86. The uncalibrated projections were withdrawn. No legacy entry establishes fidelity, A18 Pro frametime, GPU time, energy, RAM or FPS.",
   "initial_reference": "0426",
   "intermediate_reference": "0436 (8be902ac0)",
@@ -6964,13 +6997,15 @@
     "consecutive_rejections_after_0463_before_0464": 0,
     "rejected_during_0464_0466_cycle": 1,
     "consecutive_rejections_at_0466": 0,
-    "last_updated": "2026-11-27T08:00:00Z",
+    "last_updated": "2026-11-27T10:40:00Z",
     "consecutive_rejections_at_0467": 0,
     "consecutive_rejections_after_0468_lock_merge": 1,
     "consecutive_rejections_at_0468": 0,
     "consecutive_rejections_after_0469_sdx_bucket": 1,
     "consecutive_rejections_after_0469_submit_direct": 2,
-    "consecutive_rejections_at_0470": 0
+    "consecutive_rejections_at_0470": 0,
+    "consecutive_rejections_after_0469_metrics": 0,
+    "counter_note_0469_metrics": "The two dismissals of 2026-11-27 (TBDR default, constant-index WideLoads) were not implemented and are not counted, as for the earlier dismissals by analysis."
   },
   "device_metrics": {
     "native_fps": null,
@@ -7212,6 +7247,16 @@
       "date": "2026-11-27",
       "candidate": "Share the raw pool-table lookup across a SIMD group (simd_broadcast_first when all lanes are in one 2 MiB chunk)",
       "why_not_done": "Measured upper bound is nil: removing the whole binary search (hint filled) changes nothing (run 45966622489)."
+    },
+    {
+      "date": "2026-11-27",
+      "candidate": "Turn on the TBDR store lookahead (DM_NVN_TBDR=1) by default: -76% load bytes and one render encoder fewer on the synthetic frame (run 45974878139)",
+      "why_not_done": "Off by design since patch 0291 for games with bindless texture readers: a dropped store can be read later through a bindless handle. The synthetic frame has no bindless reader, so its identical pixels do not prove fidelity; a licensed homebrew exercising bindless reads would be needed. No change."
+    },
+    {
+      "date": "2026-11-27",
+      "candidate": "Extend 0395 WideLoads to constant-index storage-buffer loads spread over several statements (ssbo_vec_16 pattern)",
+      "why_not_done": "The GPU A/B of run 45966622489 found 0395's coalescing neutral on the runner GPU (+0.14 / +1.2 / +1.8% paired); the corpus pattern is synthetic (constant base folded), with no licensed shader showing it. Without a measurable upper bound, not implemented."
     }
   ],
   "measurement_notes": [
@@ -7226,6 +7271,10 @@
     {
       "date": "2026-11-27",
       "note": "Run 45958486174 (engine 0470, macOS 26 runner): pipeline_driver 48 iPhoneOS stages, 12 pairs, medians fresh 3.5844, one_fresh 1.5689, vertex_fresh 1.8978, crossed 0.0491, repeated 0.0525 ms; homebrew metal_readback 3 programs x 6/6 exact. pipeline_driver does not run engine code (pinned pairbench builder): the shift against run 45953045391 is runner variance, not an engine effect."
+    },
+    {
+      "date": "2026-11-27",
+      "note": "Runs 45969449378, 45971054149 and 45972678814 (0469 replay lab) failed on the paravirtual GPU: no MTLResidencySet, then supportsPlacementSparse throwing through valueForKey. 0469 now routes the missing set through S2A_NO_RESIDENCY_SET (MDIE by default) and reads the property under @try. These two guards change shipped code: an [s2arm-engine] compile follows (0470 run 45958486174 predates them)."
     }
   ]
 }
