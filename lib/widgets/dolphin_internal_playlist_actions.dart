@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/console_manager_locale.dart';
@@ -17,6 +16,8 @@ import '../services/embedded_engine_policy.dart';
 import '../services/home_music_service.dart';
 import '../services/texture_catalog_service.dart';
 import '../services/logger_service.dart';
+import 'playlist_import_button.dart';
+import 'wiimmfi_panel.dart';
 
 /// An action inside the existing media tab pill, never a positioned overlay.
 class DolphinInternalPlaylistActions extends StatefulWidget {
@@ -174,6 +175,13 @@ class _DolphinInternalPlaylistActionsState
     }
     setState(() => _busy = true);
     try {
+      if (action == 'wiimmfi') {
+        if (widget.systemFolder.toLowerCase() == 'wii') {
+          _interaction(true);
+          await WiimmfiPanel.open(context);
+        }
+        return;
+      }
       int? count;
       if (action == 'wiiMenu' && !_isGameCube) {
         // Build 448: Dolphin switched off for the Wii (Consoles tab or
@@ -288,75 +296,60 @@ class _DolphinInternalPlaylistActionsState
         !DolphinInternalV2Service.isDolphinSystem(widget.systemFolder)) {
       return const SizedBox.shrink();
     }
-    final scheme = Theme.of(context).colorScheme;
-
-    final button = SizedBox(
-      width: 36.r,
-      height: 36.r,
-      child: PopupMenuButton<String>(
-        key: const ValueKey('dolphin-import-menu'),
-        tooltip: _text('import'),
-        enabled: !_busy,
-        padding: EdgeInsets.zero,
-        onOpened: _opened,
-        onCanceled: () => _interaction(false),
-        onSelected: _selected,
-        icon: _busy
-            ? SizedBox(
-                width: 18.r,
-                height: 18.r,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: scheme.onTertiaryFixed,
-                ),
-              )
-            : Icon(
-                Icons.file_upload_outlined,
-                size: 18.r,
-                color: scheme.onTertiaryFixed,
-              ),
-        itemBuilder: (context) => [
-          PopupMenuItem(value: 'games', child: Text(_text('games'))),
-          const PopupMenuDivider(),
-          if (!_isGameCube) ...[
-            PopupMenuItem(
-              value: 'wiiMenu',
-              child: Text(_text('launchWiiMenu')),
-            ),
-            const PopupMenuDivider(),
-            PopupMenuItem(value: 'folder', child: Text(_text('wiiFolder'))),
-            PopupMenuItem(value: 'wiiFiles', child: Text(_text('wiiFiles'))),
-          ] else ...[
-            PopupMenuItem(value: 'folder', child: Text(_text('gcFolder'))),
-            for (final region in DolphinIplRegion.values)
-              PopupMenuItem(
-                value: 'ipl:${region.name}',
-                child: Text(
-                  '${_regions.contains(region) ? '✓ ' : ''}${_text('ipl').replaceAll('{region}', region.name.toUpperCase())}',
-                ),
-              ),
-          ],
-          const PopupMenuDivider(),
-          PopupMenuItem(value: 'shared', child: Text(_text('shared'))),
+    return PlaylistImportButton(
+      menuKey: const ValueKey('dolphin-import-menu'),
+      tooltip: _text('import'),
+      busy: _busy,
+      embedded: widget.embedded,
+      onOpened: _opened,
+      onCanceled: () => _interaction(false),
+      onSelected: _selected,
+      items: (context) => [
+        PopupMenuItem(value: 'games', child: Text(_text('games'))),
+        const PopupMenuDivider(),
+        if (!_isGameCube) ...[
           PopupMenuItem(
-            key: const ValueKey('dolphin-skins'),
-            value: 'skins',
-            child: Text(LibretroLocale.text(context, 'skins')),
+            value: 'wiiMenu',
+            child: Text(_text('launchWiiMenu')),
           ),
-          if (TextureCatalogService.supports(widget.systemFolder))
+          const PopupMenuDivider(),
+          PopupMenuItem(value: 'folder', child: Text(_text('wiiFolder'))),
+          PopupMenuItem(value: 'wiiFiles', child: Text(_text('wiiFiles'))),
+        ] else ...[
+          PopupMenuItem(value: 'folder', child: Text(_text('gcFolder'))),
+          for (final region in DolphinIplRegion.values)
             PopupMenuItem(
-              value: 'textures',
-              child: Text(TextureCatalogLocale.text(Localizations.localeOf(context), 'menuTitle')),
+              value: 'ipl:${region.name}',
+              child: Text(
+                '${_regions.contains(region) ? '✓ ' : ''}${_text('ipl').replaceAll('{region}', region.name.toUpperCase())}',
+              ),
             ),
         ],
-      ),
-    );
-    if (widget.embedded) return button;
-    return Material(
-      color: scheme.tertiaryFixed,
-      borderRadius: BorderRadius.circular(10.r),
-      elevation: 2,
-      child: button,
+        const PopupMenuDivider(),
+        PopupMenuItem(value: 'shared', child: Text(_text('shared'))),
+        PopupMenuItem(
+          key: const ValueKey('dolphin-skins'),
+          value: 'skins',
+          child: Text(LibretroLocale.text(context, 'skins')),
+        ),
+        if (!_isGameCube)
+          const PopupMenuItem(
+            key: ValueKey('dolphin-wiimmfi'),
+            value: 'wiimmfi',
+            child: Row(
+              children: [
+                Icon(Icons.public, size: 20),
+                SizedBox(width: 12),
+                Expanded(child: Text('Wiimmfi')),
+              ],
+            ),
+          ),
+        if (TextureCatalogService.supports(widget.systemFolder))
+          PopupMenuItem(
+            value: 'textures',
+            child: Text(TextureCatalogLocale.text(Localizations.localeOf(context), 'menuTitle')),
+          ),
+      ],
     );
   }
 }

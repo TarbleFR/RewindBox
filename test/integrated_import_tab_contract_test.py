@@ -15,7 +15,9 @@ assert "SizedBox(width: actionWidth, child: trailingAction)" in header
 assert "_buildEmbeddedDolphinImportAction" in screen
 assert "_buildEmbeddedRpcs3ImportAction" in screen
 assert screen.count("embedded: true") >= 2
-assert "if (widget.embedded) return button" in dolphin
+assert "return PlaylistImportButton(" in dolphin
+assert "embedded: widget.embedded," in dolphin
+assert "dolphin-import-menu" in dolphin
 assert "if (widget.embedded) return button" in rpcs3
 assert "Overlay.of(context, rootOverlay: true)" in rpcs3
 assert "_rpcs3FirmwareReady &&" in screen

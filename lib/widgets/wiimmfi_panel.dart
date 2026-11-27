@@ -12,6 +12,7 @@ import '../services/wiimmfi/wiimmfi_catalog.dart';
 import '../services/wiimmfi/wiimmfi_service.dart';
 import '../utils/gamepad_nav.dart';
 import 'confirm_action_dialog.dart';
+import 'online_service_widgets.dart';
 import 'wiimmfi_dialog_controls.dart';
 
 class WiimmfiPanel extends StatefulWidget {
@@ -24,11 +25,15 @@ class WiimmfiPanel extends StatefulWidget {
     BuildContext context, {
     String? gamePath,
     Future<String?> Function(bool online)? onLaunch,
-  }) => showDialog<void>(
-    context: context,
-    barrierDismissible: false,
-    builder: (_) => WiimmfiPanel(gamePath: gamePath, onLaunch: onLaunch),
-  );
+  }) async {
+    final route = DialogRoute<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => WiimmfiPanel(gamePath: gamePath, onLaunch: onLaunch),
+    );
+    await Navigator.of(context, rootNavigator: true).push(route);
+    await route.completed;
+  }
 
   @override
   State<WiimmfiPanel> createState() => _WiimmfiPanelState();
@@ -47,16 +52,30 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
   bool _busy = false;
   bool _importing = false;
   bool _cancelling = false;
-  String? _selected = 'enabled';
+  String? _selected = 'console';
+  bool _showAdvanced = false;
+  bool _showGames = false;
+  bool _loading = true;
+  int _loadGeneration = 0;
   String _code = '';
   Map<String, dynamic>? _settings;
   Map<String, dynamic>? _status;
   Map<String, dynamic>? _progress;
   Map<String, dynamic>? _identity;
   String? _message;
+  bool _messageIsError = false;
   Timer? _timer;
 
   String t(String key) => WiimmfiLocale.text(context, key);
+  bool get _nandReady => _status?['nandRecognized'] == true;
+  bool get _declared {
+    final images = _settings?['images'];
+    final path = widget.gamePath;
+    return path != null &&
+        images is Map &&
+        images[p.normalize(p.absolute(path))] is Map;
+  }
+
   bool get _current => mounted && ModalRoute.of(context)?.isCurrent == true;
   bool get _canCancel =>
       _importing &&
@@ -170,6 +189,7 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
   }
 
   Future<void> _load() async {
+    final generation = ++_loadGeneration;
     try {
       await DolphinInternalV2Service.ensureLayout();
       final settings = await WiimmfiService.settings();
@@ -182,7 +202,7 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
           // Remains unknown.
         }
       }
-      if (mounted) {
+      if (mounted && generation == _loadGeneration) {
         setState(() {
           _settings = settings;
           _status = status;
@@ -190,7 +210,16 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
         });
       }
     } catch (error) {
-      if (mounted) setState(() => _message = _error(error));
+      if (mounted && generation == _loadGeneration) {
+        setState(() {
+          _message = _error(error);
+          _messageIsError = true;
+        });
+      }
+    } finally {
+      if (mounted && generation == _loadGeneration) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -209,11 +238,18 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
     setState(() {
       _busy = true;
       _message = null;
+      _messageIsError = false;
     });
     try {
       await action();
     } catch (error) {
-      if (mounted) setState(() => _message = _error(error));
+      if (mounted) {
+        setState(() {
+          _message = _error(error);
+          _messageIsError =
+              !(error is WiimmfiException && error.code == 'cancelled');
+        });
+      }
     } finally {
       await _load();
       if (mounted) {
@@ -239,14 +275,24 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
     try {
       await WiimmfiService.cancelImport();
     } catch (error) {
-      if (mounted) setState(() => _message = _error(error));
+      if (mounted) {
+        setState(() {
+          _message = _error(error);
+          _messageIsError =
+              !(error is WiimmfiException && error.code == 'cancelled');
+        });
+      }
     } finally {
       if (mounted) setState(() => _cancelling = false);
     }
   }
 
   Future<void> _import() => _run(() async {
-    if (!await _confirm('importHelp') || !mounted) return;
+    await _importConsole();
+  });
+
+  Future<bool> _importConsole() async {
+    if (!await _confirm('importHelp') || !mounted) return false;
     setState(() {
       _importing = true;
       _progress = null;
@@ -265,16 +311,51 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
       }
     });
     try {
-      if (await WiimmfiService.importBootMii() && mounted) {
-        setState(() => _message = t('imported'));
-      }
+      final imported = await WiimmfiService.importBootMii();
+      if (imported && mounted) setState(() => _message = t('imported'));
+      return imported;
     } finally {
       _timer?.cancel();
       _timer = null;
       if (mounted) setState(() => _importing = false);
       _refreshNavigation();
     }
+  }
+
+  Future<bool> _declareGame() async {
+    if (!await _confirm('patchHelp') || !mounted) return false;
+    await WiimmfiService.registerPatchedImage(widget.gamePath!);
+    return true;
+  }
+
+  Future<void> _setOnline(bool value) => _run(() async {
+    if (value) {
+      if (_status?['supported'] != true) {
+        throw const WiimmfiException('engineUnavailable');
+      }
+      // Like Nextendo's switch, complete the missing preparation first.
+      if (!_nandReady && !await _importConsole()) return;
+      if (!mounted) return;
+      if ((await WiimmfiService.status())['nandRecognized'] != true) {
+        throw const WiimmfiException('nandMissing');
+      }
+      if (widget.gamePath != null && !_declared && !await _declareGame()) {
+        return;
+      }
+    }
+    await WiimmfiService.setEnabled(value);
   });
+
+  String _servicesLine(bool enabled, bool supported) {
+    if (_loading) return t('servicesChecking');
+    if (_settings == null) return _message ?? t('error');
+    if (!supported) return t('engineUnavailable');
+    if (!_nandReady) return t('servicesPrepareConsole');
+    if (!enabled) return t('servicesOff');
+    if (widget.gamePath == null) return t('servicesConsolePrepared');
+    if (widget.gamePath != null && !_declared) return t('servicesPrepareGame');
+    return t('servicesPrepared');
+  }
 
   Future<void> _open(String url) async {
     // The system browser owns input while the app is inactive. An in-app
@@ -284,7 +365,10 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
           mode: LaunchMode.externalApplication,
         ) &&
         mounted) {
-      setState(() => _message = t('error'));
+      setState(() {
+        _message = t('error');
+        _messageIsError = true;
+      });
     }
   }
 
@@ -339,6 +423,40 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
     await _open('https://wiimmfi.de/error?e=$code');
   });
 
+  Widget _control(
+    String id,
+    VoidCallback? action,
+    Widget Function(VoidCallback? callback) build, {
+    bool allowWhileBusy = false,
+  }) {
+    final callback = !_busy || allowWhileBusy ? action : null;
+    _actions[id] = callback;
+    return Builder(
+      builder: (context) {
+        final selected = _selected == id && callback != null;
+        return Semantics(
+          key: _itemKeys.putIfAbsent(id, () => GlobalKey()),
+          selected: selected,
+          child: Material(
+            color: selected
+                ? Theme.of(context).colorScheme.primaryContainer
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            child: build(
+              callback == null
+                  ? null
+                  : () {
+                      if (!_current) return;
+                      setState(() => _selected = id);
+                      callback();
+                    },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _button(
     String id,
     String label,
@@ -346,68 +464,63 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
     VoidCallback? action, {
     bool allowWhileBusy = false,
     Widget? trailing,
-  }) {
-    final callback = !_busy || allowWhileBusy ? action : null;
-    _actions[id] = callback;
-    return Builder(
-      builder: (context) => ListTile(
-        key: _itemKeys.putIfAbsent(id, () => GlobalKey()),
-        selected: _selected == id && callback != null,
-        selectedTileColor: Theme.of(context).colorScheme.primaryContainer,
-        leading: Icon(icon),
-        title: Text(label),
-        trailing: trailing,
-        enabled: callback != null,
-        onTap: callback == null
-            ? null
-            : () {
-                if (!_current) return;
-                setState(() => _selected = id);
-                callback();
-              },
-      ),
-    );
-  }
+    String? subtitle,
+  }) => _control(
+    id,
+    action,
+    (callback) => ListTile(
+      contentPadding: EdgeInsets.zero,
+      selected: _selected == id && callback != null,
+      leading: Icon(icon),
+      title: Text(label),
+      subtitle: subtitle == null ? null : Text(subtitle),
+      trailing: trailing,
+      enabled: callback != null,
+      onTap: callback,
+    ),
+    allowWhileBusy: allowWhileBusy,
+  );
 
   @override
   Widget build(BuildContext context) {
     final enabled = _settings?['enabled'] == true;
     final supported = _status?['supported'] == true;
-    final imageKey = widget.gamePath == null
-        ? null
-        : p.normalize(p.absolute(widget.gamePath!));
-    final images = _settings?['images'];
-    final declared = images is Map && images[imageKey] is Map;
+    final declared = _declared;
     _actions.clear();
     final controls = <Widget>[
-      Text(t('intro')),
-      if (_status != null && !supported) Text(t('engineUnavailable')),
-      _button(
-        'enabled',
-        t('enabled'),
-        Icons.public,
-        supported || enabled
-            ? () => _run(() => WiimmfiService.setEnabled(!enabled))
-            : null,
-        trailing: Switch.adaptive(
-          value: enabled,
-          onChanged: !_busy && (supported || enabled)
-              ? (value) => _run(() => WiimmfiService.setEnabled(value))
-              : null,
-        ),
-      ),
-      ListTile(
-        leading: const Icon(Icons.memory),
-        title: Text(t('nand')),
-        subtitle: Text(
-          t(_status?['nandRecognized'] == true ? 'recognized' : 'nandMissing'),
-        ),
-      ),
-      _button(
-        'importNand',
-        t('importNand'),
-        Icons.file_open,
+      Text(t('simpleIntro')),
+      const SizedBox(height: 12),
+      if (_loading && _message == null)
+        const Center(child: CircularProgressIndicator()),
+      _control(
+        'console',
         supported ? _import : null,
+        (callback) => OnlineServiceIdentitySection(
+          actionKey: const ValueKey('wiimmfi-console'),
+          actionLabel: t(_nandReady ? 'changeConsole' : 'prepareConsole'),
+          actionIcon: Icons.download_for_offline_outlined,
+          onAction: callback,
+          identityTitle: _nandReady ? t('consolePrepared') : null,
+          identitySubtitle: _nandReady ? t('consolePreparedDetail') : null,
+          identityIcon: Icons.videogame_asset,
+        ),
+      ),
+      _control(
+        'enabled',
+        supported || enabled ? () => _setOnline(!enabled) : null,
+        (callback) => OnlineServicesSwitch(
+          key: const ValueKey('wiimmfi-online-services'),
+          title: t('onlineServices'),
+          status: _servicesLine(enabled, supported),
+          value: enabled,
+          checking: _loading,
+          problem:
+              enabled &&
+              (!supported ||
+                  !_nandReady ||
+                  (widget.gamePath != null && !declared)),
+          onChanged: callback == null ? null : (_) => callback(),
+        ),
       ),
       if (_importing) ...[
         LinearProgressIndicator(
@@ -427,23 +540,26 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
         ),
       ],
       if (widget.gamePath != null) ...[
-        if (_identity != null)
-          Text(
-            '${_identity!['gameId']} · ${_identity!['region']} · r${_identity!['revision']}',
+        const SizedBox(height: 8),
+        if (declared)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.check_circle_outline),
+            title: Text(t('gamePrepared')),
+            subtitle: Text(t('declared')),
+          )
+        else
+          _button(
+            'patch',
+            t('patch'),
+            Icons.verified_user_outlined,
+            supported
+                ? () => _run(() async {
+                    await _declareGame();
+                  })
+                : null,
+            subtitle: t('gameSetup'),
           ),
-        if (declared) Text(t('declared')),
-        _button(
-          'patch',
-          t('patch'),
-          Icons.verified_user_outlined,
-          supported
-              ? () => _run(() async {
-                  if (await _confirm('patchHelp') && mounted) {
-                    await WiimmfiService.registerPatchedImage(widget.gamePath!);
-                  }
-                })
-              : null,
-        ),
         _button(
           'launch',
           t('launch'),
@@ -451,7 +567,7 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
           supported &&
                   enabled &&
                   declared &&
-                  _status?['nandRecognized'] == true &&
+                  _nandReady &&
                   widget.onLaunch != null
               ? () => _launch(true)
               : null,
@@ -463,60 +579,108 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
           supported && widget.onLaunch != null ? () => _launch(false) : null,
         ),
       ],
-      _button(
-        'diagnose',
-        t('diagnose'),
-        Icons.network_check,
-        enabled ? _diagnose : null,
-      ),
+      const SizedBox(height: 8),
       _button(
         'games',
         t('games'),
         Icons.sports_esports,
-        () => _run(
-          () => _showMessage(
-            t('games'),
-            [
-              t('catalogHelp'),
-              for (final game in WiimmfiCatalog.candidates)
-                '${game.name}: ${t('notTested')}',
-            ].join('\n\n'),
+        () => setState(() => _showGames = !_showGames),
+        trailing: Icon(_showGames ? Icons.expand_less : Icons.expand_more),
+      ),
+      if (_showGames) ...[
+        Text(t('catalogHelp')),
+        for (final (index, game) in WiimmfiCatalog.candidates.indexed)
+          _button(
+            'candidate-$index',
+            game.name,
+            Icons.videogame_asset,
+            () => _run(() => _showMessage(game.name, t('catalogHelp'))),
+            subtitle: t('notTested'),
           ),
+      ],
+      _button(
+        'advanced',
+        t('advanced'),
+        Icons.tune,
+        () => setState(() => _showAdvanced = !_showAdvanced),
+        trailing: Icon(_showAdvanced ? Icons.expand_less : Icons.expand_more),
+      ),
+      if (_showAdvanced) ...[
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.memory),
+          title: Text(t('nand')),
+          subtitle: Text(t(_nandReady ? 'recognized' : 'nandMissing')),
         ),
-      ),
-      _button(
-        'officialStats',
-        t('officialStats'),
-        Icons.query_stats,
-        () => _run(() => _open('https://wiimmfi.de/stat')),
-      ),
-      _button(
-        'documentation',
-        t('documentation'),
-        Icons.help_outline,
-        () => _run(() => _open('https://wiimmfi.de/patcher')),
-      ),
-      _button(
-        'code',
-        _code.isEmpty ? t('code') : '${t('code')}: $_code',
-        Icons.pin,
-        _lookupCode,
-      ),
-      _button(
-        'clear',
-        t('clear'),
-        Icons.settings_backup_restore,
-        () => _run(() async {
-          if (await _confirm('clearHelp') && mounted) {
-            await WiimmfiService.clear();
-          }
-        }),
-      ),
+        if (_identity != null)
+          Text(
+            '${_identity!['gameId']} · ${_identity!['region']} · r${_identity!['revision']}',
+          ),
+        if (declared) ...[
+          Text(t('declared')),
+          _button(
+            'patch',
+            t('patch'),
+            Icons.verified_user_outlined,
+            supported
+                ? () => _run(() async {
+                    await _declareGame();
+                  })
+                : null,
+          ),
+        ],
+        _button(
+          'diagnose',
+          t('diagnose'),
+          Icons.network_check,
+          enabled ? _diagnose : null,
+        ),
+        _button(
+          'code',
+          _code.isEmpty ? t('code') : '${t('code')}: $_code',
+          Icons.pin,
+          _lookupCode,
+        ),
+        _button(
+          'officialStats',
+          t('officialStats'),
+          Icons.query_stats,
+          () => _run(() => _open('https://wiimmfi.de/stat')),
+        ),
+        _button(
+          'documentation',
+          t('documentation'),
+          Icons.help_outline,
+          () => _run(() => _open('https://wiimmfi.de/patcher')),
+        ),
+        _button(
+          'clear',
+          t('clear'),
+          Icons.settings_backup_restore,
+          () => _run(() async {
+            if (await _confirm('clearHelp') && mounted) {
+              await WiimmfiService.clear();
+            }
+          }),
+        ),
+      ],
       if (_busy && !_importing) const LinearProgressIndicator(),
       if (_message != null)
-        Padding(padding: const EdgeInsets.all(8), child: Text(_message!)),
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(
+            _message!,
+            style: _messageIsError
+                ? TextStyle(color: Theme.of(context).colorScheme.error)
+                : null,
+          ),
+        ),
     ];
-    final close = _button('close', t('close'), Icons.close, _back);
+    final close = _control(
+      'close',
+      _back,
+      (callback) => TextButton(onPressed: callback, child: Text(t('close'))),
+    );
     final available = _actions.keys.where((id) => _actions[id] != null);
     if (_settings != null && _actions[_selected] == null) {
       _selected = available.firstOrNull;
@@ -526,15 +690,13 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
       child: Focus(
         focusNode: _focus,
         autofocus: true,
-        // The global navigator owns keyboard actions. Do not let a focused
-        // Material button activate a second command for the same key.
         onKeyEvent: (_, _) =>
             _current ? KeyEventResult.handled : KeyEventResult.ignored,
         child: ExcludeFocus(
           child: AlertDialog(
             title: const Text('Wiimmfi'),
             content: SizedBox(
-              width: 600,
+              width: 480,
               child: SingleChildScrollView(
                 controller: _scroll,
                 child: Column(

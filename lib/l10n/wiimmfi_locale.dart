@@ -12,6 +12,24 @@ abstract final class WiimmfiLocale {
         : locale?.languageCode],
   };
   static const _en = {
+    "simpleIntro":
+        "Prepare your Wii console once and your game with the official patcher, then enable online services.",
+    "servicesConsolePrepared":
+        "Console ready · patch your game with the official tool, then register it in its Wiimmfi settings.",
+    "prepareConsole": "Prepare my Wii",
+    "consolePrepared": "Wii console prepared",
+    "consolePreparedDetail": "Console data imported · connect from the game",
+    "changeConsole": "Change console",
+    "onlineServices": "Online services",
+    "servicesOff": "Online services disabled",
+    "servicesPrepareConsole": "Prepare your Wii to enable online services",
+    "servicesPrepareGame": "Register your prepared game to play online",
+    "servicesPrepared":
+        "Preparation complete · connection takes place in the game",
+    "servicesChecking": "Checking preparation…",
+    "advanced": "Help and advanced settings",
+    "gameSetup": "Game preparation",
+    "gamePrepared": "Prepared game registered",
     'enabled': 'Enable Wiimmfi',
     'nand': 'Wii console NAND',
     'recognized': 'Structure recognized · server authentication not tested',
@@ -85,6 +103,27 @@ abstract final class WiimmfiLocale {
   };
   static const _values = <String, Map<String, String>>{
     'fr': {
+      "simpleIntro":
+          "Préparez votre console Wii une seule fois et votre jeu avec le patcher officiel, puis activez les services en ligne.",
+      "servicesConsolePrepared":
+          "Console prête · préparez votre jeu avec le patcher officiel, puis déclarez-le dans ses réglages Wiimmfi.",
+      "prepareConsole": "Préparer ma Wii",
+      "consolePrepared": "Console Wii préparée",
+      "consolePreparedDetail":
+          "Données de la console importées · connectez-vous depuis le jeu",
+      "changeConsole": "Changer de console",
+      "onlineServices": "Services en ligne",
+      "servicesOff": "Services en ligne désactivés",
+      "servicesPrepareConsole":
+          "Préparez votre Wii pour activer les services en ligne",
+      "servicesPrepareGame":
+          "Enregistrez votre jeu préparé pour jouer en ligne",
+      "servicesPrepared":
+          "Préparation terminée · la connexion se fait dans le jeu",
+      "servicesChecking": "Vérification de la préparation…",
+      "advanced": "Aide et réglages avancés",
+      "gameSetup": "Préparation du jeu",
+      "gamePrepared": "Jeu préparé enregistré",
       'enabled': 'Activer Wiimmfi',
       'nand': 'NAND de votre console Wii',
       'recognized': 'Structure reconnue · authentification serveur non testée',
@@ -161,6 +200,27 @@ abstract final class WiimmfiLocale {
       'wiimmfiSlow': 'Émulation trop lente',
     },
     "de": {
+      "simpleIntro":
+          "Bereite deine Wii-Konsole einmal vor und patche dein Spiel mit dem offiziellen Patcher. Aktiviere dann die Online-Dienste.",
+      "servicesConsolePrepared":
+          "Konsole bereit · patche dein Spiel mit dem offiziellen Tool und registriere es dann in seinen Wiimmfi-Einstellungen.",
+      "prepareConsole": "Meine Wii vorbereiten",
+      "consolePrepared": "Wii-Konsole vorbereitet",
+      "consolePreparedDetail":
+          "Konsolendaten importiert · Verbindung im Spiel herstellen",
+      "changeConsole": "Konsole wechseln",
+      "onlineServices": "Online-Dienste",
+      "servicesOff": "Online-Dienste deaktiviert",
+      "servicesPrepareConsole":
+          "Bereite deine Wii vor, um die Online-Dienste zu aktivieren",
+      "servicesPrepareGame":
+          "Registriere dein vorbereitetes Spiel, um online zu spielen",
+      "servicesPrepared":
+          "Vorbereitung abgeschlossen · die Verbindung erfolgt im Spiel",
+      "servicesChecking": "Vorbereitung wird geprüft…",
+      "advanced": "Hilfe und erweiterte Einstellungen",
+      "gameSetup": "Spielvorbereitung",
+      "gamePrepared": "Vorbereitetes Spiel registriert",
       "enabled": "Wiimmfi aktivieren",
       "nand": "NAND deiner Wii-Konsole",
       "recognized": "Struktur erkannt · Serverauthentifizierung nicht getestet",
@@ -239,6 +299,26 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "Emulation zu langsam",
     },
     "es": {
+      "simpleIntro":
+          "Prepara tu consola Wii una vez y tu juego con el parcheador oficial; después activa los servicios en línea.",
+      "servicesConsolePrepared":
+          "Consola lista · prepara tu juego con la herramienta oficial y regístralo en sus ajustes de Wiimmfi.",
+      "prepareConsole": "Preparar mi Wii",
+      "consolePrepared": "Consola Wii preparada",
+      "consolePreparedDetail":
+          "Datos de la consola importados · conéctate desde el juego",
+      "changeConsole": "Cambiar de consola",
+      "onlineServices": "Servicios en línea",
+      "servicesOff": "Servicios en línea desactivados",
+      "servicesPrepareConsole":
+          "Prepara tu Wii para activar los servicios en línea",
+      "servicesPrepareGame": "Registra tu juego preparado para jugar en línea",
+      "servicesPrepared":
+          "Preparación completada · la conexión se realiza desde el juego",
+      "servicesChecking": "Comprobando la preparación…",
+      "advanced": "Ayuda y ajustes avanzados",
+      "gameSetup": "Preparación del juego",
+      "gamePrepared": "Juego preparado registrado",
       "enabled": "Activar Wiimmfi",
       "nand": "NAND de tu consola Wii",
       "recognized":
@@ -318,6 +398,26 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "Emulación demasiado lenta",
     },
     "it": {
+      "simpleIntro":
+          "Prepara la tua console Wii una volta e il gioco con il patcher ufficiale, poi attiva i servizi online.",
+      "servicesConsolePrepared":
+          "Console pronta · prepara il gioco con lo strumento ufficiale, poi registralo nelle sue impostazioni Wiimmfi.",
+      "prepareConsole": "Prepara la mia Wii",
+      "consolePrepared": "Console Wii preparata",
+      "consolePreparedDetail":
+          "Dati della console importati · connettiti dal gioco",
+      "changeConsole": "Cambia console",
+      "onlineServices": "Servizi online",
+      "servicesOff": "Servizi online disattivati",
+      "servicesPrepareConsole":
+          "Prepara la tua Wii per attivare i servizi online",
+      "servicesPrepareGame": "Registra il gioco preparato per giocare online",
+      "servicesPrepared":
+          "Preparazione completata · la connessione avviene nel gioco",
+      "servicesChecking": "Verifica della preparazione…",
+      "advanced": "Aiuto e impostazioni avanzate",
+      "gameSetup": "Preparazione del gioco",
+      "gamePrepared": "Gioco preparato registrato",
       "enabled": "Attiva Wiimmfi",
       "nand": "NAND della tua console Wii",
       "recognized":
@@ -400,6 +500,25 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "Emulazione troppo lenta",
     },
     "pt": {
+      "simpleIntro":
+          "Prepare a sua consola Wii uma vez e o jogo com a ferramenta oficial de patches; depois ative os serviços online.",
+      "servicesConsolePrepared":
+          "Consola pronta · prepare o jogo com a ferramenta oficial e registe-o nas respetivas definições do Wiimmfi.",
+      "prepareConsole": "Preparar a minha Wii",
+      "consolePrepared": "Consola Wii preparada",
+      "consolePreparedDetail":
+          "Dados da consola importados · ligue-se a partir do jogo",
+      "changeConsole": "Trocar de consola",
+      "onlineServices": "Serviços online",
+      "servicesOff": "Serviços online desativados",
+      "servicesPrepareConsole":
+          "Prepare a sua Wii para ativar os serviços online",
+      "servicesPrepareGame": "Registe o seu jogo preparado para jogar online",
+      "servicesPrepared": "Preparação concluída · a ligação é feita no jogo",
+      "servicesChecking": "A verificar a preparação…",
+      "advanced": "Ajuda e definições avançadas",
+      "gameSetup": "Preparação do jogo",
+      "gamePrepared": "Jogo preparado registado",
       "enabled": "Ativar Wiimmfi",
       "nand": "NAND da sua consola Wii",
       "recognized":
@@ -478,6 +597,27 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "Emulação demasiado lenta",
     },
     "ru": {
+      "simpleIntro":
+          "Подготовьте консоль Wii один раз и обработайте игру официальным патчером, затем включите сетевые службы.",
+      "servicesConsolePrepared":
+          "Консоль готова · обработайте игру официальным инструментом, затем зарегистрируйте её в настройках Wiimmfi этой игры.",
+      "prepareConsole": "Подготовить мою Wii",
+      "consolePrepared": "Консоль Wii подготовлена",
+      "consolePreparedDetail":
+          "Данные консоли импортированы · подключитесь из игры",
+      "changeConsole": "Сменить консоль",
+      "onlineServices": "Сетевые службы",
+      "servicesOff": "Сетевые службы отключены",
+      "servicesPrepareConsole":
+          "Подготовьте Wii, чтобы включить сетевые службы",
+      "servicesPrepareGame":
+          "Зарегистрируйте подготовленную игру для игры по сети",
+      "servicesPrepared":
+          "Подготовка завершена · подключение выполняется в игре",
+      "servicesChecking": "Проверка подготовки…",
+      "advanced": "Помощь и расширенные настройки",
+      "gameSetup": "Подготовка игры",
+      "gamePrepared": "Подготовленная игра зарегистрирована",
       "enabled": "Включить Wiimmfi",
       "nand": "NAND вашей консоли Wii",
       "recognized":
@@ -557,6 +697,26 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "Слишком медленная эмуляция",
     },
     "id": {
+      "simpleIntro":
+          "Siapkan konsol Wii Anda sekali dan game dengan patcher resmi, lalu aktifkan layanan daring.",
+      "servicesConsolePrepared":
+          "Konsol siap · siapkan game dengan alat resmi, lalu daftarkan di pengaturan Wiimmfi game tersebut.",
+      "prepareConsole": "Siapkan Wii saya",
+      "consolePrepared": "Konsol Wii telah disiapkan",
+      "consolePreparedDetail":
+          "Data konsol telah diimpor · hubungkan dari dalam game",
+      "changeConsole": "Ganti konsol",
+      "onlineServices": "Layanan daring",
+      "servicesOff": "Layanan daring dinonaktifkan",
+      "servicesPrepareConsole":
+          "Siapkan Wii Anda untuk mengaktifkan layanan daring",
+      "servicesPrepareGame":
+          "Daftarkan game yang telah disiapkan untuk bermain daring",
+      "servicesPrepared": "Persiapan selesai · koneksi dilakukan di dalam game",
+      "servicesChecking": "Memeriksa persiapan…",
+      "advanced": "Bantuan dan pengaturan lanjutan",
+      "gameSetup": "Persiapan game",
+      "gamePrepared": "Game yang telah disiapkan sudah terdaftar",
       "enabled": "Aktifkan Wiimmfi",
       "nand": "NAND konsol Wii Anda",
       "recognized": "Struktur dikenali · autentikasi server belum diuji",
@@ -632,6 +792,22 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "Emulasi terlalu lambat",
     },
     "ja": {
+      "simpleIntro": "Wii本体を一度準備し、公式パッチャーでゲームを準備してから、オンラインサービスを有効にしてください。",
+      "servicesConsolePrepared":
+          "本体の準備完了 · 公式ツールでゲームにパッチを適用し、そのゲームのWiimmfi設定で登録してください。",
+      "prepareConsole": "自分のWiiを準備",
+      "consolePrepared": "Wii本体の準備完了",
+      "consolePreparedDetail": "本体データをインポート済み · ゲーム内で接続してください",
+      "changeConsole": "本体を変更",
+      "onlineServices": "オンラインサービス",
+      "servicesOff": "オンラインサービスは無効です",
+      "servicesPrepareConsole": "オンラインサービスを有効にするにはWiiを準備してください",
+      "servicesPrepareGame": "オンラインで遊ぶには準備済みのゲームを登録してください",
+      "servicesPrepared": "準備完了 · 接続はゲーム内で行います",
+      "servicesChecking": "準備状況を確認中…",
+      "advanced": "ヘルプと詳細設定",
+      "gameSetup": "ゲームの準備",
+      "gamePrepared": "準備済みのゲームを登録済み",
       "enabled": "Wiimmfiを有効にする",
       "nand": "お使いのWii本体のNAND",
       "recognized": "構造を認識済み · サーバー認証は未検証",
@@ -696,6 +872,22 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "エミュレーション速度が不足",
     },
     "ko": {
+      "simpleIntro": "Wii 본체를 한 번 준비하고 공식 패치 도구로 게임을 준비한 다음 온라인 서비스를 활성화하세요.",
+      "servicesConsolePrepared":
+          "본체 준비 완료 · 공식 도구로 게임을 패치한 다음 해당 게임의 Wiimmfi 설정에서 등록하세요.",
+      "prepareConsole": "내 Wii 준비하기",
+      "consolePrepared": "Wii 본체 준비 완료",
+      "consolePreparedDetail": "본체 데이터 가져오기 완료 · 게임 안에서 접속하세요",
+      "changeConsole": "본체 변경",
+      "onlineServices": "온라인 서비스",
+      "servicesOff": "온라인 서비스 비활성화됨",
+      "servicesPrepareConsole": "온라인 서비스를 활성화하려면 Wii를 준비하세요",
+      "servicesPrepareGame": "온라인으로 플레이하려면 준비된 게임을 등록하세요",
+      "servicesPrepared": "준비 완료 · 접속은 게임 안에서 이루어집니다",
+      "servicesChecking": "준비 상태 확인 중…",
+      "advanced": "도움말 및 고급 설정",
+      "gameSetup": "게임 준비",
+      "gamePrepared": "준비된 게임 등록 완료",
       "enabled": "Wiimmfi 활성화",
       "nand": "내 Wii 본체의 NAND",
       "recognized": "구조 인식됨 · 서버 인증은 테스트하지 않음",
@@ -761,6 +953,22 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "에뮬레이션 속도 부족",
     },
     "zh": {
+      "simpleIntro": "首次准备好您的 Wii 主机，并使用官方补丁工具准备游戏，然后启用在线服务。",
+      "servicesConsolePrepared":
+          "主机已准备好 · 请使用官方工具为游戏打补丁，然后在该游戏的 Wiimmfi 设置中登记。",
+      "prepareConsole": "准备我的 Wii",
+      "consolePrepared": "Wii 主机准备完成",
+      "consolePreparedDetail": "主机数据已导入 · 请从游戏内连接",
+      "changeConsole": "更换主机",
+      "onlineServices": "在线服务",
+      "servicesOff": "在线服务已停用",
+      "servicesPrepareConsole": "请先准备 Wii，再启用在线服务",
+      "servicesPrepareGame": "请登记准备好的游戏，以进行在线游戏",
+      "servicesPrepared": "准备完成 · 连接在游戏内进行",
+      "servicesChecking": "正在检查准备情况…",
+      "advanced": "帮助与高级设置",
+      "gameSetup": "游戏准备",
+      "gamePrepared": "已登记准备好的游戏",
       "enabled": "启用 Wiimmfi",
       "nand": "您自己的 Wii 主机 NAND",
       "recognized": "已识别结构 · 尚未测试服务器认证",
@@ -823,6 +1031,22 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "模拟速度不足",
     },
     "zhHant": {
+      "simpleIntro": "首次準備好您的 Wii 主機，並使用官方修補工具準備遊戲，然後啟用線上服務。",
+      "servicesConsolePrepared":
+          "主機已準備好 · 請使用官方工具為遊戲套用修補程式，然後在該遊戲的 Wiimmfi 設定中登記。",
+      "prepareConsole": "準備我的 Wii",
+      "consolePrepared": "Wii 主機準備完成",
+      "consolePreparedDetail": "主機資料已匯入 · 請從遊戲內連線",
+      "changeConsole": "更換主機",
+      "onlineServices": "線上服務",
+      "servicesOff": "線上服務已停用",
+      "servicesPrepareConsole": "請先準備 Wii，再啟用線上服務",
+      "servicesPrepareGame": "請登記準備好的遊戲，以進行線上遊戲",
+      "servicesPrepared": "準備完成 · 連線在遊戲內進行",
+      "servicesChecking": "正在檢查準備情況…",
+      "advanced": "說明與進階設定",
+      "gameSetup": "遊戲準備",
+      "gamePrepared": "已登記準備好的遊戲",
       "enabled": "啟用 Wiimmfi",
       "nand": "您自己的 Wii 主機 NAND",
       "recognized": "已辨識結構 · 尚未測試伺服器驗證",

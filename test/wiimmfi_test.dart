@@ -11,6 +11,7 @@ import 'package:neostation/services/dolphin_system_files.dart';
 import 'package:neostation/services/gamepad/gamepad_navigation_manager.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/widgets/wiimmfi_panel.dart';
+import 'package:neostation/widgets/online_service_widgets.dart';
 import 'package:neostation/services/storage/storage_import_activity.dart';
 import 'package:neostation/services/wiimmfi/wiimmfi_service.dart';
 import 'package:neostation/services/wiimmfi/wiimmfi_store.dart';
@@ -26,6 +27,7 @@ void main() {
   late WiimmfiStore store;
   bool running = false;
   bool supported = true;
+  bool nandRecognized = true;
   bool cancelOnProtect = false;
   Future<int> Function(Map<dynamic, dynamic>)? nativeImport;
   List<Map<String, dynamic>>? picks;
@@ -57,7 +59,10 @@ void main() {
       }
       return switch (call.method) {
         'isRunning' => running,
-        'wiimmfiStatus' => {'supported': supported, 'nandRecognized': true},
+        'wiimmfiStatus' => {
+          'supported': supported,
+          'nandRecognized': nandRecognized,
+        },
         'saveIdentity' => {
           'system': 'wii',
           'gameId': 'RMCP01',
@@ -81,6 +86,7 @@ void main() {
     protectedPaths.clear();
     running = false;
     supported = true;
+    nandRecognized = true;
     cancelOnProtect = false;
     nativeImport = null;
     picks = null;
@@ -224,15 +230,12 @@ void main() {
       await settle();
     }
 
-    bool controlsReady() => tester
-        .widgetList<ListTile>(find.byType(ListTile))
-        .any(
-          (item) =>
-              item.enabled &&
-              item.title is Text &&
-              (item.title! as Text).data ==
-                  WiimmfiLocale.labels(const Locale('en'))['importNand'],
-        );
+    bool controlsReady() {
+      final button = find.byKey(const ValueKey('wiimmfi-console'));
+      return button.evaluate().isNotEmpty &&
+          tester.widget<ButtonStyleButton>(button).onPressed != null;
+    }
+
     Future<void> until(bool Function() condition) async {
       for (var attempt = 0; attempt < 30 && !condition(); attempt++) {
         await settle();
@@ -255,16 +258,24 @@ void main() {
           builder: (_, _) => MaterialApp(
             home: Builder(
               builder: (context) => Scaffold(
-                body: TextButton(
-                  onPressed: () => WiimmfiPanel.open(
-                    context,
-                    gamePath: image.path,
-                    onLaunch: (online) async {
-                      launched.add(online);
-                      return null;
-                    },
-                  ),
-                  child: const Text('open-wiimmfi'),
+                body: Column(
+                  children: [
+                    TextButton(
+                      onPressed: () => WiimmfiPanel.open(
+                        context,
+                        gamePath: image.path,
+                        onLaunch: (online) async {
+                          launched.add(online);
+                          return null;
+                        },
+                      ),
+                      child: const Text('open-wiimmfi'),
+                    ),
+                    TextButton(
+                      onPressed: () => WiimmfiPanel.open(context),
+                      child: const Text('open-global-wiimmfi'),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -276,13 +287,24 @@ void main() {
       expect(parentActive, false);
       expect(
         tester
-            .widgetList<ListTile>(find.byType(ListTile))
-            .any((item) => item.selected),
+            .widgetList<Semantics>(find.byType(Semantics))
+            .any((item) => item.properties.selected == true),
         true,
       );
 
       // B cancels only the confirmation and leaves the parent screen open.
-      await key(LogicalKeyboardKey.arrowDown);
+      expect(find.byType(OnlineServiceIdentitySection), findsOneWidget);
+      expect(find.byType(OnlineServicesSwitch), findsOneWidget);
+      expect(
+        find.text(
+          WiimmfiLocale.labels(const Locale('en'))['servicesPrepared']!,
+        ),
+        findsWidgets,
+      );
+      expect(
+        find.text(WiimmfiLocale.labels(const Locale('en'))['code']!),
+        findsNothing,
+      );
       await pad('button-0');
       expect(
         find.text(WiimmfiLocale.labels(const Locale('en'))['continue']!),
@@ -293,13 +315,34 @@ void main() {
       expect(parentActive, false);
       expect(calls.where((name) => name == 'wiimmfiImport'), isEmpty);
 
+      // The same single switch guides missing console preparation first.
+      nandRecognized = false;
+      await tapLabel(
+        WiimmfiLocale.labels(const Locale('en'))['onlineServices']!,
+      );
+      await until(controlsReady);
+      expect(
+        tester
+            .widget<OnlineServicesSwitch>(find.byType(OnlineServicesSwitch))
+            .value,
+        false,
+      );
+      expect(
+        find.text(
+          WiimmfiLocale.labels(const Locale('en'))['servicesPrepareConsole']!,
+        ),
+        findsOneWidget,
+      );
+
       // A real native picker owns input until its selection finishes.
       final picker = pendingPicker = Completer<List<Map<String, dynamic>>?>();
       messenger.setMockMethodCallHandler(
         const MethodChannel('miguelruivo.flutter.plugins.filepicker'),
         (_) => picker.future,
       );
-      await tapLabel(WiimmfiLocale.labels(const Locale('en'))['importNand']!);
+      await tapLabel(
+        WiimmfiLocale.labels(const Locale('en'))['onlineServices']!,
+      );
       await pad('button-0');
       await until(() => WiimmfiService.importPhase.value == 'selecting');
       expect(WiimmfiService.importPhase.value, 'selecting');
@@ -309,6 +352,28 @@ void main() {
       picker.complete(null);
       await until(controlsReady);
       expect(WiimmfiService.importPhase.value, 'idle');
+      expect(
+        tester
+            .widget<OnlineServicesSwitch>(find.byType(OnlineServicesSwitch))
+            .value,
+        false,
+      );
+      // Once the console is available, the switch enables services directly.
+      nandRecognized = true;
+      await tapLabel(
+        WiimmfiLocale.labels(const Locale('en'))['prepareConsole']!,
+      );
+      await pad('button-1');
+      await tapLabel(
+        WiimmfiLocale.labels(const Locale('en'))['onlineServices']!,
+      );
+      await until(controlsReady);
+      expect(
+        tester
+            .widget<OnlineServicesSwitch>(find.byType(OnlineServicesSwitch))
+            .value,
+        true,
+      );
       messenger.setMockMethodCallHandler(
         const MethodChannel('miguelruivo.flutter.plugins.filepicker'),
         (_) async => picks,
@@ -320,6 +385,7 @@ void main() {
       expect(find.textContaining('Mario Kart Wii'), findsNothing);
       expect(find.byType(WiimmfiPanel), findsOneWidget);
 
+      await tapLabel(WiimmfiLocale.labels(const Locale('en'))['advanced']!);
       await tapLabel(WiimmfiLocale.labels(const Locale('en'))['code']!);
       await key(LogicalKeyboardKey.arrowUp);
       await key(LogicalKeyboardKey.arrowRight);
@@ -351,6 +417,25 @@ void main() {
       await pad('button-1');
       expect(find.byType(WiimmfiPanel), findsNothing);
       expect(find.text('open-wiimmfi'), findsOneWidget);
+      expect(parentActive, true);
+      await tester.tap(find.text('open-global-wiimmfi'));
+      await until(controlsReady);
+      expect(
+        find.text(
+          WiimmfiLocale.labels(const Locale('en'))['servicesConsolePrepared']!,
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(WiimmfiLocale.labels(const Locale('en'))['launch']!),
+        findsNothing,
+      );
+      expect(
+        find.text(WiimmfiLocale.labels(const Locale('en'))['patch']!),
+        findsNothing,
+      );
+      await pad('button-1');
+      expect(find.byType(WiimmfiPanel), findsNothing);
       expect(parentActive, true);
       expect(tester.takeException(), isNull);
     } finally {

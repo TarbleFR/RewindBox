@@ -10,6 +10,7 @@ import '../services/nextendo/nextendo_engine_support.dart';
 import '../services/nextendo/nextendo_online_play.dart';
 import '../services/nextendo/nextendo_servers.dart';
 import '../services/nextendo/nextendo_service.dart';
+import 'online_service_widgets.dart';
 
 /// The player's Nextendo Network screen: one button for the account (sign in
 /// on nextendo.network, or sign out) and one switch for online services.
@@ -201,34 +202,25 @@ class _NextendoDialogState extends State<NextendoDialog> {
   Widget _accountSection() {
     final account = _account;
     if (account == null) {
-      return Align(
-        alignment: AlignmentDirectional.centerStart,
-        child: FilledButton.icon(
-          key: const ValueKey('nextendo-sign-in'),
-          onPressed: _busy ? null : _signIn,
-          icon: const Icon(Icons.login),
-          label: Text(_text('nextendoSignIn')),
-        ),
+      return OnlineServiceIdentitySection(
+        actionKey: const ValueKey('nextendo-sign-in'),
+        actionLabel: _text('nextendoSignIn'),
+        onAction: _busy ? null : _signIn,
       );
     }
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: const CircleAvatar(child: Icon(Icons.person)),
-      title: Text(_text('nextendoSignedInAs', {'name': account.shownName})),
-      subtitle: Text([
+    return OnlineServiceIdentitySection(
+      identityTitle: _text('nextendoSignedInAs', {'name': account.shownName}),
+      identitySubtitle: [
         if (account.shownName != account.username) account.username,
         if (account.friendCode.isNotEmpty) '${_text('nextendoFriendCode')}: ${account.friendCode}',
-      ].join('\n')),
-      trailing: TextButton(
-        key: const ValueKey('nextendo-sign-out'),
-        onPressed: _busy ? null : _signOut,
-        child: Text(_text('nextendoSignOut')),
-      ),
+      ].join('\n'),
+      actionKey: const ValueKey('nextendo-sign-out'),
+      actionLabel: _text('nextendoSignOut'),
+      onAction: _busy ? null : _signOut,
     );
   }
 
   Widget _servicesSection() {
-    final colors = Theme.of(context).colorScheme;
     final String line;
     if (!_online) {
       line = _text(_account == null ? 'nextendoServicesSignIn' : 'nextendoServicesOff');
@@ -240,15 +232,12 @@ class _NextendoDialogState extends State<NextendoDialog> {
       line = _status!;
     }
     final problem = _online && _account != null && !_checking && _status != null && _statusIsError;
-    return SwitchListTile(
+    return OnlineServicesSwitch(
       key: const ValueKey('nextendo-online-services'),
-      contentPadding: EdgeInsets.zero,
-      secondary: Icon(
-        !_online || _account == null ? Icons.public_off : (problem ? Icons.error_outline : Icons.public),
-        color: problem ? colors.error : (_online && _account != null && !_checking && _status != null ? colors.primary : null),
-      ),
-      title: Text(_text('nextendoOnlineServices')),
-      subtitle: Text(line, style: problem ? TextStyle(color: colors.error) : null),
+      title: _text('nextendoOnlineServices'),
+      status: line,
+      problem: problem,
+      checking: _checking || _status == null,
       value: _online && _account != null,
       onChanged: _busy || _config == null || !_config!.canSignIn ? null : _setOnline,
     );

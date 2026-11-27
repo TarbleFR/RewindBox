@@ -1,5 +1,7 @@
 # Wiimmfi dans Dolphin — 27 novembre 2026
 
+[Parcours visuel unifié avec Nextendo](evidence/wiimmfi-nextendo-interface-2026-11-27.md) : menu de la playlist Wii → Wiimmfi, préparation de la console, Services en ligne et état synthétique ; aide/détails repliés. Composants partagés avec Nextendo, authentifications distinctes et inchangées.
+
 [Confirmation et défauts supplémentaires](evidence/wiimmfi-followup-audit-2026-11-27.md) : fusion des dossiers vides, cycle complet de lancement, fermetures et interruption pendant le boot corrigés ; [Core ABI 4 compilé et vérifié](https://github.com/TarbleFR/RewindBox/actions/runs/45979848094), source `e19a37ac`, empreinte `a8c4540d…fb4aee6`. [Navigation manette/clavier/toucher terminée et vérifiée sur widgets](evidence/wiimmfi-controller-completion-2026-11-27.md) ; commandes physiques sur iPhone non testées. Les builds ABI 2/3 décrits ci-dessous sont des candidats antérieurs.
 
 [Contre-expertise et correctifs ABI 3](evidence/wiimmfi-counteraudit-2026-11-27.md) : source finale `a660c337`, identité/Mii, TMD, protections réseau/journaux et circuit de lancement revus. [Core final compilé et vérifié](https://github.com/TarbleFR/RewindBox/actions/runs/45977483996), SHA-256 `e4811001…3346250` ; [identité complète](evidence/wiimmfi-counteraudit-2026-11-27.json). Les preuves ABI 2 ci-dessous décrivent le premier candidat, remplacé avant toute livraison.
@@ -18,7 +20,7 @@ Branche `Claude`, DolphiniOS `7cac54161659421ed95c2cd1c0b0746539a4cd38` inchang�
 | Session | JIT/Metal/ownership existants ; cheats/états/modifications du menu et captures de payload réseau bloqués, horloges nominales `CurrentRun`, vitesse réellement mesurée | Course non testée |
 | Hors ligne | ABI 3 : réseau IP IOS Wii et requêtes WiiConnect24 bloqués hors ligne ; banc IP/IOCTL/IOCTLV/création de socket : 27 requêtes ×100 sans activité hôte ; gardes WiiConnect24 relus, non exécutés par ce banc | Non testé |
 | Interruptions | Menu sans pause du guest, arrêt arrière-plan et perte/changement Wi-Fi/cellulaire, aucune reconnexion automatique | Non testées |
-| Interface | Wii → paramètres système → Émulateurs → Wiimmfi ; propriétés du jeu → Gérer ; 12 langues, désactivé par défaut | Non testée |
+| Interface | Menu d’import Wii → Wiimmfi, comme Nextendo sur Switch ; accès paramètres système et propriétés du jeu conservés ; 12 langues, désactivé par défaut | Non testée |
 | Réseau | Diagnostic explicite DNS/site HTTPS avec TLS normal, cache 5 min, aucun poll réseau désactivé | Ni auth ni matchmaking prouvés |
 
 ## Limites explicites
@@ -39,7 +41,7 @@ Premier candidat cœur/bridge : `d473517b` (ABI 2), remplacé par la contre-expe
 ## Protocole exact sur iPhone
 
 1. Installer une future IPA autorisée contenant **à la fois** ce Flutter/bridge et le nouveau cœur ; la version déjà installée ne reçoit pas ces changements par un push Git.
-2. Fermer toute session Dolphin. Ouvrir **Wii → Paramètres système → Émulateurs → Wiimmfi** ; confirmer l’import puis choisir votre `nand.bin` BootMii, avec `keys.bin` si séparé.
+2. Fermer toute session Dolphin. Ouvrir **Wii → menu d’import → Wiimmfi** (également accessible par Paramètres système → Émulateurs) ; choisir **Préparer ma Wii**, confirmer l’import puis choisir votre `nand.bin` BootMii, avec `keys.bin` si séparé.
 3. Vérifier la fin de l’import et retrouver votre sauvegarde Wii actuelle. « Structure reconnue » ne valide pas l’identité côté Wiimmfi ; ne pas utiliser l’identité d’une autre console.
 4. Importer votre copie de Mario Kart Wii préparée avec le patcher officiel actuel. Dans **Propriétés du jeu → Gérer → Wiimmfi**, déclarer cette image après lecture de la confirmation ; activer Wiimmfi, puis **Lancer avec Wiimmfi**. Le pairing/JIT et Local Dev VPN habituels restent nécessaires.
 5. En Wi-Fi, sélectionner Nintendo WFC dans le jeu ; noter le code exact et respecter tout délai serveur. Vérifier votre profil et code ami, rejoindre de vrais adversaires et terminer une course publique complète ; répéter en salon privé avec un ami.
