@@ -13,4 +13,6 @@ Banc synthétique Linux x86-64 sur AMD EPYC 9V74. NativeAOT .NET 10.0.15 (SDK 10
 
 Les variantes JIT avec un masque et avec `Array.IndexOf` ralentissaient les tables vides sur ce banc. Le parcours retenu a aussi donné 1 805,83 → 909,27 ns à 1 023 sessions en JIT et 23,14 → 22,67 ns à vide. Le banc couvre le cycle du tableau et du verrou, avec fermeture simulée. Il ne chronomètre pas une requête IPC ni le lancement d’un jeu.
 
-Compilation iPhoneOS à suivre. Temps d’image, empreinte et énergie de l’iPhone 16 Pro Max non mesurés.
+En NativeAOT Linux, huit fils ont créé et fermé 128 000 sessions avec vérification des cookies actifs, de la fermeture unique et du retour au nombre initial. La référence et le candidat passent.
+
+La série de `8fbe6ddca` compile pour iPhoneOS sur macOS 15 et 26. [CI moteur](https://github.com/TarbleFR/RewindBox/actions/runs/46008253226). Temps d’image, empreinte et énergie de l’iPhone 16 Pro Max non mesurés.
