@@ -535,6 +535,18 @@
       {
         "commit": "ec2487593f9ff67beffd4b643b9f85761842fc34",
         "note": "build: prepare authenticated Wiimmfi ABI4 and S2Arm 0470 delivery [skip ci]"
+      },
+      {
+        "commit": "42c09c71ac48866b90cd42f352290071ae301601",
+        "note": "build: prepare private 848 manifest from verified 847 [skip ci]"
+      },
+      {
+        "commit": "7d6d71c32802e9d1fc3e1a7cfaedadd1422bfc50",
+        "note": "s2arm: replay pass trace buffer renamed beside the per-draw trace [s2arm-lab] [s2arm-replay-metrics]"
+      },
+      {
+        "commit": "5d3d3ad608377e790e691e7e7b12714408e19ef4",
+        "note": "build: bind Wiimmfi and playlist declarations without altering historic reviews [skip ci]"
       }
     ],
     "sourceOnly": [],
