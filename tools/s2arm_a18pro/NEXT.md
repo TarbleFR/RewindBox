@@ -14,7 +14,7 @@ Rappel : iOS 26 tourne sur **Metal 3** (`nvn_be.h`, `ios26x`), le chemin à opti
   Arbre de travail patché : `/tmp/s2arm-loop/cur` (base `work` 0468 + 0469–0478).
 
 ## Prochaine action
-1. Relire le run CI de `0478` (il couvre aussi `0477` ; run 46005579324 encore en file au tour précédent). Si rouge ou pixels/état différents sur
+1. Relire le run CI 46006446704 (commit 26562819e, `0478`, couvre aussi `0477` ; run 0477 46005579324). Si rouge ou pixels/état différents sur
    `m3_arg_hint_off` / `m3_bind_cache_off` : corriger ou retirer le patch fautif.
 2. Ensuite : 14 fences par image (m3_wait/m4_end entre encodeurs). Attention : sauter un `waitForFence` casse la transitivité de la chaîne
    (l’encodeur suivant n’attendrait que le précédent) → ne retirer qu’une paire wait+update prouvée sans dépendance, ou abandonner l’axe.
