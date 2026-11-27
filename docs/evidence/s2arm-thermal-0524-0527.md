@@ -16,7 +16,26 @@ Le candidat apprend une enveloppe basse relative sur trois observations chargée
 - Complexité du jeu, saturation, PSO, page-ins, synchronisation et présentation se vérifient chacun avec leurs propres traces. Même charge fixe ralentie et plusieurs passes ralenties constituent un indice de changement de régime. L’état thermique OS, la puissance CPU du processus et les compteurs GPU ne mesurent pas la même grandeur.
 - Le coût avant course inclut la compilation de la sonde, les recettes de démarrage et des menus parfois lourds. La cadence expérimentale évite de lancer la sonde pendant une attente PSO du rendu et la suspend hors premier plan. Le polling de `mtl_warm_wait` a des appels dans les fixtures uniquement sur cette tête. La voie de PSO prioritaires et les prélectures proches du premier dessin gardent leur priorité.
 - GPU 0481, ombres 0518–0523, compilation de shader, MSAA et RAM doivent rester à version identique entre les bras. L’addition des options de parallélisme a déjà augmenté le p95 synthétique de 7,95 à 22,53 ms. Couvrir les interactions après le premier A/B isolé. [Rejeu Metal 3](s2arm-parallelism/README.md).
-- La contre-expertise hôte, les journaux de CI et les résultats du writer seront consignés ici après vérification. FPS, watts GPU, énergie par image et avance sur iPhone restent non mesurés.
+- Relecture d’une archive de 87 anciens journaux hôte. 37 contiennent une durée de sonde, 710 points au total. 32 des 35 journaux ayant au moins trois points ont un maximum ≥1,6× leur minimum. Dans 16/35, le premier point dépasse déjà 1,6× le minimum ultérieur. Ces rapports mélangent des charges et des phases différentes. Il manque l’heure de soumission de chaque sonde et les cinq images qui la corroborent. Ces relevés établissent la nécessité du contexte de charge et ne permettent pas de scorer une avance physique.
+
+## Résultats mesurés sur hôte
+
+[Rejeu C et analyseur des sessions](../../tools/s2arm_a18pro/thermal/README.md). Les huit séquences imposent leurs charges et événements. Les chiffres ci-dessous portent sur ces séquences.
+
+| Scénario (60 intervalles) | Historique | Garde corrigé | V2 observation | V2 actif |
+|---|---:|---:|---:|---:|
+| Montée lente, admissions facultatives | 120 | 103 | 120 | 99 |
+| Rupture forte, admissions facultatives | 120 | 103 | 120 | 104 |
+| Hausse modérée qui se stabilise, admissions facultatives | 120 | 120 | 120 | 114 |
+| Montée lente, admissions au premier plan | 120 | 120 | 120 | 120 |
+
+Sur la montée progressive, la prévention apparaît à 17 s. Le régime lent commence à 21 s et les deux gardes le confirment à 22 s. Sur la rupture brusque, les deux gardes n’alertent qu’après l’apparition du régime lent. La hausse modérée donne une alerte sans épisode lent. À seuils illustratifs, la moyenne mobile déclenche à 19 s sur la montée et sur la hausse modérée. Un compteur de charge seul alerte aussi sur charge stable et changement ordinaire de scène. Un seuil instantané de 1,60× repère la rupture à son apparition. Le candidat reste opt-in compte tenu de ces limites.
+
+Sur Linux x86-64, 15 paires de 240 000 entrées identiques donnent un coût médian de logique de 13,02 ns/relevé pour 0504 et 10,26 ns pour v2. Hors acquisition, Metal, verrous d’intégration et journalisation. Les deux bancs et le test de réservation passent. ASan et UBSan passent avec la recherche de fuites désactivée sur cet hôte. TSan valide la réservation concurrente et la réouverture du quota en présence d’une voie prioritaire. Le rejeu 0513–0517 donne toujours 102→76 admissions facultatives, 51/51 prioritaires et 120 000 observations bruitées.
+
+Le [contrôle Apple du writer](https://github.com/TarbleFR/RewindBox/actions/runs/46041272246/job/140649314281) réussit le réessai périodique, le signal, le secours sans signal, la fermeture et le signal reçu avant l’armement. Les cinq cas persistent et rouvrent strictement le pipeline Metal. Sous un refus injecté d’environ 3,2 s, les réveils de réessai passent de 12 à 3 (deux secours et un signal), soit −75 % dans ce seul essai apparié. Temps CPU writer, écriture comprise, 1,72 → 1,69 ms. La variante sans signal revient au bout de 1,51 s. Effet énergétique sur appareil à mesurer.
+
+Le moteur source `4526a952` compile pour iPhoneOS sur [macOS 15](https://github.com/TarbleFR/RewindBox/actions/runs/46041272246/job/140649314681) et [macOS 26](https://github.com/TarbleFR/RewindBox/actions/runs/46041272246/job/140649314281). [Frameworks de la CI](https://github.com/TarbleFR/RewindBox/actions/runs/46041272246/artifacts/15220024391). Aucune IPA produite. FPS, watts GPU, énergie par image, récupération et avance sur A18 Pro non mesurés.
 
 ## Réception sur iPhone17,2
 

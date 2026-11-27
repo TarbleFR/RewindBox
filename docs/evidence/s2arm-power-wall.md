@@ -8,6 +8,11 @@ sur ses autres jeux Switch 2 ; aucun journal d'un autre jeu n'est encore analys�
 lancements, tests A, B et C) et des journaux de course des IPA 759 à 827. Rien n'est corrigé ici et
 aucun gain n'est mesuré. Les journaux bruts restent privés ; seuls les chiffres en sont repris.
 
+La [contre-expertise 0524–0527](s2arm-thermal-0524-0527.md) confirme que la sonde fixe et de
+nombreuses passes ralentissent ensemble. Elle sépare ce constat des hypothèses de fréquence,
+de puissance et de contention. La cadence de sonde de l’IPA 830 ne suffit pas à chiffrer
+l’avance d’une prédiction. Le lot expérimental reste à valider sur iPhone.
+
 ## Ce que voit le mainteneur
 
 En course, 25 à 30 i/s, que la limite d'images soit « sans limite » ou 60. Ce réglage n'est qu'un
@@ -20,7 +25,7 @@ mainteneur ne veut pas de 30 i/s, ni de baisse de résolution.
 Fenêtres de 300 images en course (au moins 900 dessins par image) dans les quatre journaux 830.
 Médiane, puis premier et neuvième déciles entre crochets.
 
-| | Course à pleine fréquence (33 fenêtres) | Course plafonnée (61 fenêtres) |
+| | Course en régime rapide (33 fenêtres) | Course en régime lent (61 fenêtres) |
 | --- | --- | --- |
 | Image p50 | 23,7 ms [19,0–31,2] | 41,5 ms [36,6–51,6] |
 | GPU p50 | 12,0 ms [10,4–13,3] | 34,2 ms [31,5–37,5] |
@@ -30,23 +35,24 @@ Médiane, puis premier et neuvième déciles entre crochets.
 | GPU occupé | 457 ms/s | 800 ms/s |
 | CPU du processus | 1,19 W | 1,43 W |
 
-1. **À pleine fréquence, la course ne tient déjà pas 60.** Le GPU n'a besoin que de 10 à 13 ms,
+1. **En régime GPU rapide, la course ne tient déjà pas 60.** Le GPU n'a besoin que de 10 à 13 ms,
    mais l'image en prend 19 à 31. Le processeur soumet l'image morceau par morceau, puis le jeu
    attend la fin du GPU avant de préparer l'image suivante : les deux travaillent l'un après
    l'autre au lieu de se chevaucher.
-2. **Après 15 à 38 s de course, iOS plafonne la puissance de la puce.** Sur 11 phases de course d'au
+2. **Après 15 à 38 s de course, un régime GPU lent apparaît.** Sur 11 phases de course d'au
    moins 3 fenêtres, 8 passent au plafond après 15 à 38 s. Deux autres commencent déjà plafonnées,
    parce que le menu précédent n'a pas rendu la fréquence. La dernière s'arrête après environ 30 s
    sans plafond.
    - La sonde GPU fixe fait toujours le même calcul (16 384 fils, 2 048 itérations en registres,
      une seule écriture). Sa durée passe de 0,24 à 0,82 ms, soit 3,4 fois plus.
    - Toutes les passes du profil GPU ralentissent, de 2,2 à 3,2 fois en médiane. Les passes de 1×1
-     pixel ralentissent de 2 à 4 fois. C'est l'horloge du GPU qui baisse, pas une passe qui coince.
-   - Le plafond apparaît aux états thermiques 0, 1 et 2. L'état thermique iOS ne le prévient pas.
+     pixel ralentissent de 2 à 4 fois. La baisse touche des travaux de tailles différentes et la
+     charge fixe. La fréquence et la contribution de la contention restent à mesurer.
+   - Le régime lent apparaît aux états thermiques 0, 1 et 2. L’état iOS seul ne le prédit pas.
    - Le processeur monte alors à 3,65 GHz pour 0,69 cœur de travail. Le test C, sans échéances
      temps réel ni priorité élevée, montre le même sprint : il ne vient pas de nos réglages.
 
-Sortir du plafond demande une phase plus légère, de durée variable. Dans le test C, environ 28 s de
+Le retour au régime rapide suit une phase plus légère, de durée variable. Dans le test C, environ 28 s de
 menu à 53 i/s ne suffisent pas ; le GPU y reste occupé 590 à 810 ms par seconde.
 
 ## Pistes écartées par la mesure
