@@ -661,6 +661,8 @@ void main() {
 
   test('error codes keep activation separate from patch and NAND errors', () {
     expect(WiimmfiLocale.errorKey('50130'), 'networkStartup');
+    expect(WiimmfiLocale.errorKey('50199'), 'networkStartup');
+    expect(WiimmfiLocale.errorKey('50230'), 'codeUnknown');
     expect(WiimmfiLocale.errorKey('23899'), 'activation');
     expect(WiimmfiLocale.errorKey('23904'), 'patchOld');
     expect(WiimmfiLocale.errorKey('23918'), 'nandError');

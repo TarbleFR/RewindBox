@@ -25,7 +25,7 @@ Pendant Wiimmfi, GETCONFIG/READCONFIG fournissent maintenant un profil filaire a
 
 Le diagnostic exporte `networkProfiles`, le nombre de lectures ayant reçu ce profil de session. Ce compteur confirme l’exécution du chemin NCD. L’authentification et le matchmaking nécessitent leurs propres observations. Le code 50130 reçoit une aide traduite dans les douze langues.
 
-Le banc compile le vrai header Dolphin et le vrai corps de `WriteToMem`. Cent cycles vérifient le profil automatique, l’absence de proxy et de paramètres Wi-Fi dans sa copie, la conservation des métadonnées, puis l’égalité intégrale du profil d’origine après retour hors ligne. Il échouait avant correction et réussit après. Les 27 requêtes réseau répétées cent fois continuent de ne faire aucun appel hôte hors ligne.
+Les écritures et réinitialisations réseau du jeu restent aussi en mémoire pendant Wiimmfi. Elles reprennent leur comportement Dolphin habituel hors ligne. Le banc compile le vrai header Dolphin et les corps de lecture, d’écriture et de réinitialisation du profil. Cent cycles vérifient le profil automatique, l’absence de proxy et de paramètres Wi-Fi dans sa copie, la conservation des métadonnées, puis l’égalité intégrale du profil d’origine après retour hors ligne. Il échouait avant correction et réussit après. Les 27 requêtes réseau répétées cent fois continuent de ne faire aucun appel hôte hors ligne.
 
 ## Préparation guidée
 

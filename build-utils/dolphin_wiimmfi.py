@@ -255,6 +255,22 @@ extern "C" bool neostation_dolphin_wiimmfi_tls_files_valid(const std::string& ro
     config = 'Core/IOS/Network/NCD/WiiNetConfig.cpp'
     declaration(config, 'namespace IOS::HLE::Net\n{', 'bool neostation_dolphin_wiimmfi_network_allowed()')
     declaration(config, 'namespace IOS::HLE::Net\n{', 'void neostation_dolphin_wiimmfi_observe(s32 event)')
+    # A guest config save or reset during the online session must not persist
+    # the synthetic profile or remove the physical Wii's original settings.
+    anchor = 'void WiiNetConfig::WriteConfig(FS::FileSystem* fs) const\n{'
+    insert(config, anchor, anchor + '''
+#ifdef IPHONEOS
+  if (neostation_dolphin_wiimmfi_network_allowed()) return;
+#endif''')
+    anchor = 'void WiiNetConfig::ResetConfig(FS::FileSystem* fs)\n{'
+    insert(config, anchor, anchor + '''
+#ifdef IPHONEOS
+  if (neostation_dolphin_wiimmfi_network_allowed())
+  {
+    m_data = {};
+    return;
+  }
+#endif''')
     anchor = '  memory.CopyToEmu(address, &m_data, sizeof(m_data));'
     insert(config, anchor, '''#ifdef IPHONEOS
   if (neostation_dolphin_wiimmfi_network_allowed())

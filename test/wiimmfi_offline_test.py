@@ -41,10 +41,27 @@ public:
   }
 };
 }
+namespace IOS::HLE::FS {
+enum class Mode { ReadWrite };
+struct Modes { Mode a,b,c; };
+struct FileSystem {
+  unsigned deletes=0, writes=0;
+  void Delete(int,int,const std::string&) { ++deletes; }
+  void CreateFullPath(int,int,const std::string&,int,Modes) {}
+  FileSystem* CreateAndOpenFile(int,int,const std::string&,Modes) { return this; }
+  template<typename T> bool Write(const T*,int) { ++writes; return true; }
+};
+}
+#define ERROR_LOG_FMT(...) (void)0
 namespace IOS::HLE::Net {
+constexpr int PID_NCD=0;
+static const std::string CONFIG_PATH="fixture";
 WiiNetConfig::WiiNetConfig() = default;
 '''
-    program += function(source, 'void WiiNetConfig::WriteToMem(') + '\n}\n'
+    for signature in ('void WiiNetConfig::WriteToMem(', 'void WiiNetConfig::WriteConfig(',
+                      'void WiiNetConfig::ResetConfig('):
+        program += function(source, signature) + '\n'
+    program += '}\n'
     program += r'''
 int main() {
   using namespace IOS::HLE::Net;
@@ -54,6 +71,7 @@ int main() {
   original.connType=WiiNetConfig::ConfigData::IF_WIFI;
   const auto backup=original;
   Memory::MemoryManager memory;
+  IOS::HLE::FS::FileSystem disk;
   for (unsigned i=0;i<100;++i) {
     online=false; config.WriteToMem(memory,16);
     assert(memory.data.size()==sizeof original &&
@@ -70,8 +88,15 @@ int main() {
     assert(memory.data.size()==sizeof expected &&
            std::memcmp(memory.data.data(),&expected,sizeof expected)==0);
     assert(std::memcmp(&original,&backup,sizeof backup)==0);
+    config.WriteConfig(&disk);
+    assert(!disk.writes && !disk.deletes);
     assert(profiles==i+1);
   }
+  config.ResetConfig(&disk);
+  assert(!disk.writes && !disk.deletes);
+  online=false;
+  config.ResetConfig(&disk);
+  assert(disk.writes==1 && disk.deletes==1);
 }
 '''
     with tempfile.TemporaryDirectory() as temp:
@@ -82,7 +107,7 @@ int main() {
         subprocess.run([compiler,'-std=c++20','-Wall','-Wextra','-Werror','-DIPHONEOS',
                         '-I',str(root/'Source/Core'),str(cpp),'-o',str(binary)],check=True)
         subprocess.run([str(binary)],check=True)
-    print('PASS: actual Wii network config, session-only wired DHCP profile, 100 online/offline cycles')
+    print('PASS: real Wii network config, session-only DHCP, 100 offline/online cycles and guest writes/reset stay in memory')
 
 def main():
     parser = argparse.ArgumentParser()
