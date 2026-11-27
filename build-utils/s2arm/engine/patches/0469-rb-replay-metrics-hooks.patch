@@ -1,0 +1,68 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 384814a..7609ecd 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -599,11 +599,15 @@ static void big_tex_res(id<MTLAllocation> r, int line) {   // RewindBox (patch 0
+ //   (seedds/nxnative 1d4b8e82, dm/gfx/nvn/nvn_mtl.m:294 at 0c078130, MIT, Copyright (c) 2026 seedds). The bodies are unchanged; every caller passes a texture or a buffer as before
+ static void res_add_at_body(id<MTLAllocation> r, int line);
+ static void res_add_at(id<MTLAllocation> r, int line) { @autoreleasepool { res_add_at_body(r, line); } }
++#ifndef S2A_RES_HOOK
++#define S2A_RES_HOOK() ((void)0)   // RewindBox (patch 0469): replay metrics, empty in the engine
++#endif
+ static void res_add_at_body(id<MTLAllocation> r, int line) {
+     if (!r) return;
+     pthread_mutex_lock(&g_res_mu);
+     if (!g_res_objects) g_res_objects = [NSHashTable weakObjectsHashTable];
+     if ([g_res_objects containsObject:r]) { pthread_mutex_unlock(&g_res_mu); return; }   // already resident (a shared texture resolved again): marking the set dirty would cost a commit that changes nothing
++    S2A_RES_HOOK();   // RewindBox (patch 0469): an allocation that joins the residency set
+     if (big_tex_on()) big_tex_res(r, line);   // first time into the residency set only
+     { int k = 0; while (k < RS_SITES - 1 && g_rs_site[k].line && g_rs_site[k].line != line) k++; g_rs_site[k].line = line; g_rs_site[k].n++; g_rs_site[k].bytes += r.allocatedSize; }
+     [g_res addAllocation:(id<MTLAllocation>)r];
+@@ -14784,8 +14788,12 @@ static void arena_seg_done(uint64_t sf) {
+ }
+ // RewindBox (upstream S2Arm 9ca83e5b1): buf is __strong. An unqualified id * out-parameter is __autoreleasing under ARC, which put the arena buffer in the autorelease
+ //   pool at every call, a few per draw (upstream: autorelease 2.63% -> 1.73% of replay time). Every caller passes a strong local
++#ifndef S2A_ARENA_HOOK
++#define S2A_ARENA_HOOK(n) ((void)0)   // RewindBox (patch 0469): replay metrics (t_rb_replay_metrics.m), empty in the engine
++#endif
+ static size_t arena_alloc(size_t n, __strong id<MTLBuffer> *buf) {
+     n = (n + 255) & ~(size_t)255; g_arena_seg += n;
++    S2A_ARENA_HOOK(n);   // RewindBox (patch 0469)
+     if (!g_cur_arena || g_cur_arena->used + n > g_cur_arena->len) {
+         pthread_mutex_lock(&g_mu); g_cur_arena = arena_new(n); pthread_mutex_unlock(&g_mu);
+         [g_sub_arenas addObject:g_cur_arena];
+diff --git a/graphics/nvn/gfx/nvn/nvn_rec.h b/graphics/nvn/gfx/nvn/nvn_rec.h
+index 362d394..f9ab3d5 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rec.h
++++ b/graphics/nvn/gfx/nvn/nvn_rec.h
+@@ -142,6 +142,14 @@ enum {
+     RO_Q_BLOCK,
+     RO_WAIT_EVENT,   // a[0] retained event, a[1] target value
+ };
++// RewindBox (patch 0469): observation hooks of the hardware-independent replay metrics (build-utils/s2arm/engine/tests/t_rb_replay_metrics.m). Empty unless a test defines them
++//   before including nvn_mtl.m: S2A_REC_PUT_HOOK(op) for every record the submit thread makes, S2A_REC_EXEC_HOOK(r) for every record before the encode thread makes its call
++#ifndef S2A_REC_PUT_HOOK
++#define S2A_REC_PUT_HOOK(op) ((void)0)
++#endif
++#ifndef S2A_REC_EXEC_HOOK
++#define S2A_REC_EXEC_HOOK(r) ((void)0)
++#endif
+ typedef struct { uint32_t op, nobj; uint64_t a[15]; } rec_t;   // the first nobj slots hold retained objects (0 for nil), released once the call is made
+ enum { REC_BLK = 256 };
+ typedef struct rec_blk { struct rec_blk *next; int n; rec_t r[REC_BLK]; } rec_blk;
+@@ -217,6 +225,7 @@ static inline IMP rx_imp(uint32_t op, id o, SEL s) {
+ #define RX_CALL(op, o, T, sel, ...) do { id rx_o_ = (o); if (rx_o_) ((T)rx_imp(op, rx_o_, @selector(sel)))(rx_o_, @selector(sel), __VA_ARGS__); } while (0)
+ static void dlss_fx_run(id cb, const uint64_t *a);   // nvn_dlss.inc: a[0] scaler, a[1..4] color / depth / motion / output (retained by the record), the rest its parameters
+ static void rec_exec(const rec_t *r) {
++    S2A_REC_EXEC_HOOK(r);   // RewindBox (patch 0469)
+     const uint64_t *a = r->a; id e = g_rx_enc;
+     switch (r->op) {
+     case RO_CB_NEW: g_rx_cb = g_m3 ? [g_q3 commandBufferWithUnretainedReferences] : [g_dev newCommandBuffer]; break;   // Metal 3: as m3_cb
+@@ -415,6 +424,7 @@ static void rec_lane_splice(void) {
+     pthread_mutex_unlock(&g_rb_mu);
+ }
+ static rec_t *rec_put(uint32_t op, uint32_t nobj) {
++    S2A_REC_PUT_HOOK(op);   // RewindBox (patch 0469)
+     if (g_rlane) { int k = g_rlane; rec_blk *b = g_lane_tail[k];
+         if (!b || b->n == REC_BLK) { rec_blk *nb = rec_blk_get(); if (b) b->next = nb; else g_lane_head[k] = nb; g_lane_tail[k] = b = nb; }
+         rec_t *r = &b->r[b->n++]; r->op = op; r->nobj = nobj; return r; }

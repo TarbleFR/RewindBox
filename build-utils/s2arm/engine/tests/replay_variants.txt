@@ -1,0 +1,8 @@
+# name  ENV=VALUE ...   (one optimization switch per line; "baseline" is the engine default)
+baseline
+rec_imp_off            S2A_RB_REC_IMP=0
+draw_barriers_full     S2A_RB_DRAW_BARRIERS=full
+producer_cover_on      DM_NVN_PRODUCER_COVER=1
+tbdr_store_lookahead   DM_NVN_TBDR=1
+noload_off             DM_NVN_NOLOAD=0
+tab_cache_off          S2A_RB_TAB_CACHE=0

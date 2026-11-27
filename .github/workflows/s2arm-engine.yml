@@ -332,6 +332,19 @@ jobs:
           dotnet build translator/dmsh_xlate/dmsh_xlate.csproj -c Release --nologo
           dotnet build graphics/tools/direct/tests/dsh_cmp/dsh_cmp.csproj -c Release --nologo
           python3 "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/test_wide_mem.py" "$PWD" | tee "$GITHUB_WORKSPACE/proof/wide-mem-checks.txt"
+      - name: Replay a synthetic NVN frame and compare hardware-independent backend metrics per switch
+        if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-replay-metrics]')
+        working-directory: ${{ runner.temp }}/s2arm
+        env:
+          S2A_DEVELOPER_DIR: ${{ env.DEVELOPER_DIR }}
+          S2A_BUILD_CACHE: ${{ runner.temp }}/s2arm-build-cache
+        run: |
+          set -euo pipefail
+          make -C graphics/nvn mac
+          make -j4 -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/host-tests.mk" build/tests/t_rb_replay_metrics
+          mkdir -p "$GITHUB_WORKSPACE/proof/replay-metrics"
+          python3 "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/replay_compare.py" build/tests/t_rb_replay_metrics \
+            "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/replay_variants.txt" "$GITHUB_WORKSPACE/proof/replay-metrics" 3 | tee "$GITHUB_WORKSPACE/proof/replay-metrics.md"
       - name: Time S2A.Dsh shader passes A/B on the Mac GPU (same process, output parity)
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-gpu-ab]')
         working-directory: ${{ runner.temp }}/s2arm
