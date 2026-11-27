@@ -1,0 +1,18 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -30720,7 +30720,13 @@
+     } else if (st == 2 && !mtl_gpu_halted() && dm_focus_now() == 1 && !atomic_load(&g_present_discard) && !atomic_exchange(&g_probe_busy, 1)) @autoreleasepool {   // the game's present thread never drains its implicit pool (see g_sub_pool): the command buffer, encoder and handler go with this one
+         uint64_t generation=atomic_load(&g_rb_probe_generation), scheduled=now_ns();
+         uint64_t energy_submitted = atomic_load_explicit(&g_rb_energy_mode, memory_order_relaxed) > 0 ? bp_now() : 0;
+-        id<MTLCommandBuffer> cb = [g_probe_q commandBuffer]; id<MTLComputeCommandEncoder> e = [cb computeCommandEncoder];
++        id<MTLCommandBuffer> cb = [g_probe_q commandBuffer];
++        id<MTLComputeCommandEncoder> e = [cb computeCommandEncoder];
++        if (!e) {
++            // A refused buffer or encoder cannot produce a valid sample.
++            atomic_store(&g_probe_busy, 0);
++            return last ? last / 1e6 : -1;
++        }
+         [e setComputePipelineState:g_probe_pso]; [e setBuffer:g_probe_buf offset:0 atIndex:0];
+         [e dispatchThreadgroups:MTLSizeMake(256, 1, 1) threadsPerThreadgroup:MTLSizeMake(64, 1, 1)]; [e endEncoding];
+         [cb addCompletedHandler:^(id<MTLCommandBuffer> c) {

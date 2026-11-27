@@ -910,10 +910,11 @@ Un mot de 64 bits par fichier réunit la position et la longueur du chemin. La l
 
 0506 publie sur option le premier bloc prêt de l’encodeur. 0507 permet sept calculs scalaires indépendants pendant le rejeu asynchrone. 0508 corrige le remboursement d’une réservation de présentation refusée en Metal 3. 0509 observe ou utilise un slot libre sur le délégué NVN2. 0510 relie les commandes Metal et les tickets d’affichage dans une fenêtre bornée. 0511 termine les lectures diagnostiques avant de rendre le slot au producteur. 0512 relève la cadence des présentations demandées aux minutes 1, 5, 10, 20 et 30. [Interrupteurs et protocole](../../../tools/s2arm_a18pro/NEXT_PARALLELISM.md).
 
-### 0513–0516 — contre-expertise thermique, Metal 4 et RomFS
+### 0513–0517 — contre-expertise thermique, Metal 4 et RomFS
 
 - **0513–0514** libèrent le plafond facultatif après deux relevés de charge légère et datent la sonde de sa soumission. Les régimes inéligibles interrompent la décision précédente.
 - **0515** vérifie l’arrêt GPU sur le chemin de présentation Metal 4 avant toute réservation et mise en file du drawable.
 - **0516** contrôle les chemins compacts de l’index RomFS à l’ouverture.
+- **0517** libère la réservation de sonde quand Metal ne fournit aucun encodeur valide.
 
 [Cas reproduits et limites](../../../docs/evidence/s2arm-counterreview-0513-0516.md).
