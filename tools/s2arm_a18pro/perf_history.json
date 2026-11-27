@@ -6825,7 +6825,8 @@
     "Direct lane-wise comparison of effective UBO caps on stable cache hits: +13.53% and +10.82% CPU time across binary orders on Linux. Preserve all invalidation semantics.",
     "Bulk copy across virtually disjoint intervals changed results for two views of the same backing storage in three public texture functions. Keep the row-order semantics.",
     "pc_get() MRU-first (2-slot linear probe) + 64 KiB page hash (addr >> 16): tested on 5 regimes x 6 runs (-O2, CPU 0, bench_pc_get.c); regressed 4 of 5 regimes (2pool_ring +18.6%, 4pool_ring +45.7% to +91.5% from 48 B slot copy churn, 16x4KB_adj 13.3x slower with misses 16 -> 194,148 from 64 KiB collisions, 64pool_rand +3.8% to +7.9%; only 32pool_rand improved -15.6%). Rejected; original 4 KiB pc_get() preserved untouched in nvn_mtl.m.",
-    "0468 draft, rec_put single-lock block hand-over (rec_publish + free-block take in one critical section): locks 4800 -> 2700 and 47400 -> 24000, but the isolated Linux bench (bench_0468_lock.c, same records, same encode worker, 12 alternated pairs, twice) gave paired medians +2.98%/+6.89% then -0.93%/-4.05% with IQRs spanning zero. No reproducible gain; rejected. The draft's combined -23.58% (bench_0468_rec.c) is withdrawn: it compared a mocked objc_msgSend and a malloc per proxy against direct calls and a pool, not the engine."
+    "0468 draft, rec_put single-lock block hand-over (rec_publish + free-block take in one critical section): locks 4800 -> 2700 and 47400 -> 24000, but the isolated Linux bench (bench_0468_lock.c, same records, same encode worker, 12 alternated pairs, twice) gave paired medians +2.98%/+6.89% then -0.93%/-4.05% with IQRs spanning zero. No reproducible gain; rejected. The draft's combined -23.58% (bench_0468_rec.c) is withdrawn: it compared a mocked objc_msgSend and a malloc per proxy against direct calls and a pool, not the engine.",
+    "0469 draft, store lookahead index (nvn_be_sub_index): keep each event's bucket from sdx_ev_add in a parallel uint16 array instead of two more hash probes per event in the counting sort. Byte-identical index (ASan+UBSan verify, 3 regimes), but no gain: bench_0469_sdx.c, 12 alternated pairs, CPU 0, paired medians -0.79% (p25 -9.41%, p75 +0.18%), -0.43% (-1.31%, +1.54%), +0.49% (+0.34%, +1.12%) for 729 / 4177 / 11553 events per submission. The walk's add-time probes dominate; rejected."
   ],
   "remaining_bottlenecks": [
     "Metal encode-thread command recording: dispatch share reduced by 0468 (per-class IMP); the Metal work inside each call and DmRecEnc stand-in allocation (~35 ns per encoder) remain, unmeasured on device",
@@ -6833,7 +6834,7 @@
     "First-use pipeline compilation and residency measured separately from CPU key construction",
     "Presentation queue scheduling, native frame pacing and physical iPhone 16 Pro Max 1x 60 FPS / thermal validation (unmeasured)"
   ],
-  "next_axis": "Submission lookahead CPU cost (sdx_walk, udc/fb/defer pass analysis) and GPU frametime: isolate each lookahead on synthetic submissions with >= 5 alternated pairs vs 0436 baseline and 0468 best intermediate, parity of decisions, ASan+UBSan/TSan, zero degradation, macOS-26 Metal verification. iPhone 16 Pro Max 1x 60 FPS and thermal remain unmeasured.",
+  "next_axis": "PSO prediction scan rebind cost (pso_predict_rest_ ends with args_dirty_all): add an engine Metal test that replays a synthetic submission with a pipeline miss and counts re-encoded argument slots and vertex buffers, with an S2A_RB_* A/B switch measured in the same CI run (>= 5 alternated pairs), proving identical encoded state before changing the clocks. Then first-use pipeline compilation (pipeline_driver) A/B inside one run. iPhone 1x FPS and thermal remain unmeasured.",
   "legacy_note": "First 21 entries are original host summaries. Their draft patch numbers describe historical experiments; numbers may differ from integrated engine patches. Cachegrind counters are on x86. The uncalibrated projections were withdrawn. No legacy entry establishes fidelity, A18 Pro frametime, GPU time, energy, RAM or FPS.",
   "initial_reference": "0426",
   "intermediate_reference": "0436 (8be902ac0)",
@@ -6850,10 +6851,11 @@
     "consecutive_rejections_after_0463_before_0464": 0,
     "rejected_during_0464_0466_cycle": 1,
     "consecutive_rejections_at_0466": 0,
-    "last_updated": "2026-11-27T07:00:00Z",
+    "last_updated": "2026-11-27T08:00:00Z",
     "consecutive_rejections_at_0467": 0,
     "consecutive_rejections_after_0468_lock_merge": 1,
-    "consecutive_rejections_at_0468": 0
+    "consecutive_rejections_at_0468": 0,
+    "consecutive_rejections_after_0469_sdx_bucket": 1
   },
   "device_metrics": {
     "native_fps": null,
@@ -7073,5 +7075,18 @@
       },
       "physical_iphone_16_pro_max_status": "not measured"
     }
-  }
+  },
+  "dismissed_by_analysis": [
+    {
+      "date": "2026-11-27",
+      "candidate": "Restore the argument dirty state saved before the PSO prediction / no-load / coverage scans (pso_predict_rest_, pass_color_unwritten, fz_probe_cov2) instead of args_dirty_all()",
+      "why_not_done": "args_dirty_all bumps 0464's monotonic per-slot generation clocks; restoring older generations would reuse values that per-shader snapshots compare against. Runs only at pipeline misses (at most a few per submission), not in steady frames. Needs an engine Metal test that counts re-encoded slots with an A/B switch inside one CI run before any change."
+    }
+  ],
+  "measurement_notes": [
+    {
+      "date": "2026-11-27",
+      "note": "Homebrew pacing host (measure.m, engine-independent) gave gpu_work p50 0.776-0.818 ms in run 45945441918 and 0.355-0.458 ms in run 45953045391: runner-to-runner variance on GitHub macOS 26 VMs. Numbers from different CI runs are not comparable; only pairs inside one run count."
+    }
+  ]
 }

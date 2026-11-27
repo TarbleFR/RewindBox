@@ -173,3 +173,11 @@ Axe : coût Objective-C du fil d’encodage Metal (`nvn_rec.h`).
 - **Compilation.** Moteur compilé sur macOS 15 et 26 (run [`45953045391`](https://github.com/TarbleFR/RewindBox/actions/runs/45953045391)). Interrupteur `S2A_RB_REC_IMP=0`.
 
 Temps d’image, FPS et chauffe sur iPhone : non mesurés. Échecs consécutifs : 0 après `0468` (1 rejet dans le cycle). Prochain axe : coût CPU des pré-analyses de soumission (`sdx_walk`, `udc`/`fb`/`defer`) et temps d’image GPU.
+
+### Suite : pré-analyses de soumission (`0469`, non retenu)
+
+- **Rejeté : garder le compartiment de chaque événement de l’index de stockage.** Le compartiment trouvé dans `sdx_ev_add` est gardé au lieu de deux recherches de plus par événement dans le tri. L’index reste identique octet pour octet (ASan+UBSan, 3 régimes), mais le gain est nul : [`bench_0469_sdx.c`](dispatch/bench_0469_sdx.c), 12 paires sur un seul cœur, médianes `−0,79 %`, `−0,43 %`, `+0,49 %` pour 729, 4 177 et 11 553 événements par soumission, avec des écarts qui traversent zéro ou restent positifs. Le parcours domine.
+- **Écarté après analyse : restaurer l’état « sale » des arguments après les pré-analyses** (`pso_predict_rest_`, `pass_color_unwritten`, `fz_probe_cov2`). `args_dirty_all` avance les horloges monotones de `0464` ; les remettre en arrière réutiliserait des valeurs déjà comparées. Ces pré-analyses ne tournent qu’aux défauts de pipeline. Il faut d’abord un test Metal moteur qui compte les liaisons réencodées, avec interrupteur A/B, dans un même run.
+- **Mesure à ne pas comparer.** Le banc de rythme homebrew, indépendant du moteur, donne un temps GPU médian de `0,78 ms` dans le run `45945441918` et de `0,38 ms` dans le run `45953045391`. C’est la variance entre runners : seules les paires mesurées dans un même run comptent.
+
+Échecs consécutifs : 1. Prochain axe : coût de reliaison après la pré-analyse des pipelines, mesuré par un test Metal A/B dans un même run, puis compilation des pipelines au premier usage en A/B.
