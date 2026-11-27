@@ -31,6 +31,8 @@ typedef void (^FlutterResult)(id);
 @end
 @interface ImportProbe : NSObject
 @property(atomic) BOOL wiimmfiImportActive;
+@property(nonatomic, copy) NSDictionary<NSString*, id>* wiimmfiLastGame;
+@property(nonatomic, assign) BOOL wiimmfiLastCoreConfigured;
 @property(atomic) BOOL launchInProgress;
 @property(atomic) BOOL stopInProgress;
 @property(nonatomic,strong) UIViewController* dolphinController;

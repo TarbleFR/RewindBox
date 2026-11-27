@@ -127,7 +127,7 @@ jobs:
           test "$(lipo -archs "$CORE")" = "arm64"
 
           nm -gU "$CORE" > build/dolphin-core-diagnostics/exports.txt
-          for symbol in _neostation_dolphin_wiimmfi_abi _neostation_dolphin_wiimmfi_import _neostation_dolphin_wiimmfi_nand_ready _neostation_dolphin_wiimmfi_configure _neostation_dolphin_wiimmfi_import_progress _neostation_dolphin_wiimmfi_cancel_import _neostation_dolphin_wiimmfi_interrupt_boot; do
+          for symbol in _neostation_dolphin_wiimmfi_abi _neostation_dolphin_wiimmfi_import _neostation_dolphin_wiimmfi_nand_ready _neostation_dolphin_wiimmfi_tls_ready _neostation_dolphin_wiimmfi_diagnostic _neostation_dolphin_wiimmfi_core_revision _neostation_dolphin_wiimmfi_configure _neostation_dolphin_wiimmfi_import_progress _neostation_dolphin_wiimmfi_cancel_import _neostation_dolphin_wiimmfi_interrupt_boot; do
             grep -q " $symbol$" build/dolphin-core-diagnostics/exports.txt
           done
           for symbol in             _neostation_dolphin_initialize             _neostation_dolphin_launch             _neostation_dolphin_menu_snapshot             _neostation_dolphin_cheats_snapshot             _neostation_dolphin_set_cheats_enabled             _neostation_dolphin_set_cheat_enabled             _neostation_dolphin_download_gecko_codes             _neostation_dolphin_set_achievement_presenter; do
@@ -157,7 +157,7 @@ jobs:
               'sha256': hashlib.sha256(core.read_bytes()).hexdigest(),
               'architectures': ['arm64'],
               'abi': 'NeoStation Dolphin internal v3 + cheat manager',
-              'wiimmfi_abi': 4,
+              'wiimmfi_abi': 5,
               'cheat_catalogues': ['Gecko/WiiRD', 'Action Replay/local INI'],
               'device_runtime_tested': False,
               'achievement_presenter': 1,

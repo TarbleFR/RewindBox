@@ -132,6 +132,116 @@ extern "C" bool neostation_dolphin_wiimmfi_network_allowed() __attribute__((weak
         path.write_text(text)
 
 
+def patch_wfc_session_diagnostics(root: Path) -> None:
+    def insert(relative: str, anchor: str, replacement: str, count=1):
+        path = root / 'Source/Core' / relative
+        text = path.read_text()
+        if replacement not in text:
+            if text.count(anchor) != count:
+                raise SystemExit(f'Pinned Wiimmfi diagnostic changed: {relative}: {anchor[:80]}')
+            path.write_text(text.replace(anchor, replacement))
+
+    def declaration(relative: str, anchor: str, signature: str):
+        insert(relative, anchor, f'#ifdef IPHONEOS\nextern "C" {signature};\n#endif\n\n' + anchor)
+
+    def observe(relative: str, anchor: str, expression: str, count=1):
+        insert(relative, anchor, anchor + f'\n#ifdef IPHONEOS\n  neostation_dolphin_wiimmfi_observe({expression});\n#endif', count)
+
+    # Keep the verified RewindBox NAND selected when Dolphin reloads paths from INIs.
+    ui = 'UICommon/UICommon.cpp'
+    declaration(ui, 'namespace UICommon\n{', 'bool neostation_dolphin_wiimmfi_network_allowed()')
+    custom = '  File::SetUserPath(D_WIIROOT_IDX, Config::Get(Config::MAIN_FS_PATH));'
+    insert(ui, custom, '''#ifdef IPHONEOS
+  if (neostation_dolphin_wiimmfi_network_allowed())
+    File::SetUserPath(D_WIIROOT_IDX, File::GetUserPath(D_USER_IDX) + "Wii/");
+  else
+#endif
+  ''' + custom.lstrip())
+    boot = 'Core/BootManager.cpp'
+    declaration(boot, 'namespace BootManager\n{', 'bool neostation_dolphin_wiimmfi_validate_boot_nand(bool deterministic)')
+    anchor = '  Core::UpdateWantDeterminism(system, /*initial*/ true);'
+    insert(boot, anchor, anchor + '''
+
+#ifdef IPHONEOS
+  if (!neostation_dolphin_wiimmfi_validate_boot_nand(Core::WantsDeterminism()))
+    return false;
+#endif''')
+    ios = 'Core/IOS/IOS.cpp'
+    declaration(ios, 'namespace IOS::HLE\n{', 'void neostation_dolphin_wiimmfi_observe_ios_identity(bool personal)')
+    anchor = '  INFO_LOG_FMT(IOS, "Starting IOS {:016x}", title_id);'
+    insert(ios, anchor, anchor + '''
+#ifdef IPHONEOS
+  neostation_dolphin_wiimmfi_observe_ios_identity(!GetIOSC().IsUsingDefaultId());
+#endif''')
+
+    ssl = 'Core/IOS/Network/SSL.cpp'
+    anchor = '\nstd::optional<IPCReply> NetSSLDevice::IOCtlV('
+    insert(ssl, anchor, '''
+#ifdef IPHONEOS
+extern "C" bool neostation_dolphin_wiimmfi_tls_files_valid(const std::string& root)
+{
+  const auto valid = [&root](const char* name, const std::array<u8, 32>& expected) {
+    File::IOFile file(root + "/" + name, "rb");
+    const auto size = file.GetSize();
+    if (size < 32 || size > 64 * 1024) return false;
+    std::vector<u8> bytes(size);
+    std::array<u8, 32> hash{};
+    return file.ReadBytes(bytes.data(), bytes.size()) &&
+           mbedtls_sha256_ret(bytes.data(), bytes.size(), hash.data(), 0) == 0 && hash == expected;
+  };
+  return valid("clientca.pem", s_client_cert_hash) &&
+         valid("clientcakey.pem", s_client_key_hash) && valid("rootca.pem", s_root_ca_hash);
+}
+#endif
+''' + anchor)
+
+    top = 'Core/IOS/Network/IP/Top.cpp'
+    sock = 'Core/IOS/Network/Socket.cpp'
+    for relative in (top, sock):
+        declaration(relative, 'namespace IOS::HLE\n{', 'void neostation_dolphin_wiimmfi_observe(s32 event)')
+    observe(top, '  hostent* remoteHost = gethostbyname(hostname.c_str());',
+            'remoteHost && remoteHost->h_addr_list && remoteHost->h_addr_list[0] ? 0 : 1', 2)
+    observe(top, '  int ret = getaddrinfo(pNodeName, pServiceName, hints_valid ? &hints : nullptr, &result);',
+            'ret == 0 && result ? 0 : 1')
+    # Darwin point-to-point VPN/cellular interfaces need not have a broadcast address.
+    anchor = '    return reinterpret_cast<const sockaddr_in*>(addr)->sin_addr;'
+    insert(top, anchor, '''#ifdef IPHONEOS
+    if (!addr || addr->sa_family != AF_INET) return in_addr{};
+#endif
+''' + anchor)
+    anchor = 'get_addr(iface->ifa_broadaddr), routing_table};'
+    insert(top, anchor, '''
+#ifdef IPHONEOS
+                              (iface->ifa_flags & IFF_BROADCAST) ? get_addr(iface->ifa_broadaddr) : in_addr{},
+                              routing_table};
+#else
+                              ''' + anchor + '\n#endif')
+    insert(top, '#include <ifaddrs.h>', '#include <ifaddrs.h>\n#ifdef IPHONEOS\n#include <net/if.h>\n#endif')
+
+    anchor = '  return AddSocket(fd, false);'
+    insert(sock, anchor, '''  const auto result = AddSocket(fd, false);
+#ifdef IPHONEOS
+  neostation_dolphin_wiimmfi_observe(result >= 0 ? 2 : 3);
+#endif
+  return result;''')
+    anchor = '  SetLastNetError(return_value);'
+    insert(sock, anchor, anchor + '''
+#ifdef IPHONEOS
+  if (return_value == -SO_ETIMEDOUT)
+    neostation_dolphin_wiimmfi_observe(7);
+  else if (caller == "SO_CONNECT" && return_value != -SO_EAGAIN && return_value != -SO_EALREADY &&
+           return_value != -SO_EINPROGRESS && return_value != -SO_EISCONN)
+    neostation_dolphin_wiimmfi_observe(3);
+#endif''')
+    observe(sock, '            connecting_state = ConnectingState::Error;', '7')
+    anchor = '            const int ret = mbedtls_ssl_handshake(ctx);'
+    insert(sock, anchor, anchor + '''
+#ifdef IPHONEOS
+            if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE)
+              neostation_dolphin_wiimmfi_observe(ret == 0 ? 4 : ret == MBEDTLS_ERR_X509_CERT_VERIFY_FAILED ? 5 : 6);
+#endif''')
+
+
 def patch_nand_importer(root: Path) -> None:
     header = root / 'Source/Core/DiscIO/NANDImporter.h'
     source = root / 'Source/Core/DiscIO/NANDImporter.cpp'

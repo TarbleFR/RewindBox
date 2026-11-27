@@ -36,11 +36,13 @@ class DolphinProcessLifecycleTests(unittest.TestCase):
         source = bridge_source()
         harness = r'''
 #include <atomic>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <mutex>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 int ui_init=0, controllers_init=0, process_shutdown=0, joins=0, host_depth=0, achievement_clears=0;
 bool uninitialized=true, stop_requested=false, achievement_configuration_active=false;
@@ -56,6 +58,19 @@ bool g_validated_wii_menu=false;
 bool g_wiimmfi_session=false;
 std::atomic<bool> g_wiimmfi_network_allowed{false};
 std::atomic<bool> g_wiimmfi_boot_interrupted{false};
+std::string g_wiimmfi_previous_nand_root;
+std::atomic<int32_t> g_wiimmfi_nand_stage{0};
+std::array<std::atomic<uint32_t>, 8> g_wiimmfi_network_events{};
+constexpr int D_WIIROOT_IDX=0;
+constexpr int D_SESSION_WIIROOT_IDX=1;
+namespace File {
+std::string wii_root="User/Wii/", session_root="User/Wii/";
+const std::string& GetUserPath(int index) { return index==D_WIIROOT_IDX?wii_root:session_root; }
+void SetUserPath(int, std::string path) { wii_root=std::move(path); }
+}
+bool DOLWiimmfiNANDReady(const std::string&) { return true; }
+bool tls_files_valid=true;
+bool neostation_dolphin_wiimmfi_tls_files_valid(const std::string&) { return tls_files_valid; }
 void* g_metal_surface=nullptr;
 double g_metal_scale=1;
 std::optional<int> g_devices_callback;
@@ -119,6 +134,12 @@ template<class F> void DOLHostQueueRunSync(F block) { ++host_depth; block(); --h
         for signature in ('void ResetSessionFlags()', 'void ShutdownRuntime(',
                           'int32_t neostation_dolphin_initialize(',
                           'int32_t neostation_dolphin_stop(',
+                          'bool neostation_dolphin_wiimmfi_network_allowed()',
+                          'void neostation_dolphin_wiimmfi_observe(int32_t',
+                          'int32_t neostation_dolphin_wiimmfi_diagnostic(',
+                          'int32_t neostation_dolphin_wiimmfi_configure(',
+                          'bool neostation_dolphin_wiimmfi_validate_boot_nand(',
+                          'void neostation_dolphin_wiimmfi_observe_ios_identity(',
                           'void neostation_dolphin_wiimmfi_interrupt_boot()'):
             harness += '\n' + function(source, signature)
         harness += r'''
@@ -139,6 +160,29 @@ int main() {
    assert(g_metal_surface==nullptr && g_boot_language==-1);
    assert(neostation_dolphin_initialize("anotherUser","Sys","bad")==0);
    assert(g_log_path==logfile && g_user_directory=="User");
+   if (cycle%2==0) {
+     File::wii_root="OtherNand/";
+     tls_files_valid=false;
+     assert(!neostation_dolphin_wiimmfi_configure(1));
+     assert(!g_wiimmfi_network_allowed && neostation_dolphin_wiimmfi_diagnostic(-1)==-2);
+     tls_files_valid=true;
+     assert(neostation_dolphin_wiimmfi_configure(1)==1 && g_wiimmfi_network_allowed);
+     assert(File::wii_root=="User/Wii" && g_wiimmfi_previous_nand_root=="OtherNand/");
+     assert(!neostation_dolphin_wiimmfi_validate_boot_nand(false));
+     File::wii_root="User/Wii/";
+     assert(!neostation_dolphin_wiimmfi_validate_boot_nand(true));
+     assert(neostation_dolphin_wiimmfi_validate_boot_nand(false));
+     neostation_dolphin_wiimmfi_observe_ios_identity(false);
+     assert(neostation_dolphin_wiimmfi_diagnostic(-1)==-4);
+     File::session_root="OtherNand/";
+     neostation_dolphin_wiimmfi_observe_ios_identity(true);
+     assert(neostation_dolphin_wiimmfi_diagnostic(-1)==-4);
+     File::session_root="User/Wii/";
+     neostation_dolphin_wiimmfi_observe_ios_identity(true);
+     assert(neostation_dolphin_wiimmfi_diagnostic(-1)==3);
+     neostation_dolphin_wiimmfi_observe(5);
+     assert(neostation_dolphin_wiimmfi_diagnostic(5)==1);
+   }
    g_validated_system=cycle%2 ? "gc" : "wii";
    g_validated_game="game";
    g_running=true; uninitialized=false;
@@ -158,6 +202,9 @@ int main() {
    assert(!g_wiimmfi_session);
    assert(!g_wiimmfi_network_allowed);
    assert(!g_wiimmfi_boot_interrupted);
+   assert(File::wii_root=="OtherNand/" && g_wiimmfi_previous_nand_root.empty());
+   neostation_dolphin_wiimmfi_observe(5);
+   assert(neostation_dolphin_wiimmfi_diagnostic(5)==1);
    assert(g_initialized && process_shutdown==0);
    assert(g_metal_surface==nullptr && g_validated_game.empty());
    assert(current_scale==0 && !g_capture_previous_scale);

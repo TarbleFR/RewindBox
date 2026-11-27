@@ -12,6 +12,15 @@ abstract final class WiimmfiLocale {
         : locale?.languageCode],
   };
   static const _en = {
+    "officialPatcher": "Open the official patcher",
+    "prepareGameHelp": "On a computer, patch a copy of your ISO or WBFS. If you have an RVZ, convert a separate copy to ISO in Dolphin first. Import the patcher output into RewindBox and register that copy.",
+    "tlsFilesAccepted": "Wii TLS files recognized by Dolphin",
+    "tlsFilesRejected": "Dolphin rejects the Wii TLS files. Reimport your own BootMii backup.",
+    "identityLoaded": "Dolphin loaded the personal Wii identity",
+    "identityNotLoaded": "Dolphin could not load the imported identity. Check the NAND import.",
+    "exportDiagnostic": "Export Wiimmfi diagnostic",
+    "loginRejected": "Wiimmfi rejected a login parameter. Check the official advice for this code.",
+    "timeout": "Timed out",
     "simpleIntro":
         "Prepare your Wii console once and your game with the official patcher, then enable online services.",
     "servicesConsolePrepared":
@@ -103,6 +112,15 @@ abstract final class WiimmfiLocale {
   };
   static const _values = <String, Map<String, String>>{
     'fr': {
+      "officialPatcher": "Ouvrir le patcher officiel",
+      "prepareGameHelp": "Sur ordinateur, applique le patch à une copie ISO ou WBFS. Pour un RVZ, convertis d’abord une copie en ISO dans Dolphin. Importe dans RewindBox le fichier produit par le patcher, puis déclare cette copie.",
+      "tlsFilesAccepted": "Fichiers TLS Wii reconnus par Dolphin",
+      "tlsFilesRejected": "Dolphin refuse les fichiers TLS Wii. Réimporte ta propre sauvegarde BootMii.",
+      "identityLoaded": "Dolphin a chargé l’identité de ta Wii",
+      "identityNotLoaded": "Dolphin n’a pas chargé l’identité importée. Vérifie l’import de la NAND.",
+      "exportDiagnostic": "Exporter le diagnostic Wiimmfi",
+      "loginRejected": "Wiimmfi a refusé un paramètre de connexion. Consulte l’aide officielle pour ce code.",
+      "timeout": "Délai dépassé",
       "simpleIntro":
           "Préparez votre console Wii une seule fois et votre jeu avec le patcher officiel, puis activez les services en ligne.",
       "servicesConsolePrepared":
@@ -200,6 +218,15 @@ abstract final class WiimmfiLocale {
       'wiimmfiSlow': 'Émulation trop lente',
     },
     "de": {
+      "officialPatcher": "Offiziellen Patcher öffnen",
+      "prepareGameHelp": "Patche am Computer eine ISO- oder WBFS-Kopie. Konvertiere bei RVZ zuerst eine Kopie in Dolphin zu ISO. Importiere das Ergebnis in RewindBox und registriere diese Kopie.",
+      "tlsFilesAccepted": "Dolphin erkennt die Wii-TLS-Dateien",
+      "tlsFilesRejected": "Dolphin lehnt die Wii-TLS-Dateien ab. Importiere dein BootMii-Backup erneut.",
+      "identityLoaded": "Dolphin hat deine Wii-Identität geladen",
+      "identityNotLoaded": "Dolphin konnte die importierte Identität nicht laden. Prüfe den NAND-Import.",
+      "exportDiagnostic": "Wiimmfi-Diagnose exportieren",
+      "loginRejected": "Wiimmfi hat einen Anmeldeparameter abgelehnt. Prüfe die offizielle Hilfe für diesen Code.",
+      "timeout": "Zeitüberschreitung",
       "simpleIntro":
           "Bereite deine Wii-Konsole einmal vor und patche dein Spiel mit dem offiziellen Patcher. Aktiviere dann die Online-Dienste.",
       "servicesConsolePrepared":
@@ -299,6 +326,15 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "Emulation zu langsam",
     },
     "es": {
+      "officialPatcher": "Abrir el parcheador oficial",
+      "prepareGameHelp": "En un ordenador, parchea una copia ISO o WBFS. Si tienes un RVZ, convierte primero una copia a ISO en Dolphin. Importa el resultado en RewindBox y registra esa copia.",
+      "tlsFilesAccepted": "Dolphin reconoce los archivos TLS de Wii",
+      "tlsFilesRejected": "Dolphin rechaza los archivos TLS de Wii. Vuelve a importar tu copia de BootMii.",
+      "identityLoaded": "Dolphin ha cargado la identidad de tu Wii",
+      "identityNotLoaded": "Dolphin no cargó la identidad importada. Revisa la importación de la NAND.",
+      "exportDiagnostic": "Exportar diagnóstico de Wiimmfi",
+      "loginRejected": "Wiimmfi rechazó un parámetro de inicio de sesión. Consulta la ayuda oficial del código.",
+      "timeout": "Tiempo agotado",
       "simpleIntro":
           "Prepara tu consola Wii una vez y tu juego con el parcheador oficial; después activa los servicios en línea.",
       "servicesConsolePrepared":
@@ -398,6 +434,15 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "Emulación demasiado lenta",
     },
     "it": {
+      "officialPatcher": "Apri il patcher ufficiale",
+      "prepareGameHelp": "Su un computer, applica la patch a una copia ISO o WBFS. Per un RVZ, converti prima una copia in ISO con Dolphin. Importa il risultato in RewindBox e registra quella copia.",
+      "tlsFilesAccepted": "Dolphin riconosce i file TLS Wii",
+      "tlsFilesRejected": "Dolphin rifiuta i file TLS Wii. Importa di nuovo il tuo backup BootMii.",
+      "identityLoaded": "Dolphin ha caricato l’identità della tua Wii",
+      "identityNotLoaded": "Dolphin non ha caricato l’identità importata. Controlla l’importazione NAND.",
+      "exportDiagnostic": "Esporta la diagnostica Wiimmfi",
+      "loginRejected": "Wiimmfi ha rifiutato un parametro di accesso. Consulta la guida ufficiale per il codice.",
+      "timeout": "Tempo scaduto",
       "simpleIntro":
           "Prepara la tua console Wii una volta e il gioco con il patcher ufficiale, poi attiva i servizi online.",
       "servicesConsolePrepared":
@@ -500,6 +545,15 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "Emulazione troppo lenta",
     },
     "pt": {
+      "officialPatcher": "Abrir o patcher oficial",
+      "prepareGameHelp": "Num computador, aplica o patch a uma cópia ISO ou WBFS. Se tens um RVZ, converte primeiro uma cópia para ISO no Dolphin. Importa o resultado no RewindBox e regista essa cópia.",
+      "tlsFilesAccepted": "O Dolphin reconhece os ficheiros TLS da Wii",
+      "tlsFilesRejected": "O Dolphin rejeita os ficheiros TLS da Wii. Volta a importar a tua cópia BootMii.",
+      "identityLoaded": "O Dolphin carregou a identidade da tua Wii",
+      "identityNotLoaded": "O Dolphin não carregou a identidade importada. Verifica a importação da NAND.",
+      "exportDiagnostic": "Exportar diagnóstico Wiimmfi",
+      "loginRejected": "O Wiimmfi rejeitou um parâmetro de autenticação. Consulta a ajuda oficial do código.",
+      "timeout": "Tempo esgotado",
       "simpleIntro":
           "Prepare a sua consola Wii uma vez e o jogo com a ferramenta oficial de patches; depois ative os serviços online.",
       "servicesConsolePrepared":
@@ -597,6 +651,15 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "Emulação demasiado lenta",
     },
     "ru": {
+      "officialPatcher": "Открыть официальный патчер",
+      "prepareGameHelp": "На компьютере примените патч к копии ISO или WBFS. Для RVZ сначала преобразуйте копию в ISO в Dolphin. Импортируйте результат в RewindBox и зарегистрируйте эту копию.",
+      "tlsFilesAccepted": "Dolphin распознал файлы TLS Wii",
+      "tlsFilesRejected": "Dolphin отклонил файлы TLS Wii. Снова импортируйте свою копию BootMii.",
+      "identityLoaded": "Dolphin загрузил идентификатор вашей Wii",
+      "identityNotLoaded": "Dolphin не загрузил импортированный идентификатор. Проверьте импорт NAND.",
+      "exportDiagnostic": "Экспорт диагностики Wiimmfi",
+      "loginRejected": "Wiimmfi отклонил параметр входа. См. официальную справку по коду.",
+      "timeout": "Время ожидания истекло",
       "simpleIntro":
           "Подготовьте консоль Wii один раз и обработайте игру официальным патчером, затем включите сетевые службы.",
       "servicesConsolePrepared":
@@ -697,6 +760,15 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "Слишком медленная эмуляция",
     },
     "id": {
+      "officialPatcher": "Buka patcher resmi",
+      "prepareGameHelp": "Di komputer, terapkan patch pada salinan ISO atau WBFS. Untuk RVZ, konversikan salinan ke ISO di Dolphin terlebih dahulu. Impor hasilnya ke RewindBox dan daftarkan salinan tersebut.",
+      "tlsFilesAccepted": "Dolphin mengenali berkas TLS Wii",
+      "tlsFilesRejected": "Dolphin menolak berkas TLS Wii. Impor ulang cadangan BootMii milikmu.",
+      "identityLoaded": "Dolphin memuat identitas Wii milikmu",
+      "identityNotLoaded": "Dolphin tidak dapat memuat identitas yang diimpor. Periksa impor NAND.",
+      "exportDiagnostic": "Ekspor diagnostik Wiimmfi",
+      "loginRejected": "Wiimmfi menolak parameter login. Lihat bantuan resmi untuk kode tersebut.",
+      "timeout": "Waktu habis",
       "simpleIntro":
           "Siapkan konsol Wii Anda sekali dan game dengan patcher resmi, lalu aktifkan layanan daring.",
       "servicesConsolePrepared":
@@ -792,6 +864,15 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "Emulasi terlalu lambat",
     },
     "ja": {
+      "officialPatcher": "公式パッチャーを開く",
+      "prepareGameHelp": "PCでISOまたはWBFSのコピーにパッチを適用してください。RVZは先にDolphinでコピーをISOに変換し、作成されたファイルをRewindBoxにインポートして登録してください。",
+      "tlsFilesAccepted": "DolphinがWiiのTLSファイルを認識しました",
+      "tlsFilesRejected": "DolphinがWiiのTLSファイルを拒否しました。自分のBootMiiバックアップを再インポートしてください。",
+      "identityLoaded": "Dolphinが自分のWiiの識別情報を読み込みました",
+      "identityNotLoaded": "Dolphinがインポート済みの識別情報を読み込めませんでした。NANDのインポートを確認してください。",
+      "exportDiagnostic": "Wiimmfi診断をエクスポート",
+      "loginRejected": "Wiimmfiがログインのパラメーターを拒否しました。公式のエラーコード案内を確認してください。",
+      "timeout": "タイムアウト",
       "simpleIntro": "Wii本体を一度準備し、公式パッチャーでゲームを準備してから、オンラインサービスを有効にしてください。",
       "servicesConsolePrepared":
           "本体の準備完了 · 公式ツールでゲームにパッチを適用し、そのゲームのWiimmfi設定で登録してください。",
@@ -872,6 +953,15 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "エミュレーション速度が不足",
     },
     "ko": {
+      "officialPatcher": "공식 패처 열기",
+      "prepareGameHelp": "컴퓨터에서 ISO 또는 WBFS 사본에 패치를 적용하세요. RVZ는 먼저 Dolphin에서 사본을 ISO로 변환하세요. 결과를 RewindBox로 가져와 해당 사본을 등록하세요.",
+      "tlsFilesAccepted": "Dolphin이 Wii TLS 파일을 인식했습니다",
+      "tlsFilesRejected": "Dolphin이 Wii TLS 파일을 거부했습니다. 본인의 BootMii 백업을 다시 가져오세요.",
+      "identityLoaded": "Dolphin이 본인의 Wii 식별 정보를 불러왔습니다",
+      "identityNotLoaded": "Dolphin이 가져온 식별 정보를 불러오지 못했습니다. NAND 가져오기를 확인하세요.",
+      "exportDiagnostic": "Wiimmfi 진단 내보내기",
+      "loginRejected": "Wiimmfi가 로그인 매개변수를 거부했습니다. 해당 코드의 공식 도움말을 확인하세요.",
+      "timeout": "시간 초과",
       "simpleIntro": "Wii 본체를 한 번 준비하고 공식 패치 도구로 게임을 준비한 다음 온라인 서비스를 활성화하세요.",
       "servicesConsolePrepared":
           "본체 준비 완료 · 공식 도구로 게임을 패치한 다음 해당 게임의 Wiimmfi 설정에서 등록하세요.",
@@ -953,6 +1043,15 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "에뮬레이션 속도 부족",
     },
     "zh": {
+      "officialPatcher": "打开官方补丁工具",
+      "prepareGameHelp": "在电脑上给 ISO 或 WBFS 副本打补丁。如果是 RVZ，先在 Dolphin 中将副本转换为 ISO。把补丁工具生成的文件导入 RewindBox 并登记该副本。",
+      "tlsFilesAccepted": "Dolphin 已识别 Wii 的 TLS 文件",
+      "tlsFilesRejected": "Dolphin 拒绝了 Wii 的 TLS 文件。请重新导入你自己的 BootMii 备份。",
+      "identityLoaded": "Dolphin 已加载你的 Wii 身份",
+      "identityNotLoaded": "Dolphin 未能加载导入的身份。请检查 NAND 导入。",
+      "exportDiagnostic": "导出 Wiimmfi 诊断",
+      "loginRejected": "Wiimmfi 拒绝了某个登录参数。请查看此代码的官方帮助。",
+      "timeout": "已超时",
       "simpleIntro": "首次准备好您的 Wii 主机，并使用官方补丁工具准备游戏，然后启用在线服务。",
       "servicesConsolePrepared":
           "主机已准备好 · 请使用官方工具为游戏打补丁，然后在该游戏的 Wiimmfi 设置中登记。",
@@ -1031,6 +1130,15 @@ abstract final class WiimmfiLocale {
       "wiimmfiSlow": "模拟速度不足",
     },
     "zhHant": {
+      "officialPatcher": "開啟官方修補工具",
+      "prepareGameHelp": "在電腦上修補 ISO 或 WBFS 副本。如果是 RVZ，先在 Dolphin 將副本轉為 ISO。將修補工具產生的檔案匯入 RewindBox 並登記該副本。",
+      "tlsFilesAccepted": "Dolphin 已識別 Wii 的 TLS 檔案",
+      "tlsFilesRejected": "Dolphin 拒絕了 Wii 的 TLS 檔案。請重新匯入你自己的 BootMii 備份。",
+      "identityLoaded": "Dolphin 已載入你的 Wii 身分",
+      "identityNotLoaded": "Dolphin 無法載入匯入的身分。請檢查 NAND 匯入。",
+      "exportDiagnostic": "匯出 Wiimmfi 診斷",
+      "loginRejected": "Wiimmfi 拒絕了某個登入參數。請查看此代碼的官方說明。",
+      "timeout": "已逾時",
       "simpleIntro": "首次準備好您的 Wii 主機，並使用官方修補工具準備遊戲，然後啟用線上服務。",
       "servicesConsolePrepared":
           "主機已準備好 · 請使用官方工具為遊戲套用修補程式，然後在該遊戲的 Wiimmfi 設定中登記。",
@@ -1114,7 +1222,8 @@ abstract final class WiimmfiLocale {
   static String errorKey(String code) {
     if (code == '23904') return 'patchOld';
     if (code == '23905') return 'patchRestart';
-    if (code == '23918' || code == '23934') return 'nandError';
+    if (code == '23918') return 'nandError';
+    if (code == '23934') return 'loginRejected';
     if (RegExp(r'^238\d{2}$').hasMatch(code)) return 'activation';
     return 'codeUnknown';
   }

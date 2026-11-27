@@ -35,6 +35,10 @@ def main():
 #include <string>
 using s32=int32_t;
 int host_work=0;
+int socket_observations=0;
+extern "C" void neostation_dolphin_wiimmfi_observe(s32 event) {
+  assert(event==2); ++socket_observations;
+}
 std::atomic<bool> g_wiimmfi_network_allowed{false};
 constexpr int SO_ENETUNREACH=28,SO_EAFNOSUPPORT=5,SO_EPROTONOSUPPORT=6,SO_EPROTOTYPE=7;
 constexpr int AF_INET=2,AF_INET6=10,IPC_SUCCESS=0,IPC_EACCES=-1;
@@ -99,9 +103,11 @@ struct LogManager {
         program += f'assert(top.{target}(Request{{{constant}}})->value==-SO_ENETUNREACH);\n'
     program += '''
   assert(sockets.NewSocket(2,1,0)==-SO_ENETUNREACH);assert(host_work==before);
+  assert(socket_observations==cycle);
   g_wiimmfi_network_allowed=true;
   assert(top.IOCtl(Request{IOCTL_SO_GETHOSTBYNAME})->value==77);
   assert(sockets.NewSocket(2,1,0)==43);assert(host_work==before+2);
+  assert(socket_observations==cycle+1);
   assert(sockets.NewSocket(99,1,0)==-SO_EAFNOSUPPORT);
 }
   LogManager logger;

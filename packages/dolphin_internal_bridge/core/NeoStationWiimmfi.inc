@@ -3,12 +3,17 @@
 #include "DiscIO/NANDImporter.h"
 #include "Common/IOFile.h"
 #include "Common/SettingsHandler.h"
+#include "Common/Version.h"
 #include <stdexcept>
+
+extern "C" bool neostation_dolphin_wiimmfi_tls_files_valid(const std::string& root);
 
 namespace
 {
 std::atomic<bool> g_wiimmfi_cancel{false};
 std::atomic<int> g_wiimmfi_progress{0}; // reading 0..100, extracting 1000..1100
+std::atomic<int32_t> g_wiimmfi_nand_stage{0}; // 1 armed, 2 verified before IOS, negative: refused
+std::array<std::atomic<uint32_t>, 8> g_wiimmfi_network_events{};
 
 bool DOLWiimmfiNANDReady(const std::string& root)
 {
@@ -40,7 +45,10 @@ bool DOLWiimmfiNANDReady(const std::string& root)
 }
 
 extern "C" __attribute__((visibility("default")))
-int32_t neostation_dolphin_wiimmfi_abi() { return 4; }
+int32_t neostation_dolphin_wiimmfi_abi() { return 5; }
+
+extern "C" __attribute__((visibility("default")))
+const char* neostation_dolphin_wiimmfi_core_revision() { return Common::GetScmRevGitStr().c_str(); }
 
 extern "C" bool neostation_dolphin_wiimmfi_network_allowed()
 {
@@ -51,6 +59,27 @@ extern "C" __attribute__((visibility("default")))
 int32_t neostation_dolphin_wiimmfi_nand_ready(const char* root)
 {
   return root && DOLWiimmfiNANDReady(root) ? 1 : 0;
+}
+
+extern "C" __attribute__((visibility("default")))
+int32_t neostation_dolphin_wiimmfi_tls_ready(const char* root)
+{
+  return root && neostation_dolphin_wiimmfi_tls_files_valid(root) ? 1 : 0;
+}
+
+extern "C" void neostation_dolphin_wiimmfi_observe(int32_t event)
+{
+  if (neostation_dolphin_wiimmfi_network_allowed() && event >= 0 &&
+      static_cast<size_t>(event) < g_wiimmfi_network_events.size())
+    g_wiimmfi_network_events[event].fetch_add(1, std::memory_order_relaxed);
+}
+
+extern "C" __attribute__((visibility("default")))
+int32_t neostation_dolphin_wiimmfi_diagnostic(int32_t field)
+{
+  if (field == -1) return g_wiimmfi_nand_stage.load();
+  if (field < 0 || static_cast<size_t>(field) >= g_wiimmfi_network_events.size()) return 0;
+  return static_cast<int32_t>(g_wiimmfi_network_events[field].load(std::memory_order_relaxed));
 }
 
 extern "C" __attribute__((visibility("default")))
@@ -94,7 +123,19 @@ extern "C" __attribute__((visibility("default")))
 int32_t neostation_dolphin_wiimmfi_configure(int32_t enabled)
 {
   if (g_running || g_cleanup_started || !Core::IsUninitialized(Core::System::GetInstance())) return 0;
-  if (enabled && (!g_initialized || !DOLWiimmfiNANDReady(g_user_directory + "/Wii"))) return 0;
+  if (enabled)
+  {
+    for (auto& counter : g_wiimmfi_network_events) counter = 0;
+    g_wiimmfi_nand_stage = 0;
+    const std::string root = g_user_directory + "/Wii";
+    if (!g_initialized || !DOLWiimmfiNANDReady(root)) { g_wiimmfi_nand_stage = -1; return 0; }
+    if (!neostation_dolphin_wiimmfi_tls_files_valid(root)) { g_wiimmfi_nand_stage = -2; return 0; }
+    DOLHostQueueRunSync(^{
+      g_wiimmfi_previous_nand_root = File::GetUserPath(D_WIIROOT_IDX);
+      File::SetUserPath(D_WIIROOT_IDX, root);
+    });
+    g_wiimmfi_nand_stage = 1;
+  }
   g_wiimmfi_boot_interrupted = false;
   g_wiimmfi_session = enabled != 0;
   g_wiimmfi_network_allowed = enabled != 0;
@@ -118,4 +159,24 @@ extern "C" void neostation_dolphin_wiimmfi_boot_policy()
   Config::SetCurrent(Config::MAIN_NETWORK_SSL_DUMP_PEER_CERT, false);
   Config::SetCurrent(Config::MAIN_NETWORK_DUMP_BBA, false);
   Config::SetCurrent(Config::MAIN_NETWORK_DUMP_AS_PCAP, false);
+  Config::SetCurrent(Config::MAIN_NETWORK_SSL_VERIFY_CERTIFICATES, true);
+}
+
+extern "C" bool neostation_dolphin_wiimmfi_validate_boot_nand(bool deterministic)
+{
+  if (!g_wiimmfi_session) return true;
+  if (deterministic || File::GetUserPath(D_WIIROOT_IDX) != g_user_directory + "/Wii/")
+  {
+    g_wiimmfi_nand_stage = -3;
+    return false;
+  }
+  g_wiimmfi_nand_stage = 2;
+  return true;
+}
+
+extern "C" void neostation_dolphin_wiimmfi_observe_ios_identity(bool personal)
+{
+  if (neostation_dolphin_wiimmfi_network_allowed())
+    g_wiimmfi_nand_stage = personal &&
+        File::GetUserPath(D_SESSION_WIIROOT_IDX) == g_user_directory + "/Wii/" ? 3 : -4;
 }

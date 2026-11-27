@@ -207,7 +207,8 @@ abstract final class WiimmfiService {
 
   static Future<bool> prepareLaunch(String gamePath, {bool? requested}) async {
     if (requested == false) {
-      if ((await status())['supported'] != true) {
+      final readiness = await status();
+      if (readiness['supported'] != true && readiness['abi'] != 4) {
         throw const WiimmfiException('engineUnavailable');
       }
       return false;
@@ -229,6 +230,9 @@ abstract final class WiimmfiService {
     if (readiness['nandRecognized'] != true) {
       throw const WiimmfiException('nandMissing');
     }
+    if (readiness['tlsFilesValid'] == false) {
+      throw const WiimmfiException('tlsFilesRejected');
+    }
     final meta = await identity(gamePath);
     if (meta['gameId'] != receipt['gameId'] ||
         meta['revision'] != receipt['revision'] ||
@@ -243,13 +247,18 @@ abstract final class WiimmfiService {
   static DateTime? _diagnosticDate;
   static Map<String, dynamic>? _diagnostic;
   static Future<Map<String, dynamic>>? _diagnosticInFlight;
+  static Future<Map<String, dynamic>> diagnosticSnapshot() async => {
+    ...?_diagnostic,
+    ...await status(),
+  };
   static Future<Map<String, dynamic>> diagnose() async {
     if ((await settings())['enabled'] != true) {
       throw const WiimmfiException('disabled');
     }
-    if (_diagnosticDate != null &&
-        DateTime.now().difference(_diagnosticDate!) <
-            const Duration(minutes: 5)) {
+    final age = _diagnosticDate == null
+        ? null
+        : DateTime.now().difference(_diagnosticDate!);
+    if (age != null && !age.isNegative && age < const Duration(minutes: 5)) {
       return {..._diagnostic!, ...await status()};
     }
     final network = await (_diagnosticInFlight ??= _probe().whenComplete(
@@ -262,6 +271,7 @@ abstract final class WiimmfiService {
     final result = <String, dynamic>{
       'dns': 'unknown',
       'website': 'unknown',
+      'websiteTls': 'unknown',
       'authentication': 'notTested',
       'matchmaking': 'notTested',
       'players': null,
@@ -282,14 +292,23 @@ abstract final class WiimmfiService {
         final response = await request.close().timeout(
           const Duration(seconds: 8),
         );
+        result['websiteTls'] = 'reachable';
         result['website'] =
             response.statusCode >= 200 && response.statusCode < 400
             ? 'reachable'
             : 'unknown';
         result['httpStatus'] = response.statusCode;
+      } on HandshakeException {
+        result['websiteTls'] = 'failed';
+      } on TimeoutException {
+        result['website'] = 'timeout';
+      } on SocketException {
+        result['website'] = 'failed';
       } finally {
         client.close(force: true);
       }
+    } on TimeoutException {
+      result['dns'] = 'timeout';
     } catch (_) {
       if (result['dns'] == 'unknown') result['dns'] = 'failed';
       /* No raw URLs, addresses, console identities or network errors logged. */
@@ -297,5 +316,64 @@ abstract final class WiimmfiService {
     _diagnosticDate = DateTime.now().toUtc();
     result['checkedAt'] = _diagnosticDate!.toIso8601String();
     return _diagnostic = result;
+  }
+
+  /// Explicitly select public or coarse fields. Never export Core log text,
+  /// paths, addresses, keys, certificates or data provided by a remote peer.
+  static Map<String, Object?> diagnosticReport(
+    Map<String, dynamic> result, {
+    String? enteredCode,
+  }) {
+    final game = result['lastGame'];
+    final net = result['gameNetwork'];
+    return {
+      'schema': 1,
+      if (result['abi'] is int) 'wiimmfiAbi': result['abi'],
+      if (result['coreRevision'] is String &&
+          RegExp(r'^[a-f0-9]{7,40}$').hasMatch('${result['coreRevision']}'))
+        'coreRevision': result['coreRevision'],
+      'nandRecognized': result['nandRecognized'] == true,
+      if (result['tlsFilesValid'] is bool)
+        'tlsFilesValid': result['tlsFilesValid'],
+      if (result['bootNand'] is int) 'bootNand': result['bootNand'],
+      'authentication': 'notObserved',
+      'matchmaking': 'notObserved',
+      if (game is Map && RegExp(r'^[A-Z0-9]{6}$').hasMatch('${game['gameId']}'))
+        'game': {
+          'gameId': game['gameId'],
+          'patchVerification': 'userDeclaredOfficial',
+          if (game['revision'] is int) 'revision': game['revision'],
+          if (game['region'] is String &&
+              RegExp(r'^[A-Za-z]+$').hasMatch('${game['region']}'))
+            'region': game['region'],
+        },
+      if (net is Map)
+        'gameNetwork': {
+          for (final key in [
+            'dnsResolved',
+            'dnsFailed',
+            'socketsOpened',
+            'socketErrors',
+            'tlsHandshakes',
+            'tlsCertificateErrors',
+            'tlsOtherErrors',
+            'timeouts',
+          ])
+            if (net[key] is int) key: net[key],
+        },
+      if (result['httpStatus'] is int)
+        'websiteHttpStatus': result['httpStatus'],
+      for (final key in ['dns', 'websiteTls', 'website'])
+        if (const {
+          'resolved',
+          'reachable',
+          'failed',
+          'timeout',
+          'unknown',
+        }.contains(result[key]))
+          key: result[key],
+      if (enteredCode != null && RegExp(r'^\d{5,6}$').hasMatch(enteredCode))
+        'gameCodeReportedByUser': enteredCode,
+    };
   }
 }

@@ -1112,6 +1112,8 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
 @property(atomic, assign) BOOL wiimmfiSession;
 @property(atomic, assign) BOOL wiimmfiInterrupted;
 @property(atomic, assign) BOOL wiimmfiImportActive;
+@property(nonatomic, copy) NSDictionary<NSString*, id>* wiimmfiLastGame;
+@property(nonatomic, assign) BOOL wiimmfiLastCoreConfigured;
 @property(nonatomic, strong) nw_path_monitor_t wiimmfiNetworkMonitor;
 @property(nonatomic, strong) UILabel* wiimmfiSpeedLabel;
 @property(nonatomic, assign) BOOL systemMenuSession;
@@ -1339,8 +1341,23 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       if ([call.method isEqualToString:@"wiimmfiStatus"]) {
         NSString* nand = [args[@"nandDirectory"] isKindOfClass:NSString.class] ? args[@"nandDirectory"] : @"";
         auto ready = reinterpret_cast<int32_t (*)(const char*)>(dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_nand_ready"));
-        const BOOL recognized = supported && DOLWiimmfiPrivateDirectory(nand, false) && ready && ready(nand.fileSystemRepresentation) == 1;
-        dispatch_async(dispatch_get_main_queue(), ^{ result(@{@"supported": @(supported), @"nandRecognized": @(recognized)}); });
+        auto tls = reinterpret_cast<int32_t (*)(const char*)>(dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_tls_ready"));
+        const BOOL recognized = ready && DOLWiimmfiPrivateDirectory(nand, false) && ready(nand.fileSystemRepresentation) == 1;
+        NSMutableDictionary* status = [@{@"supported": @(supported), @"abi": @(DOLWiimmfiABI()),
+          @"nandRecognized": @(recognized), @"bootNand": @(self.wiimmfiLastCoreConfigured ? DOLWiimmfiDiagnostic(-1) : 0)} mutableCopy];
+        if (tls && recognized) status[@"tlsFilesValid"] = @(tls(nand.fileSystemRepresentation) == 1);
+        auto revision = reinterpret_cast<const char* (*)()>(dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_core_revision"));
+        if (revision && revision()) status[@"coreRevision"] = [NSString stringWithUTF8String:revision()];
+        if (self.wiimmfiLastGame) status[@"lastGame"] = self.wiimmfiLastGame;
+        if (supported && self.wiimmfiLastCoreConfigured) {
+          NSArray<NSString*>* fields = @[@"dnsResolved", @"dnsFailed", @"socketsOpened", @"socketErrors",
+            @"tlsHandshakes", @"tlsCertificateErrors", @"tlsOtherErrors", @"timeouts"];
+          NSMutableDictionary* events = [NSMutableDictionary dictionaryWithCapacity:fields.count];
+          for (NSUInteger index = 0; index < fields.count; index++)
+            events[fields[index]] = @(DOLWiimmfiDiagnostic(static_cast<int32_t>(index)));
+          status[@"gameNetwork"] = events;
+        }
+        dispatch_async(dispatch_get_main_queue(), ^{ result(status); });
         return;
       }
       if (self.launchInProgress || self.stopInProgress || self.dolphinController || !supported) {
@@ -1463,6 +1480,10 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
   self.systemMenuSession = wiiMenu;
   self.wiimmfiInterrupted = NO;
   self.wiimmfiSession = [arguments[@"wiimmfi"] boolValue] && [system isEqual:@"wii"] && !wiiMenu;
+  if (self.wiimmfiSession) {
+    self.wiimmfiLastGame = nil;
+    self.wiimmfiLastCoreConfigured = NO;
+  }
   self.activeGameTitle = [arguments[@"gameTitle"] isKindOfClass:NSString.class] ? arguments[@"gameTitle"] : @"";
   self.activeGameTitle = [self.activeGameTitle stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
   if (!self.activeGameTitle.length) self.activeGameTitle = gamePath.lastPathComponent.stringByDeletingPathExtension;
@@ -1539,6 +1560,12 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
         id identity=[NSJSONSerialization JSONObjectWithData:bytes options:0 error:nil];
         if([identity isKindOfClass:NSDictionary.class] && [identity[@"gameId"] isKindOfClass:NSString.class])
           self.activeDisplayGameId=identity[@"gameId"];
+        if (self.wiimmfiSession && [identity isKindOfClass:NSDictionary.class] &&
+            [identity[@"gameId"] isKindOfClass:NSString.class] &&
+            [identity[@"revision"] isKindOfClass:NSNumber.class] &&
+            [identity[@"region"] isKindOfClass:NSString.class])
+          self.wiimmfiLastGame = @{@"gameId": identity[@"gameId"], @"revision": identity[@"revision"],
+            @"region": identity[@"region"]};
       }
     }
     self.activeDisplayProfile=DOLFrameProfile();
@@ -1564,6 +1591,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       return [self finishFailedLaunch:state];
     }
     // The core receives explicit policy before boot. Its native token login,
+    if (self.wiimmfiSession) self.wiimmfiLastCoreConfigured = YES;
     if (DOLWiimmfiConfigure(self.wiimmfiSession) != 1) {
       fail(@"wiimmfi.configuration_failed", @"Wiimmfi requires a recognized console NAND and an idle compatible Core.");
       return [self finishFailedLaunch:state];
@@ -1775,6 +1803,10 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
     if ((launchFlags & 0x8) != 0 ||
         (self.wiimmfiSession && (self.wiimmfiInterrupted || !applicationActive))) {
       fail(@"wiimmfi.interrupted", @"The online launch was interrupted; return to RewindBox and try again.");
+      return [self finishFailedLaunch:state];
+    }
+    if ((launchFlags & 0x10) != 0) {
+      fail(@"wiimmfi.identity_not_loaded", @"Dolphin did not load the imported console identity in the Wii session.");
       return [self finishFailedLaunch:state];
     }
     if ((launchFlags & 0x1) != 0) state[@"jitArm64Initialized"] = @YES;

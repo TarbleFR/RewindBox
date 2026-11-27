@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/wiimmfi_locale.dart';
@@ -68,6 +71,7 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
 
   String t(String key) => WiimmfiLocale.text(context, key);
   bool get _nandReady => _status?['nandRecognized'] == true;
+  bool get _tlsRejected => _status?['tlsFilesValid'] == false;
   bool get _declared {
     final images = _settings?['images'];
     final path = widget.gamePath;
@@ -351,6 +355,7 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
     if (_settings == null) return _message ?? t('error');
     if (!supported) return t('engineUnavailable');
     if (!_nandReady) return t('servicesPrepareConsole');
+    if (_tlsRejected) return t('tlsFilesRejected');
     if (!enabled) return t('servicesOff');
     if (widget.gamePath == null) return t('servicesConsolePrepared');
     if (widget.gamePath != null && !_declared) return t('servicesPrepareGame');
@@ -391,6 +396,11 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
       t('diagnose'),
       [
         '${t('nand')}: ${t(result['nandRecognized'] == true ? 'recognized' : 'nandMissing')}',
+        if (result['tlsFilesValid'] case final bool valid)
+          t(valid ? 'tlsFilesAccepted' : 'tlsFilesRejected'),
+        if (result['bootNand'] == 3) t('identityLoaded'),
+        if (result['bootNand'] == -3 || result['bootNand'] == -4)
+          t('identityNotLoaded'),
         if (result['supported'] != true) t('engineUnavailable'),
         for (final key in [
           'dns',
@@ -401,10 +411,41 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
           'matchmaking',
         ])
           '${t(key)}: ${t(result[key]?.toString() ?? 'unknown')}',
+        'TLS: ${t(result['websiteTls']?.toString() ?? 'unknown')}',
         if (result['httpStatus'] != null) 'HTTP ${result['httpStatus']}',
         result['checkedAt']?.toString() ?? '',
       ].join('\n'),
     );
+  });
+
+  Future<void> _exportDiagnostic() => _run(() async {
+    final status = await WiimmfiService.diagnosticSnapshot();
+    if (!mounted) return;
+    final data = WiimmfiService.diagnosticReport(status, enteredCode: _code);
+    final renderBox = context.findRenderObject() as RenderBox?;
+    const name = 'rewindbox-wiimmfi-diagnostic.json';
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [
+          XFile.fromData(
+            Uint8List.fromList(
+              utf8.encode(const JsonEncoder.withIndent('  ').convert(data)),
+            ),
+            mimeType: 'application/json',
+          ),
+        ],
+        fileNameOverrides: const [name],
+        sharePositionOrigin: renderBox == null || !renderBox.hasSize
+            ? null
+            : renderBox.localToGlobal(Offset.zero) & renderBox.size,
+      ),
+    );
+  });
+
+  Future<void> _prepareGameHelp() => _run(() async {
+    if (await _confirm('prepareGameHelp') && mounted) {
+      await _open('https://wiimmfi.de/patcher/iso');
+    }
   });
 
   Future<void> _lookupCode() => _run(() async {
@@ -518,6 +559,7 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
               enabled &&
               (!supported ||
                   !_nandReady ||
+                  _tlsRejected ||
                   (widget.gamePath != null && !declared)),
           onChanged: callback == null ? null : (_) => callback(),
         ),
@@ -541,6 +583,13 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
       ],
       if (widget.gamePath != null) ...[
         const SizedBox(height: 8),
+        if (!declared)
+          _button(
+            'patcher',
+            t('officialPatcher'),
+            Icons.open_in_new,
+            _prepareGameHelp,
+          ),
         if (declared)
           ListTile(
             contentPadding: EdgeInsets.zero,
@@ -568,6 +617,7 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
                   enabled &&
                   declared &&
                   _nandReady &&
+                  !_tlsRejected &&
                   widget.onLaunch != null
               ? () => _launch(true)
               : null,
@@ -576,7 +626,9 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
           'offline',
           t('offline'),
           Icons.videogame_asset,
-          supported && widget.onLaunch != null ? () => _launch(false) : null,
+          (supported || _status?['abi'] == 4) && widget.onLaunch != null
+              ? () => _launch(false)
+              : null,
         ),
       ],
       const SizedBox(height: 8),
@@ -634,6 +686,12 @@ class _WiimmfiPanelState extends State<WiimmfiPanel>
           t('diagnose'),
           Icons.network_check,
           enabled ? _diagnose : null,
+        ),
+        _button(
+          'exportDiagnostic',
+          t('exportDiagnostic'),
+          Icons.ios_share,
+          _exportDiagnostic,
         ),
         _button(
           'code',

@@ -3,15 +3,25 @@
 #include <dlfcn.h>
 
 // Optional owned C ABI keeps the UI safe with the currently retained Core.
-static inline bool DOLWiimmfiSupported() {
+static inline int32_t DOLWiimmfiABI() {
   auto abi = reinterpret_cast<int32_t (*)()>(dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_abi"));
-  return abi && abi() == 4 &&
+  return abi ? abi() : 0;
+}
+static inline bool DOLWiimmfiSupported() {
+  return DOLWiimmfiABI() == 5 &&
       dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_import") &&
       dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_nand_ready") &&
+      dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_tls_ready") &&
+      dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_diagnostic") &&
+      dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_core_revision") &&
       dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_configure") &&
       dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_import_progress") &&
       dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_cancel_import") &&
       dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_interrupt_boot");
+}
+static inline int32_t DOLWiimmfiDiagnostic(int32_t field) {
+  auto fn = reinterpret_cast<int32_t (*)(int32_t)>(dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_diagnostic"));
+  return fn ? fn(field) : 0;
 }
 static inline void DOLWiimmfiInterruptBoot() {
   auto fn = reinterpret_cast<void (*)()>(dlsym(RTLD_DEFAULT, "neostation_dolphin_wiimmfi_interrupt_boot"));

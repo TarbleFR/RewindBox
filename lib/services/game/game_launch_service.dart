@@ -384,6 +384,8 @@ class GameLaunchService {
           return GameLaunchResult.failure(
             prerequisite != null
                 ? LaunchPrerequisiteLocale.text(context, prerequisite.key)
+                : report.failedStage == 'wiimmfi.identity_not_loaded'
+                ? WiimmfiLocale.text(context, 'identityNotLoaded')
                 : DolphinImportLocale.text(context, 'launchFailed'),
             'Dolphin stage: ${report.failedStage ?? "unknown"}\n'
             'Runtime message: ${report.message}\n'
