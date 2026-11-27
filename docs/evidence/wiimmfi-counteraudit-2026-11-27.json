@@ -1,0 +1,166 @@
+{
+  "schema": 1,
+  "date": "2026-11-27",
+  "branch": "Claude",
+  "source": "a660c33702ffbdf3815c99e632ddaad34f1e09b1",
+  "upstream": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
+  "wiimmfiABI": 3,
+  "producerRun": 45977483996,
+  "producerJob": 140432752581,
+  "producerResult": "success",
+  "compiled": true,
+  "coreSha256": "e481100176972c1449225e5596d3c11ba4ef857730820c06d2490e6e03346250",
+  "producerIdentity": {
+    "schema_version": 1,
+    "repository": "https://github.com/OatmealDome/dolphin-ios.git",
+    "host_commit": "a660c33702ffbdf3815c99e632ddaad34f1e09b1",
+    "source_revision": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
+    "sha256": "e481100176972c1449225e5596d3c11ba4ef857730820c06d2490e6e03346250",
+    "architectures": [
+      "arm64"
+    ],
+    "abi": "NeoStation Dolphin internal v3 + cheat manager",
+    "wiimmfi_abi": 3,
+    "cheat_catalogues": [
+      "Gecko/WiiRD",
+      "Action Replay/local INI"
+    ],
+    "device_runtime_tested": false,
+    "achievement_presenter": 1,
+    "use_retro_achievements": true,
+    "source_inputs": {
+      "build-utils/patch_dolphin_internal_core_v2.py": "ad187fe5896fb6aaf96080ae5573383110cf9231dd3a30801f5daed5a54495f8",
+      "build-utils/dolphin_wiimmfi.py": "df9d3618fd03002f9d5eda8a2f015e89551fda504f66b3d964f2de47110bf06a",
+      "packages/dolphin_internal_bridge/core/NeoStationAchievementPresentation.inc": "8402b3b8600a6b95ac71582023257eca506f223933ff4ca8994ace7560228980",
+      "packages/dolphin_internal_bridge/core/NeoStationAchievementSession.inc": "8daa7fb8fe786a654fb7ebb5ae997628397ebb3afec7dc31fe55918e020fa1b5",
+      "packages/dolphin_internal_bridge/core/NeoStationPerformance.inc": "b4947587e2f45c1047c0467be6f8d9df677e7259aff4f5b7b34a130bd71ea1ff",
+      "packages/dolphin_internal_bridge/core/NeoStationSavestates.inc": "69117c5733537908036917c213c4cf009e87fb61be88bc976dab5dfa4d4e84ac",
+      "packages/dolphin_internal_bridge/core/NeoStationSession.inc": "d55e46324fa5502870cb2db5eb4a1c14ab2cdfd6681759c80c70da42f7639616",
+      "packages/dolphin_internal_bridge/core/NeoStationStateCompression.inc": "fa197967e0adcf490631559d525952cb5b926e9c154d2e519c27067216ffa757",
+      "packages/dolphin_internal_bridge/core/NeoStationWiimmfi.inc": "bc1c54da8b9795dc6e4fcabbf3670e4e2bf8b1cadb38ac837285db10aebe16fa"
+    }
+  },
+  "artifacts": [
+    {
+      "id": 15188092307,
+      "name": "DolphinCore-AchievementTranslation-a660c33702ffbdf3815c99e632ddaad34f1e09b1",
+      "digest": "sha256:cd682f25440a402b1e337fbf2e93df0d49fccaabcab9bed78ac18c70f0bed05e",
+      "size": 11022525
+    },
+    {
+      "id": 15187294789,
+      "name": "DolphinCore-diagnostics-a660c33702ffbdf3815c99e632ddaad34f1e09b1",
+      "digest": "sha256:90ea7cc17fe61fa4283c6e1f1b2b2b92e79e8c43aad774dda96716dc5b6081e1",
+      "size": 307045
+    }
+  ],
+  "downloadVerification": {
+    "artifactId": 15188092307,
+    "archiveSha256": "cd682f25440a402b1e337fbf2e93df0d49fccaabcab9bed78ac18c70f0bed05e",
+    "matchesGitHubDigest": true,
+    "coreSha256MatchesIdentity": true,
+    "networkPredicate": {
+      "symbol": "_neostation_dolphin_wiimmfi_network_allowed",
+      "nType": 15,
+      "nSect": 1,
+      "nDesc": 0,
+      "nValue": 34584,
+      "definedInMachO": true
+    }
+  },
+  "supersededProducers": [
+    {
+      "source": "b4ea094fe5c7fd4ca87ee27ae7d302d9a4a9f30a",
+      "run": 45972261314,
+      "wiimmfiABI": 2
+    },
+    {
+      "source": "a101ee2456e7bd1696ddd108e5280b6cd3c82c78",
+      "run": 45975248905,
+      "wiimmfiABI": 3,
+      "reason": "Final text-log privacy gate added afterward"
+    }
+  ],
+  "checks": {
+    "flutterSDK": "3.47.2",
+    "pubspecLockUnchanged": true,
+    "flutterBehaviorTests": 10,
+    "existingWiiImportAndLaunchTests": 14,
+    "analysis": "no issues",
+    "storageContracts": 25,
+    "launchFlowScenarios": 15,
+    "nandValidator": {
+      "valid": 1,
+      "hostileOrCancel": 16,
+      "asan": true,
+      "ubsan": true,
+      "lsan": "disabled only under local Linux tracer; Apple CI unchanged"
+    },
+    "offlineGate": {
+      "requests": 27,
+      "iterations": 100,
+      "offlineHostCalls": 0
+    },
+    "loggerGate": {
+      "iterations": 100,
+      "onlineListenerWrites": 0,
+      "onlineFormattingInsideTestedFunctions": 0,
+      "offlineLoggingRestored": true,
+      "argumentConstructionBeforeGateNotMeasured": true
+    },
+    "sdkAdapter": "iPhoneOS arm64 syntax compilation passed with -Wall -Wextra -Werror",
+    "finalHostHarnessFollowup": "Real policy moved to separate translation unit; Apple weak_import / ELF weak declarations retained; existing IP and logger checks pass with -Werror; Core source unchanged, Apple harness followup not rerun"
+  },
+  "warnings": {
+    "coreBaseline": 35,
+    "coreFinal": 35,
+    "newCoreWarnings": [],
+    "newHarnessWarningsInProducer": [
+      "/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp3t4w7lgm/offline.cpp:194:7: warning: address of function 'neostation_dolphin_wiimmfi_network_allowed' will always evaluate to 'true' [-Wpointer-bool-conversion]",
+      "/var/folders/9d/l02zfgrs7c16twd3wbpdmhkc0000gn/T/tmp3t4w7lgm/offline.cpp:203:7: warning: address of function 'neostation_dolphin_wiimmfi_network_allowed' will always evaluate to 'true' [-Wpointer-bool-conversion]"
+    ],
+    "harnessFix": "Two function-address warnings caused by test translation-unit layout; separate policy translation unit corrected, host -Werror verification passed"
+  },
+  "unrelatedPreexistingCI": [
+    {
+      "run": 45975249078,
+      "job": 140425247981,
+      "reason": "storage_log_rotation_test expects obsolete log path"
+    },
+    {
+      "run": 45975249078,
+      "job": 140425247991,
+      "reason": "LibretroInternalBridgePlugin.m:719 undeclared invalid"
+    },
+    {
+      "run": 45975249078,
+      "job": 140425247578,
+      "reason": "Old Libretro artifact run38638115521 unavailable"
+    },
+    {
+      "job": 140425246618,
+      "reason": "Touch UIKit donor release0.0.1/NeoStation.ipa unavailable"
+    },
+    {
+      "job": 140425246978,
+      "reason": "Touch external-display assertion incompatible with pre-Wiimmfi import"
+    }
+  ],
+  "limits": {
+    "wholeAppBuilt": false,
+    "completeUIKitBridgeBuilt": false,
+    "iPhoneTested": false,
+    "realNandImportTested": false,
+    "nintendoIdentityAuthenticated": false,
+    "eccHmacCertified": false,
+    "publicRaceTested": false,
+    "privateRoomTested": false,
+    "automaticPatcherCertified": false,
+    "performanceGainMeasured": false,
+    "realIOSStorageAttributesTested": false,
+    "networkWC24RuntimeTested": false
+  },
+  "ipaProduced": false,
+  "deliveryManifestChanged": false,
+  "privateConsoleDataUsed": false
+}

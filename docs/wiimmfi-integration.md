@@ -1,6 +1,6 @@
 # Wiimmfi dans Dolphin — 27 novembre 2026
 
-[Contre-expertise et correctifs ABI 3](evidence/wiimmfi-counteraudit-2026-11-27.md) : source `a101ee24`, identité/Mii, TMD, protections réseau et circuit de lancement revus. Les preuves ABI 2 ci-dessous décrivent le premier candidat, remplacé avant toute livraison.
+[Contre-expertise et correctifs ABI 3](evidence/wiimmfi-counteraudit-2026-11-27.md) : source finale `a660c337`, identité/Mii, TMD, protections réseau/journaux et circuit de lancement revus. [Core final compilé et vérifié](https://github.com/TarbleFR/RewindBox/actions/runs/45977483996), SHA-256 `e4811001…3346250` ; [identité complète](evidence/wiimmfi-counteraudit-2026-11-27.json). Les preuves ABI 2 ci-dessous décrivent le premier candidat, remplacé avant toute livraison.
 
 ## Périmètre et identité
 
@@ -10,11 +10,11 @@ Branche `Claude`, DolphiniOS `7cac54161659421ed95c2cd1c0b0746539a4cd38` inchang�
 | --- | --- | --- |
 | BootMii | Importeur Dolphin natif, tailles 0x21000000/0x21000400, clés séparées 0x400 ; progression pages/entrées, annulation | Non testée sur vraie NAND |
 | Fichiers malformés | Lectures/écritures/flush contrôlés, FST/FAT bornées, cycles/traversées/collisions de casse refusés ; ASan/UBSan hôte | Non testée |
-| Sauvegardes | Extraction dans un stage vide privé, données `title/*/*/data` actuelles prioritaires, SHA-256 de copie, ancien snapshot conservé ; rollback testé | Non testée |
+| Sauvegardes | Extraction dans un stage vide privé, sauvegardes des jeux et Mii actuels conservés ; identité/réglages console issus du dump ; SHA-256 de copie, ancien snapshot conservé et rollback testé | Non testée |
 | Identité | ID Dolphin par défaut refusé, présence/tailles des credentials vérifiées, protection des fichiers iOS et exclusion des sauvegardes cloud | Authentification serveur non testée |
 | Préparation jeu | Déclaration utilisateur d’image préparée officiellement ; ID/région/révision DiscIO + SHA-256 complet revérifié au lancement ; originaux intacts | Patch de sécurité non certifié |
 | Session | JIT/Metal/ownership existants ; cheats/états/modifications du menu et captures de payload réseau bloqués, horloges nominales `CurrentRun`, vitesse réellement mesurée | Course non testée |
-| Hors ligne | ABI 3 : réseau IP IOS Wii et requêtes WiiConnect24 est bloqué hors ligne ; IOCTL/IOCTLV et création de socket refusés avant DNS/dispatch ; 27 requêtes ×100 sans activité hôte dans le banc | Non testé |
+| Hors ligne | ABI 3 : réseau IP IOS Wii et requêtes WiiConnect24 bloqués hors ligne ; banc IP/IOCTL/IOCTLV/création de socket : 27 requêtes ×100 sans activité hôte ; gardes WiiConnect24 relus, non exécutés par ce banc | Non testé |
 | Interruptions | Menu sans pause du guest, arrêt arrière-plan et perte/changement Wi-Fi/cellulaire, aucune reconnexion automatique | Non testées |
 | Interface | Wii → paramètres système → Émulateurs → Wiimmfi ; propriétés du jeu → Gérer ; 12 langues, désactivé par défaut | Non testée |
 | Réseau | Diagnostic explicite DNS/site HTTPS avec TLS normal, cache 5 min, aucun poll réseau désactivé | Ni auth ni matchmaking prouvés |
@@ -32,7 +32,7 @@ Branche `Claude`, DolphiniOS `7cac54161659421ed95c2cd1c0b0746539a4cd38` inchang�
 
 Flutter 3.47.2 avec `pubspec.lock` inchangé ; analyse ciblée sans problème, 10 tests Wiimmfi et 14 tests historiques import/menu Wii réussis. Le banc NAND exécute le vrai corps du validateur avec une arborescence valide et 16 cas hostiles/annulation ; aucune donnée de console. LeakSanitizer indisponible sous le traceur Linux de cette session ; ASan/UBSan exécutés avec `detect_leaks=0` seulement en local. CI Apple garde ses options ordinaires.
 
-Premier candidat cœur/bridge : `d473517b` (ABI 2), remplacé par la contre-expertise ABI 3. Producteur existant : [45972261314](https://github.com/TarbleFR/RewindBox/actions/runs/45972261314), source `b4ea094f` ; la première compilation ABI 1 a réussi mais ne valide pas le blocage hors ligne. [Résultats et empreintes](evidence/wiimmfi-2026-11-27.json). Compilation finale réussie : cœur arm64 et adaptateur d’import avec le SDK iPhoneOS, exports vérifiés et framework archivé ; 35 avertissements amont identiques, aucun nouveau. Le bridge UIKit complet et l’application ne sont pas compilés/livrés ici. Il ne fabrique aucune IPA. Le manifeste de livraison précédent reste intact ; le nouveau framework devra être sélectionné et authentifié dans la prochaine livraison autorisée.
+Premier candidat cœur/bridge : `d473517b` (ABI 2), remplacé par la contre-expertise ABI 3. Producteur existant : [45972261314](https://github.com/TarbleFR/RewindBox/actions/runs/45972261314), source `b4ea094f` ; la première compilation ABI 1 a réussi mais ne valide pas le blocage hors ligne. [Résultats et empreintes](evidence/wiimmfi-2026-11-27.json). Compilation de ce premier candidat réussie : cœur arm64 et adaptateur d’import avec le SDK iPhoneOS, exports vérifiés et framework archivé ; 35 avertissements amont identiques, aucun nouveau. Le bridge UIKit complet et l’application ne sont pas compilés/livrés ici. Il ne fabrique aucune IPA. Le manifeste de livraison précédent reste intact ; le nouveau framework devra être sélectionné et authentifié dans la prochaine livraison autorisée.
 
 ## Protocole exact sur iPhone
 

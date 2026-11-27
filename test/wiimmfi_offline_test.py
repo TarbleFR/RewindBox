@@ -49,7 +49,16 @@ struct WiiSockMan {
   int AddSocket(int fd,bool) {assert(fd==43);return fd;}
 };
 '''
-    program += policy + '\nenum { ' + ','.join(constants) + ' };\n'
+    # Keep the real policy in its own translation unit, like the Core bridge.
+    # The logger imports it weakly on Apple; ELF uses the equivalent weak symbol.
+    program += r'''
+#ifdef __APPLE__
+extern "C" bool neostation_dolphin_wiimmfi_network_allowed() __attribute__((weak_import));
+#else
+extern "C" bool neostation_dolphin_wiimmfi_network_allowed() __attribute__((weak));
+#endif
+'''
+    program += '\nenum { ' + ','.join(constants) + ' };\n'
     handlers = set(re.findall(r'(Handle\w+)\(', ioctl + ioctlv))
     handlers.update(re.findall(r'&NetIPTopDevice::(Handle\w+)', ioctl + ioctlv))
     program += 'struct NetIPTopDevice {\n'
@@ -112,8 +121,12 @@ struct LogManager {
         source = Path(temp) / 'offline.cpp'
         binary = Path(temp) / 'offline'
         source.write_text(program)
+        policy_source = Path(temp) / 'policy.cpp'
+        policy_source.write_text('#include <atomic>\n'
+                                 'extern std::atomic<bool> g_wiimmfi_network_allowed;\n' + policy)
         compiler = shutil.which('clang++') or shutil.which('c++')
-        subprocess.run([compiler, '-std=c++20', '-DIPHONEOS', str(source), '-o', str(binary)], check=True)
+        subprocess.run([compiler, '-std=c++20', '-Werror', '-DIPHONEOS',
+                        str(source), str(policy_source), '-o', str(binary)], check=True)
         subprocess.run([str(binary)], check=True)
     print(f'PASS: real IOS IP/IOCtlV/NewSocket offline gates, {len(constants)} requests x100; zero host work offline')
     print('PASS: actual logger entry points suppress formatting/listeners online and restore offline x100')

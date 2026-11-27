@@ -9,7 +9,7 @@ Périmètre relu : `cecc0117`, branche `Claude`, revues indépendantes ciblées 
 | Table de contenus TMD pas validée avant lecture des certificats | `TMDReader::IsValid()` et identité IOS13 exigés avant les getters |
 | En-tête C++ exposé à l’importeur Swift/Objective-C | `DOLWiimmfi.h` déclaré privé dans le podspec |
 | Patches mémoire locaux `[OnFrame]` actifs malgré cheats désactivés | En ligne, seules les valeurs amont par défaut sont chargées ; fichier joueur intact |
-| WiiConnect24 utilisait libcurl hors des barrières IP | Refus avant ordonnanceur, mail, téléchargement et inscription hors ligne |
+| WiiConnect24 utilisait libcurl hors des barrières IP | Requêtes planifiées et explicites refusées avant tout appel HTTP hors ligne |
 | Capture PCAP et journaux amont pouvaient conserver des identifiants | PCAP désactivé pour la session ; valeurs de série/ID retirées des quatre messages identifiés sur iOS |
 | Refus global des modifications bloquait l’auto-routage du secouement | Exception limitée à Wii, joueur 1, axes Shake X/Y/Z |
 | Boutons des propriétés contournaient le routeur de lancement | Passage par `GameLaunchService` : politique moteur, médias, session et historique |
@@ -25,7 +25,7 @@ La nouvelle ABI Wiimmfi **3** distingue ce cœur corrigé du candidat ABI 2 non 
 - Validateur FST/FAT réel : 1 cas valide et 16 refus/annulation sous ASan/UBSan ; LeakSanitizer désactivé uniquement sur l’hôte Linux sous traceur.
 - Barrières IP existantes : 27 requêtes ×100 réussies ; contrôles cycle de vie et gestionnaire de cheats réussis.
 - Nouvelles barrières WiiConnect24, politique OnFrame, PCAP et routage Shake : code effectivement patché relu indépendamment ; comportement réseau réel sur appareil non testé.
-- Premier cœur ABI 3 compilé avec succès : [45975248905](https://github.com/TarbleFR/RewindBox/actions/runs/45975248905). Dernier complément de confidentialité à compiler. Le bridge UIKit complet et l’application n’ont pas été compilés ici.
+- Cœur final ABI 3 compilé : source `a660c337`, [run 45977483996](https://github.com/TarbleFR/RewindBox/actions/runs/45977483996), SHA-256 `e4811001…3346250`. Archive téléchargée et empreintes comparées ; prédicat de confidentialité défini dans le Mach-O. [Identité complète et preuves](wiimmfi-counteraudit-2026-11-27.json). Le bridge UIKit complet et l’application n’ont pas été compilés ici.
 
 ## Dernière revue des parcours
 
@@ -39,7 +39,7 @@ La nouvelle ABI Wiimmfi **3** distingue ce cœur corrigé du candidat ABI 2 non 
 
 - Le contrôle global Libretro révèle aussi trois échecs antérieurs au lot : tests de rotation des journaux sur un ancien chemin, variable `invalid` non déclarée dans son bridge natif, artefact de cores ancien introuvable (run `45975249078`). Aucun de ces fichiers moteur n’a été modifié pour Wiimmfi.
 
-Dernier complément natif : les logs texte/hexadécimaux HTTP, IPC et OSReport peuvent contenir des données sensibles indépendamment des captures PCAP. Pendant Wiimmfi, les deux entrées du journal interne Dolphin sont donc suspendues sur iOS ; les diagnostics JSON contrôlés RewindBox restent disponibles. Aucun réglage persistant, TLS ou comportement du jeu n’est modifié ; journaux internes rétablis à l’arrêt. Les vrais corps des deux entrées passent 100 cycles : zéro formatage/écriture en ligne, reprise hors ligne. Le premier run ABI 3 est intermédiaire et doit être remplacé par le run de ce correctif.
+Dernier complément natif : les logs texte/hexadécimaux HTTP, IPC et OSReport peuvent contenir des données sensibles indépendamment des captures PCAP. Pendant Wiimmfi, les deux entrées du journal interne Dolphin sont donc suspendues sur iOS ; les diagnostics JSON contrôlés RewindBox restent disponibles. Aucun réglage persistant, TLS ou comportement du jeu n’est modifié ; journaux internes rétablis à l’arrêt. Les vrais corps des deux entrées passent 100 cycles : aucun formatage de sortie ni appel aux listeners dans les corps testés en ligne, reprise hors ligne ; les arguments peuvent être construits avant ces gardes, aucun gain CPU démontré. Le run `45975248905` est remplacé par `45977483996`. Les 35 avertissements du Core sont inchangés ; deux avertissements du banc hôte ont été corrigés en séparant les unités comme dans le produit, puis contrôle réussi avec `-Werror` (banc corrigé non réexécuté sur Apple, code du Core inchangé).
 
 ## Limites maintenues
 
