@@ -2,7 +2,7 @@
   "schema": 1,
   "build": 849,
   "status": "frozen",
-  "note": "S2Arm 0471\u20130529, contre-expertise thermique et sonde. Dolphin ABI 5 et parcours Wiimmfi correspondant. Azahar rc5, deuxi\u00e8me s\u00e9rie 10\u00d7, trente-cinq autres empreintes libretro reprises de 848.",
+  "note": "S2Arm 0471\u20130529, contre-expertise thermique et sonde. Dolphin ABI 5 et parcours Wiimmfi correspondant. Azahar rc5, deuxi\u00e8me s\u00e9rie 10\u00d7, trente-cinq autres empreintes libretro reprises de 848. Contr\u00f4le de livraison align\u00e9 sur l\u2019ABI Wiimmfi du bridge.",
   "s2armAsyncPSOTestDefault": true,
   "components": {
     "rpcs3": {
