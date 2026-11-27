@@ -7077,7 +7077,7 @@
     "Presentation queue scheduling, native frame pacing and physical iPhone 16 Pro Max 1x 60 FPS / thermal validation (unmeasured)",
     "In-pass cut (upstream sub_cut_pass, DM_NVN_CUT=64 by default, only when the GPU is idle): bytes bounded on the synthetic frame (one store + one reload of the open pass's attachments per cut, run 45991888494); its time balance against GPU idle is below the runner's noise and stays unmeasured on A18 Pro"
   ],
-  "next_axis": "prog_peek_jobs text keys (per stage: 8 snprintf for the hex key, NSString creation, shmap_stage lookup, stringByAppendingString:@\"_b\" and shader_identity under g_shader_lock) on every draw whose combined program is not resolved yet, called from sdx_walk and pso_predict_rest_: A/B on the Apple runtime (macOS 26 runner, as rec_bench.m) with identical keys and results, 12 alternated pairs, nil-program shares 0/10/100 %; then repeat pipeline_driver and homebrew fidelity in the same run if the engine changes.",
+  "next_axis": "Performance loop (a) bandwidth/TBDR: the synthetic NVN2 frame shows DM_NVN_TBDR=1 removing 76.2% of attachment load bytes and 13.7% of store bytes with identical pixels, but hosted NVN2 titles force the tile policy off (rb_current_tile_policy: guest-memory bindless handles). Quantify, per frame, which attachments the selective-bindless mode (3) could prove dead in replays with bindless readers, and whether a generic proof exists for hosted titles; then (c) per-draw argument block allocations (677 arena allocations, 173 KB/frame for 372 draws in the replay) and prog_peek_jobs keys only if steady-state.",
   "legacy_note": "First 21 entries are original host summaries. Their draft patch numbers describe historical experiments; numbers may differ from integrated engine patches. Cachegrind counters are on x86. The uncalibrated projections were withdrawn. No legacy entry establishes fidelity, A18 Pro frametime, GPU time, energy, RAM or FPS.",
   "initial_reference": "0426",
   "intermediate_reference": "0436 (8be902ac0)",
@@ -7393,5 +7393,38 @@
       "date": "2026-11-27",
       "note": "Run 45991888494: the baseline showed 0 in-pass cuts in 12/12 runs (the 2 of 30 earlier runs were timing-dependent). Frame wall time submit-to-finish on the paravirtual GPU has a paired IQR of tens of percent for every switch, including switches that change nothing but call dispatch (rec_imp_off): it detects only large regressions, not the cost of one cut."
     }
-  ]
+  ],
+  "completed_chantiers": [
+    {
+      "date": "2026-11-27",
+      "chantier": "GPU cut / in-pass cut measurement (DM_NVN_CUT 0/16/4 vs 64), replay digest fix, 0468-0470 iOS build",
+      "status": "closed",
+      "result": "In-pass cut costs exactly one store + reload of the open pass attachments (+262 144 B each way per cut in the synthetic frame); pixels identical. Runner frame wall time IQR spans tens of percent for every switch, including no-op ones: no GPU timing conclusion. Cut rule unchanged (prudent decision kept). Do not repeat the 0/4/16/64 comparison without a better method (GPU timestamps per encoder or device data).",
+      "evidence": [
+        "run 45991888494",
+        "run 45988137849",
+        "docs/evidence/s2arm-0437-review/README.md#coupures-en-cours-de-passe"
+      ]
+    }
+  ],
+  "loop_policy": {
+    "since": "2026-11-27T12:00:00Z",
+    "priority": "raw and sustained performance per frame on A18 Pro: more real emulated/rendered frames per second and less critical-path cost per frame at identical quality and emulation speed (16.67 ms budget, no 60 FPS promise). Not micro-stutter or shader-compile work alone.",
+    "rules": [
+      "Start from the latest Claude commit and this registry; map the generic NVN2 CPU/GPU path; look for a real per-frame throughput ceiling.",
+      "Report absolute costs and their share of the critical path, ranked by impact, frequency, bytes, passes/draws/dispatches, submissions, waits, allocations, transitions, redundant work; separate exact counters, estimates and timed measurements; never add overlapping phases; separate real FPS from generated frames, GPU, CPU, wait/sync and present latency.",
+      "Axis order: (a) bandwidth/TBDR (load/store, pass merging, clears, copies, resolves, transient resources, proofs of no-read/no-alias); (b) CPU/GPU cost of submissions and syncs, redundant waits, barriers, cross-queue waits; (c) NVN2 encoding and repeated calls, state/descriptor caches, key building and allocations in hot loops incl. prog_peek_jobs; (d) texture/buffer transfers, residency, staging; (e) shader/pipeline/PSO only if sustained cost is significant; (f) CPU translation/emulation parallelism on the critical path if in S2Arm scope. Energy only via real-work indicators, no invented watts.",
+      "Per axis: profile first, testable hypothesis with bounded estimate, isolating microbench plus representative NVN replay; reference vs best intermediate vs variant, >= 5 comparable repeats (12 AB/BA pairs when noisy), identical warmup, median/p95/paired intervals; never accept deltas under noise; improve the bench once or change axis.",
+      "No physical Metal 4: exact structural counters, proven removed work, synthetic Apple measurements only; never extrapolate physical FPS; Mac timings are not A18 Pro measurements.",
+      "One generic reversible patch per axis with its switch; counter-review against the original path (hazards, aliasing, feedback, RAW, formats, multithread, sessions, thermal), pixels and NVN state, 1x normal speed; no quality/speed/frame-skip/frame-generation gains.",
+      "Compile the engine only when engine code changes; do not re-run acquired validation. One patch per improvement, README patches and registry updated, clean commits on Claude. No IPA.",
+      "Count failed/inconclusive attempts (no gain vs noise vs regression); re-audit after 20; after 3 consecutive iterations without gain signal revisit ranking or instrumentation.",
+      "Chain several high-impact axes per run; the 2 h relaunch resumes the next prioritised performance axis without duplication; stop only when local goals are demonstrable, axes exhausted with proof, or a real blocker is documented."
+    ],
+    "forbidden": [
+      "ZIP, video, recordings, personal measurements, new user tests",
+      "resource-table flush axis (withdrawn)",
+      "other engines, IPA, PR, branches/worktrees, force-push, cache flush"
+    ]
+  }
 }
