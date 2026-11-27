@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "result": "equivalent-linker-stub-selection",
+  "image": "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
+  "actual": "5834529880394cce395b82b5a651838fec348f97e5d41b3d8fef9567ceab7d5b",
+  "reference847": "fd80f3cc42959fb81aae2e0caa32c4f3e6e04d434a56ef1cabe2fb6c4c3a656f",
+  "alternate848": "fd80f3cc42959fb81aae2e0caa32c4f3e6e04d434a56ef1cabe2fb6c4c3a656f",
+  "referenceIPA847SHA256": "c9c23ecce92fddf39e2cd0640e144709de67ee32ca2823be38ddb0bab960b3b9",
+  "references": {
+    "__stubs": 1,
+    "__objc_stubs": 330
+  },
+  "differingSections": [
+    "__TEXT/__stubs",
+    "__TEXT/__objc_stubs"
+  ],
+  "sourcePathsChanged": [],
+  "method": "Existing verify_bridge_stubs.alternate: swap only references to two verified equivalent objc_msgSend imports; alternate full payload fingerprint equals the signed847 reference. Original IPA unchanged.",
+  "zeroFillSectionsExcludedFromFileComparison": [
+    "__DATA/__bss",
+    "__DATA/__common"
+  ]
+}

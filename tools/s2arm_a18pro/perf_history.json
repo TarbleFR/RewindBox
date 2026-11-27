@@ -7392,6 +7392,11 @@
     {
       "date": "2026-11-27",
       "note": "Run 45991888494: the baseline showed 0 in-pass cuts in 12/12 runs (the 2 of 30 earlier runs were timing-dependent). Frame wall time submit-to-finish on the paravirtual GPU has a paired IQR of tens of percent for every switch, including switches that change nothing but call dispatch (rec_imp_off): it detects only large regressions, not the cost of one cut."
+    },
+    {
+      "date": "2026-11-27",
+      "note": "IPA privée 848 livrée et vérifiée, source 8847d7c86, run 46000133193. Moteur S2Arm 0464–0470 du producteur e64d53205 / run 45988137849. Jalons I/R/C/P/S 50/60/65/35/25, estimation globale 50 %, inchangés. FPS, temps image, chauffe, consommation et mémoire sur iPhone non mesurés. Sources ultérieures ajoutées après le gel, hors de cette IPA.",
+      "evidence": "docs/evidence/rewind848/delivery.json"
     }
   ],
   "completed_chantiers": [
