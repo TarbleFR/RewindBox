@@ -1,0 +1,155 @@
+diff --git a/runtime/src/loader.c b/runtime/src/loader.c
+index 138a552..9b65ca9 100644
+--- a/runtime/src/loader.c
++++ b/runtime/src/loader.c
+@@ -155,6 +155,7 @@ module_t *module_of(const void *p) {
+ 
+ // ---------- 改写器随行表 ----------
+ static char g_main_build_id[40];
++static _Atomic int g_rb_mkw_measure;
+ const char *s2a_main_build_id(void) { return g_main_build_id; }
+ #if defined(__APPLE__)
+ // 弱链接[host]：nvn_rb_route_read (RewindBox: optional graphics route observer, already weak)
+@@ -162,7 +163,7 @@ extern void nvn_rb_route_read(const char *, int) __attribute__((weak_import));
+ #endif
+ // Internal to the engine and its NativeAOT services. No asset contents are retained.
+ int s2a_rb_mkw_measure(void) {
+-    return !strcmp(g_main_build_id,"9e244438c3d8ef1c703a6a85ef99c4f0");
++    return atomic_load_explicit(&g_rb_mkw_measure, memory_order_relaxed);
+ }
+ static pthread_mutex_t g_mkw_io_lock = PTHREAD_MUTEX_INITIALIZER;
+ static uint64_t g_mkw_io[3];
+@@ -231,7 +232,7 @@ static void read_layout_text(module_t *m, struct loader_text *text) {
+     int android_target = 0, android_abi = 0;
+ #endif
+     while (text_line(text, line, sizeof line)) {
+-        if (!strncmp(line, "# BUILD_ID\t", 11)) { if (!strcmp(m->name, "main")) { strlcpy(g_main_build_id, line + 11, sizeof g_main_build_id); g_main_build_id[strcspn(g_main_build_id, "\r\n")] = 0; } continue; }
++        if (!strncmp(line, "# BUILD_ID\t", 11)) { if (!strcmp(m->name, "main")) { strlcpy(g_main_build_id, line + 11, sizeof g_main_build_id); g_main_build_id[strcspn(g_main_build_id, "\r\n")] = 0; atomic_store_explicit(&g_rb_mkw_measure, !strcmp(g_main_build_id, "9e244438c3d8ef1c703a6a85ef99c4f0"), memory_order_relaxed); } continue; }
+         // 非苹果目标（S2A_TARGET=android 等）的产物线程槽取法不同：补丁代码读 tpidr_el0，在这里跑会读错槽。苹果产物没有这一行
+         if (!strncmp(line, "# TARGET\t", 9)) {
+ #if defined(__ANDROID__)
+@@ -1207,7 +1208,7 @@ void s2a_loader_session_reset(void) {
+ #endif
+     free(g_pend); g_pend = NULL; g_npend = g_cpend = 0;
+     g_unresolved = g_deferred = 0;
+-    g_main_build_id[0] = 0; g_rtld_lookup_manual_slot = 0;
++    g_main_build_id[0] = 0; atomic_store_explicit(&g_rb_mkw_measure, 0, memory_order_relaxed); g_rtld_lookup_manual_slot = 0;
+     void s2a_nro_table_reset(void); s2a_nro_table_reset();
+     free(g_nro); g_nro = NULL; g_cnro = 0; g_nnro = -1; g_nauto = 0; g_ro_debug = 0;   // nn::ro：下次重读表，旧映像的自动/手动对象不再可达
+     g_ro_auto.prev = g_ro_auto.next = &g_ro_auto; g_ro_manual.prev = g_ro_manual.next = &g_ro_manual;
+diff --git a/runtime/src/thread.c b/runtime/src/thread.c
+index 0d2b614..4603e75 100644
+--- a/runtime/src/thread.c
++++ b/runtime/src/thread.c
+@@ -117,7 +117,7 @@ typedef struct thr {
+     uint64_t sig_id, sig_tick;
+     int yielded;                       // SleepThread(0/-1/-2) 让出：重取核时让同优先级、登记更早的先拿（Switch yield 同优先级轮转）
+     uint64_t wseq;                     // 登记等待的先后：同优先级先到先醒（同 Horizon KThread 等待树）
+-    struct thr *next, *all;            // 等待链 / 全部线程链
++    struct thr *next, **wpprev, *all;  // 等待链（双向 O(1) 摘除）/ 全部线程链
+     int last_svc; uint64_t last_lr, last_fp, nsvc;
+     uint64_t tr_ret_t, tr_cpu_ns, tr_wake_t, tr_waker, tr_lastwake_t; int tr_ret_svc;   // 唤醒追踪（S2A_WAKE_TRACE，见 wt_on）：上次回游戏的时刻与当时的线程 CPU、被唤醒时刻与唤醒方、自己最近一次唤醒别人的时刻
+     _Atomic uint64_t nsvc_all;                 // 全部系统调用次数（svc_thread 入口计；nsvc 只计线程类）：让步退避判「两次让步之间有没有别的系统调用」
+@@ -325,7 +325,14 @@ int s2a_thread_svc_stat(uint64_t *n) { thr_t *t = thread_current_or_null(); if (
+ #include "thread_wait_diag.inc"
+ 
+ // ---------- 等待原语（持 G）----------
+-static void wait_unlink(thr_t *t) { for (thr_t **p = &g_wait; *p; p = &(*p)->next) if (*p == t) { *p = t->next; break; } t->next = NULL; }
++static void wait_unlink(thr_t *t) {
++    if (t->wpprev) {
++        *t->wpprev = t->next;
++        if (t->next) t->next->wpprev = t->wpprev;
++        t->wpprev = NULL;
++    }
++    t->next = NULL;
++}
+ // 按内核顺序挑等待者：优先级数值小者优先，同优先级先登记者优先。kind 1 按锁地址、2 按条件键、3 按地址
+ static thr_t *pick(int kind, uint64_t a) {
+     thr_t *b = NULL;
+@@ -364,11 +371,12 @@ static void wt_bucket(int k, uint64_t ns) { int b = ns < 1000 ? 0 : ns < 10000 ?
+ //   Deterministic mode (block_det) keeps the condition variable. S2A_RB_GUEST_WAIT=0 gives the old waits back; S2A_RB_WAIT_SPIN=<µs> sets the spin (2, 0 = none)
+ static int rb_gw_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_RB_GUEST_WAIT"); v = !(e && !strcmp(e, "0")); } return v; }
+ enum { WQ_N = 32, KQI_N = 256 };
+-static __thread int t_wq_on, t_wq_n;
++static __thread int t_wq_on, t_wq_n, t_wq_yield;
+ static __thread struct { void *a; int kq; } t_wq[WQ_N];   // a = &t->woke to wake, or NULL and kq = the kqueue to trigger
+ static _Atomic int g_kq_infl[KQI_N];                        // deferred triggers not yet issued, by descriptor & (KQI_N - 1)
+ static _Atomic uint64_t g_gw[5];                            // thr_t.gw_n of exited threads
+ #define GW_INC(t, k) __atomic_store_n(&(t)->gw_n[k], (t)->gw_n[k] + 1, __ATOMIC_RELAXED)   // owner only (no lost increment); readers use __atomic_load_n under G
++static void rb_yield_event_notify(void);
+ static void kq_trigger(int kq) { struct kevent64_s ev; EV_SET64(&ev, 2, EVFILT_USER, 0, NOTE_TRIGGER, 0, 0, 0, 0); RB_WAKE_SIGNAL_CALL("svc.kqueue.signal", kevent64(kq, &ev, 1, NULL, 0, 0, NULL)); }
+ static int wq_add(void *a, int kq) {   // G held; 0 = no scope or list full: the caller issues it now
+     if (!t_wq_on || t_wq_n >= WQ_N) return 0;
+@@ -382,6 +390,7 @@ static void wq_flush(void) {   // issues this thread's recorded wake-ups (after
+         else { kq_trigger(t_wq[i].kq); atomic_fetch_sub(&g_kq_infl[t_wq[i].kq & (KQI_N - 1)], 1); }
+     }
+     t_wq_n = 0;
++    if (t_wq_yield) { t_wq_yield = 0; rb_yield_event_notify(); }
+ }
+ // RewindBox (patch 0113): IPA 785 had 208,326 fruitless spins and 4,515 hits.
+ // Only re-probes after the adaptive spin budget has already reached zero change.
+@@ -451,7 +460,11 @@ static void wake(thr_t *t, int64_t res) {
+         if (!previous || previous->id != me->peer.id || previous->exited || t->prio < previous->prio)
+             me->peer = (peer_wait_t){t->handle, t->id, atomic_load_explicit(&t->nsvc_all, memory_order_relaxed)};
+     }
++#if defined(__APPLE__)
++    if (t_wq_on) t_wq_yield = 1; else rb_yield_event_notify(); // defer out of G in wq scope to avoid G -> rb_yield_event_mu lock convoy
++#else
+     rb_yield_event_notify(); // publish the wake predicate before notifying idle pollers
++#endif
+ }
+ // A normal wake asks the waiter to re-check its own predicates under G.
+ static void wake_sync_waiters(const void *object, uint32_t closed_handle) {
+@@ -610,7 +623,7 @@ static double mach_ms(uint64_t d) { return (double)thread_clock_ns(d) / 1e6; }
+ static int64_t block_u(thr_t *t, int kind, int64_t ns, int *unlocked) {
+     (void)unlocked;   // unused where the word wait below is compiled out (non-Apple, the Darwin protocol adapter)
+     if (atomic_load(&g_session_stop)) return R_CANCELLED;
+-    t->wkind = kind; __atomic_store_n(&t->woke, 0, __ATOMIC_RELAXED); t->next = g_wait; g_wait = t; t->wseq = ++g_wseq; t->wait_t0 = thread_clock();   // RewindBox (patch 0074): woke is also read without G (block_u)
++    t->wkind = kind; __atomic_store_n(&t->woke, 0, __ATOMIC_RELAXED); t->next = g_wait; if (g_wait) g_wait->wpprev = &t->next; t->wpprev = &g_wait; g_wait = t; t->wseq = ++g_wseq; t->wait_t0 = thread_clock();   // RewindBox (patch 0074): woke is also read without G (block_u)
+     t->nsig = 0;   // 每次新挂上去重新数被发过几次信号（S2A_WAIT_TRACE）
+     if (ns == 0) { wait_diag_block_locked(t, kind, ns, NULL); wait_unlink(t); t->wkind = 0; return R_TIMEOUT; }
+     t->nblk++; // Zero-timeout polling above is not a blocking wait.
+@@ -678,7 +691,13 @@ static int64_t block_u(thr_t *t, int kind, int64_t ns, int *unlocked) {
+         t->kqfd = kq; t->kqw = 1;
+         while (!t->woke) { pthread_mutex_unlock(&G); wq_flush(); r = kq_wait_until(kq, end); glock(); wait_diag_condition_locked(t, r == 1 ? ETIMEDOUT : r < 0 ? EIO : 0); if (r) break; }   // RewindBox (patch 0074): wq_flush
+         t->kqw = 0;
+-        if (t->woke) { struct kevent64_s ev; EV_SET64(&ev, 1, EVFILT_TIMER, EV_DELETE, 0, 0, 0, 0, 0); kevent64(kq, &ev, 1, NULL, 0, 0, NULL); return t->wres; }   // 撤掉没到点的定时器
++        if (t->woke) {
++            int64_t wres = t->wres;
++            if (unlocked && !wait_diag_on()) { pthread_mutex_unlock(&G); *unlocked = 1; }
++            struct kevent64_s ev; EV_SET64(&ev, 1, EVFILT_TIMER, EV_DELETE, 0, 0, 0, 0, 0);
++            kevent64(kq, &ev, 1, NULL, 0, 0, NULL);
++            return wres;
++        }   // 撤掉没到点的定时器（unlocked 时已放 G）
+         if (r == 1) { wait_unlink(t); t->wkind = 0; return R_TIMEOUT; }
+         ns = (int64_t)(end - now_ns()); if (ns <= 0) { wait_unlink(t); t->wkind = 0; return R_TIMEOUT; }   // kqueue 失败（已报红）：剩下的按原做法等
+     }
+@@ -3285,12 +3304,14 @@ static int svc_thread_impl(thr_t *me, int num, uint64_t *regs) {
+         if ((unsigned)type > 2) { regs[0] = 0xF001; return 1; }        // InvalidEnumValue：原先未知类型按类型 1 执行并改内存
+         glock();
+         int nw = 0; uint64_t sig_now = thread_clock();
++        thr_t *best = NULL;
+         for (thr_t *w = g_wait; w; w = w->next) if (w->wkind == 3 && w->waddr == addr) {
+             nw++;
+             // 缺省就记「谁发的、什么时候」：state 字里没有 owner，这是我们唯一能回答「该 signal 的那一路跑没跑」的地方。
+             //   连没被挑中唤醒的等待者也记——它照样说明「信号来过、只是没轮到我」，与「从来没人来」处置完全不同
+             w->sig_id = me->id; w->sig_tick = sig_now;
+             if (wait_trace_on()) w->nsig++;
++            if (!best || w->prio < best->prio || (w->prio == best->prio && w->wseq < best->wseq)) best = w;
+         }
+         int64_t r = 0;
+         if (type != 0) {
+@@ -3301,7 +3322,12 @@ static int svc_thread_impl(thr_t *me, int num, uint64_t *regs) {
+             uint32_t e = (uint32_t)val;
+             if (!cas32(addr, &e, (uint32_t)nv)) r = R_BAD_STATE;
+         }
+-        if (!r) { int n = 0; for (thr_t *w; (cnt <= 0 || n < cnt) && (w = pick(3, addr)); n++) wake(w, 0); }
++        if (!r && nw) {
++            wake(best, 0);
++            if (cnt != 1 && nw > 1) {
++                for (int n = 1; (cnt <= 0 || n < cnt); n++) { thr_t *w = pick(3, addr); if (!w) break; wake(w, 0); }
++            }
++        }
+         pthread_mutex_unlock(&G);
+         regs[0] = (uint64_t)r; return 1;
+     }

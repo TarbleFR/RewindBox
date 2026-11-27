@@ -1,0 +1,157 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_hmap.h b/graphics/nvn/gfx/nvn/nvn_hmap.h
+index f3a7893..44e5fed 100644
+--- a/graphics/nvn/gfx/nvn/nvn_hmap.h
++++ b/graphics/nvn/gfx/nvn/nvn_hmap.h
+@@ -8,36 +8,78 @@
+ 
+ typedef struct { uint8_t *keys; void **vals; uint32_t klen, cap, n; } nvn_hmap;   // vals[i] == NULL means an empty slot
+ 
++// Public hash function: kept bit-exact for persisted pipeline/history records and tests.
+ static inline uint64_t nvn_hm_hash(const void *k, uint32_t len) {
+-    const uint8_t *p = k; uint64_t h = 0x9e3779b97f4a7c15ull ^ len;
++    const uint8_t *p = (const uint8_t *)k; uint64_t h = 0x9e3779b97f4a7c15ull ^ len;
+     for (; len >= 8; p += 8, len -= 8) { uint64_t w; memcpy(&w, p, 8); h = (h ^ w) * 0xff51afd7ed558ccdull; h ^= h >> 32; }
+     if (len) { uint64_t w = 0; memcpy(&w, p, len); h = (h ^ w) * 0xff51afd7ed558ccdull; }
+     h ^= h >> 33; h *= 0xc4ceb9fe1a85ec53ull; h ^= h >> 33;
+     return h;
+ }
++// Specialized 8-byte hash: bit-exact with nvn_hm_hash(k, 8), zero loop/tail branches.
++static inline uint64_t nvn_hm_hash8(uint64_t w) {
++    uint64_t h = ((0x9e3779b97f4a7c15ull ^ 8ull) ^ w) * 0xff51afd7ed558ccdull;
++    h ^= h >> 32;
++    h ^= h >> 33;
++    h *= 0xc4ceb9fe1a85ec53ull;
++    h ^= h >> 33;
++    return h;
++}
++// Internal bucket hash: 4-lane ILP for large fixed-length keys (>= 32B, e.g. 344B pso_key),
++// breaking the 43-multiply serial dependency chain across Apple A18 Pro's 4 integer pipes.
++static inline uint64_t nvn_hm_slot_hash(const void *k, uint32_t len) {
++    if (len < 128) return nvn_hm_hash(k, len);
++    const uint8_t *p = (const uint8_t *)k;
++    uint64_t h0 = 0x9e3779b97f4a7c15ull ^ len;
++    uint64_t h1 = 0xbf58476d1ce4e5b9ull ^ len;
++    uint64_t h2 = 0x94d049bb133111ebull ^ len;
++    uint64_t h3 = 0xd6e8feb86659fd93ull ^ len;
++    for (; len >= 32; p += 32, len -= 32) {
++        uint64_t w0, w1, w2, w3;
++        memcpy(&w0, p, 8); memcpy(&w1, p + 8, 8);
++        memcpy(&w2, p + 16, 8); memcpy(&w3, p + 24, 8);
++        h0 = (h0 ^ w0) * 0xff51afd7ed558ccdull; h0 ^= h0 >> 32;
++        h1 = (h1 ^ w1) * 0xff51afd7ed558ccdull; h1 ^= h1 >> 32;
++        h2 = (h2 ^ w2) * 0xff51afd7ed558ccdull; h2 ^= h2 >> 32;
++        h3 = (h3 ^ w3) * 0xff51afd7ed558ccdull; h3 ^= h3 >> 32;
++    }
++    uint64_t h = h0 ^ (h1 * 0x94d049bb133111ebull) ^ (h2 * 0xbf58476d1ce4e5b9ull) ^ (h3 * 0xff51afd7ed558ccdull);
++    for (; len >= 8; p += 8, len -= 8) { uint64_t w; memcpy(&w, p, 8); h = (h ^ w) * 0xff51afd7ed558ccdull; h ^= h >> 32; }
++    if (len) { uint64_t w = 0; memcpy(&w, p, len); h = (h ^ w) * 0xff51afd7ed558ccdull; }
++    h ^= h >> 33; h *= 0xc4ceb9fe1a85ec53ull; h ^= h >> 33;
++    return h;
++}
++static inline int nvn_hm_eq(const uint8_t *a, const void *b, uint32_t len) {
++    if (len >= 8) {
++        uint64_t wa, wb;
++        memcpy(&wa, a, 8); memcpy(&wb, b, 8);
++        if (wa != wb) return 0;
++        if (len == 8) return 1;
++        return memcmp(a + 8, (const uint8_t *)b + 8, len - 8) == 0;
++    }
++    return memcmp(a, b, len) == 0;
++}
+ static inline void nvn_hm_init(nvn_hmap *m, uint32_t klen) { memset(m, 0, sizeof *m); m->klen = klen; }
+ static inline void *nvn_hm_get(const nvn_hmap *m, const void *k) {
+     if (!m->n) return NULL;
+-    // 8 字节键（序号、活序号、幽灵、视图缓存、计算管线表，每次绘制查好几次）：按一个字比较，不调 memcmp（照 the reference port「Hash-table lookups of 8-byte keys」，MIT：
+-    //   M4 Pro 上 3000 项表 6000 万次查找 5.9 → 1.5 ns / 次）。哈希、探测顺序和答案不变
+     if (m->klen == 8) {
+         uint64_t kw; memcpy(&kw, k, 8);
+-        for (uint32_t i = (uint32_t)nvn_hm_hash(k, 8) & (m->cap - 1);; i = (i + 1) & (m->cap - 1)) {
++        for (uint32_t i = (uint32_t)nvn_hm_hash8(kw) & (m->cap - 1);; i = (i + 1) & (m->cap - 1)) {
+             if (!m->vals[i]) return NULL;
+             uint64_t w; memcpy(&w, m->keys + (size_t)i * 8, 8);
+             if (w == kw) return m->vals[i];
+         }
+     }
+-    for (uint32_t i = (uint32_t)nvn_hm_hash(k, m->klen) & (m->cap - 1);; i = (i + 1) & (m->cap - 1)) {
++    for (uint32_t i = (uint32_t)nvn_hm_slot_hash(k, m->klen) & (m->cap - 1);; i = (i + 1) & (m->cap - 1)) {
+         if (!m->vals[i]) return NULL;
+-        if (!memcmp(m->keys + (size_t)i * m->klen, k, m->klen)) return m->vals[i];
++        if (nvn_hm_eq(m->keys + (size_t)i * m->klen, k, m->klen)) return m->vals[i];
+     }
+ }
+ static inline void *nvn_hm_put(nvn_hmap *m, const void *k, void *v);
+ static inline void nvn_hm_grow(nvn_hmap *m) {
+     nvn_hmap o = *m;
+     m->cap = o.cap ? o.cap * 2 : 64; m->n = 0;
+-    m->keys = malloc((size_t)m->cap * m->klen); m->vals = calloc(m->cap, sizeof *m->vals);
++    m->keys = (uint8_t *)malloc((size_t)m->cap * m->klen); m->vals = (void **)calloc(m->cap, sizeof *m->vals);
+     if (!m->keys || !m->vals) abort();
+     for (uint32_t i = 0; i < o.cap; i++) if (o.vals[i]) nvn_hm_put(m, o.keys + (size_t)i * o.klen, o.vals[i]);
+     free(o.keys); free(o.vals);
+@@ -45,19 +87,53 @@ static inline void nvn_hm_grow(nvn_hmap *m) {
+ // v must not be NULL; returns the old value for the same key (NULL if none)
+ static inline void *nvn_hm_put(nvn_hmap *m, const void *k, void *v) {
+     if ((m->n + 1) * 4 > m->cap * 3) nvn_hm_grow(m);   // Load factor <= 3/4
+-    for (uint32_t i = (uint32_t)nvn_hm_hash(k, m->klen) & (m->cap - 1);; i = (i + 1) & (m->cap - 1)) {
++    if (m->klen == 8) {
++        uint64_t kw; memcpy(&kw, k, 8);
++        for (uint32_t i = (uint32_t)nvn_hm_hash8(kw) & (m->cap - 1);; i = (i + 1) & (m->cap - 1)) {
++            uint8_t *ki = m->keys + (size_t)i * 8;
++            if (!m->vals[i]) { memcpy(ki, &kw, 8); m->vals[i] = v; m->n++; return NULL; }
++            uint64_t w; memcpy(&w, ki, 8);
++            if (w == kw) { void *old = m->vals[i]; m->vals[i] = v; return old; }
++        }
++    }
++    for (uint32_t i = (uint32_t)nvn_hm_slot_hash(k, m->klen) & (m->cap - 1);; i = (i + 1) & (m->cap - 1)) {
+         uint8_t *ki = m->keys + (size_t)i * m->klen;
+         if (!m->vals[i]) { memcpy(ki, k, m->klen); m->vals[i] = v; m->n++; return NULL; }
+-        if (!memcmp(ki, k, m->klen)) { void *old = m->vals[i]; m->vals[i] = v; return old; }
++        if (nvn_hm_eq(ki, k, m->klen)) { void *old = m->vals[i]; m->vals[i] = v; return old; }
+     }
+ }
+ // After deletion, shift back later entries on the same probe chain to fill the hole, so that a lookup can stop at the first empty slot
+ static inline void *nvn_hm_del(nvn_hmap *m, const void *k) {
+     if (!m->n) return NULL;
+-    uint32_t mask = m->cap - 1, i = (uint32_t)nvn_hm_hash(k, m->klen) & mask;
++    uint32_t mask = m->cap - 1;
++    uint32_t i;
++    if (m->klen == 8) {
++        uint64_t kw; memcpy(&kw, k, 8);
++        i = (uint32_t)nvn_hm_hash8(kw) & mask;
++        for (;; i = (i + 1) & mask) {
++            if (!m->vals[i]) return NULL;
++            uint64_t w; memcpy(&w, m->keys + (size_t)i * 8, 8);
++            if (w == kw) break;
++        }
++        void *old = m->vals[i];
++        for (uint32_t j = i;;) {
++            m->vals[i] = NULL;
++            for (;;) {
++                j = (j + 1) & mask;
++                if (!m->vals[j]) { m->n--; return old; }
++                uint64_t wj; memcpy(&wj, m->keys + (size_t)j * 8, 8);
++                uint32_t h = (uint32_t)nvn_hm_hash8(wj) & mask;
++                if (i <= j ? (i < h && h <= j) : (i < h || h <= j)) continue;
++                break;
++            }
++            memcpy(m->keys + (size_t)i * 8, m->keys + (size_t)j * 8, 8); m->vals[i] = m->vals[j];
++            i = j;
++        }
++    }
++    i = (uint32_t)nvn_hm_slot_hash(k, m->klen) & mask;
+     for (;; i = (i + 1) & mask) {
+         if (!m->vals[i]) return NULL;
+-        if (!memcmp(m->keys + (size_t)i * m->klen, k, m->klen)) break;
++        if (nvn_hm_eq(m->keys + (size_t)i * m->klen, k, m->klen)) break;
+     }
+     void *old = m->vals[i];
+     for (uint32_t j = i;;) {
+@@ -65,7 +141,7 @@ static inline void *nvn_hm_del(nvn_hmap *m, const void *k) {
+         for (;;) {
+             j = (j + 1) & mask;
+             if (!m->vals[j]) { m->n--; return old; }
+-            uint32_t h = (uint32_t)nvn_hm_hash(m->keys + (size_t)j * m->klen, m->klen) & mask;
++            uint32_t h = (uint32_t)nvn_hm_slot_hash(m->keys + (size_t)j * m->klen, m->klen) & mask;
+             if (i <= j ? (i < h && h <= j) : (i < h || h <= j)) continue;   // Ideal position is within (i, j]: cannot move forward
+             break;
+         }

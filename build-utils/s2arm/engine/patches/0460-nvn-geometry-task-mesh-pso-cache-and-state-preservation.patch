@@ -1,0 +1,153 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_geometry.inc b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+index de578e7..c5bc88d 100644
+--- a/graphics/nvn/gfx/nvn/nvn_geometry.inc
++++ b/graphics/nvn/gfx/nvn/nvn_geometry.inc
+@@ -345,9 +345,15 @@ static id<MTLRenderPipelineState> mtk_pso(NvProg *raster) {
+ static void mtk_encode(id en_) {
+     id en = en_; NvShader *ts = g_mtk.ts, *ms = g_mtk.ms;
+     uint64_t first = g_mtk.ind ? g_mtk.ind + 16 : 0;   // indirect: the converted arguments carry it at word 4 (ixc_arrays)
+-    if (!first) { id<MTLBuffer> b; size_t o = arena_alloc(16, &b); memcpy((uint8_t *)b.contents + o, &g_mtk.first, 4); first = b.gpuAddress + o; }
+-    enc_r_table(en, g_vt, MTLRenderStageMesh);
+-    if (ts) { enc_r_table(en, g_ot, MTLRenderStageObject); g_args_object = 1; encode_args(en, ts, 3, 0); g_args_object = 0; enc_o_args(first, MESH_FIRST_SLOT); }
++    if (!first) {
++        if (!g_mtk.first) first = zero_bank_gpu();
++        else { id<MTLBuffer> b; size_t o = arena_alloc(16, &b); memcpy(g_cur_arena->cpu + o, &g_mtk.first, 4); first = g_cur_arena->gpu + o; }
++    }
++    if (!(g_enc_mtk_tab & 1u)) { enc_r_table(en, g_vt, MTLRenderStageMesh); g_enc_mtk_tab |= 1u; }
++    if (ts) {
++        if (!(g_enc_mtk_tab & 2u)) { enc_r_table(en, g_ot, MTLRenderStageObject); g_enc_mtk_tab |= 2u; }
++        g_args_object = 1; encode_args(en, ts, 3, 0); g_args_object = 0; enc_o_args(first, MESH_FIRST_SLOT);
++    }
+     encode_args(en, ms, 4, 1); enc_r_vbuf(en, MESH_FIRST_SLOT, first);
+     NSUInteger ot = ts ? ts->mesh_threads : 1, mt = ms->mesh_threads;
+     if (g_mtk.ind) enc_r_mesh_indirect(en, g_mtk.ind, ot, mt); else enc_r_mesh(en, g_mtk.count, ot, mt);
+@@ -380,7 +386,10 @@ static void mesh_tasks_draw(const p_draw *dw) {
+     g_geo_program = raster;
+     p_draw triangle = {.prim = 4, .count = 3, .instances = 1};
+     draw(&triangle, NULL);
+-    g_geo_program = nil; g_mtk.on = 0; g_mtk.ts = g_mtk.ms = nil; args_dirty_all();
++    g_geo_program = nil; g_mtk.on = 0; g_mtk.ts = g_mtk.ms = nil;
++    // Mesh/task draws write g_vt (shared with vertex stage 0) and g_ot, leaving fragment stage 1 and dynamic render state intact.
++    g_args_dirty[0] = g_args_dirty[3] = g_args_dirty[4] = 1;
++    rb_args_mod_mark_other(&g_rb_mod[0]); rb_args_mod_mark_other(&g_rb_mod[3]); rb_args_mod_mark_other(&g_rb_mod[4]);
+     if (g_mtk.miss) { g_mtk_wait++; return; }
+     swrite_note(pr);   // the task / mesh stages' storage writes (draw() saw the pixel stage alone)
+     if (!g_mtk_n++) MLOG("task / mesh: first draw (%s), task %s mesh %s fragment %s, %u workgroups from %u", ind ? "indirect" : "direct", ts ? ts->key : "-", ms->key, pr->sh[1] ? pr->sh[1]->key : "-",
+@@ -820,7 +829,7 @@ static void geo_draw(NvProg *pr, const p_draw *dw0, const p_draw_idx *di0) {
+         enc_c_dispatch(ce, MTLSizeMake(1, 1, 1), MTLSizeMake(MIN(pack.maxTotalThreadsPerThreadgroup, 1024) / 32 * 32, 1, 1)); enc_c_end(ce);
+     }
+     if (tf && !geo_tf(gs->geo_tf_stride[0] || gs->geo_tf_stride[1] || gs->geo_tf_stride[2] || gs->geo_tf_stride[3] ? gs : base, output, packed, args, packed_size / 4)) nvn_be_bad_draw_feat();   // the capture (see geo_tf)
+-    args_dirty_all(); if (!run) { g_enc_pso = nil; g_enc_dss = nil; g_ed.ok = 0; }   // in a run the main pass's encoder state is unchanged (the lane encoders are others)
++    args_dirty_all(); if (!run) { g_enc_pso = nil; g_enc_dss = nil; g_ed.ok = 0; g_enc_mtk_tab = 0; }   // in a run the main pass's encoder state is unchanged (the lane encoders are others)
+     swrite_note(pr); udc_note_draw(pr); g_wr_epoch++; g_mdx_epoch++;
+     if (S.rast_discard) return;
+     NvProg *raster = pr->geo_raster;
+@@ -872,7 +881,7 @@ static void vcap_draw(NvProg *pr, const p_draw *dw, const p_draw_idx *di, uint64
+     args_dirty_all(); encode_args(re, vs, 0, 1); enc_r_vbuf(re, 13, ib.gpuAddress + io);
+     enc_r_draw_instanced(re, MTLPrimitiveTypePoint, (NSUInteger)first, (NSUInteger)span, (NSUInteger)instances, first_instance);
+     enc_r_end(re);
+-    args_dirty_all(); g_enc_pso = nil; g_enc_dss = nil; g_ed.ok = 0;
++    args_dirty_all(); g_enc_pso = nil; g_enc_dss = nil; g_ed.ok = 0; g_enc_mtk_tab = 0;
+     mdi_wait();
+     const char *dir = getenv("S2A_DOCS"); snprintf(g_vcap_path, sizeof g_vcap_path, "%s/vcap_f%llu_d%ld.tsv", dir && *dir ? dir : ".", (unsigned long long)frame, n);
+     FILE *f = fopen(g_vcap_path, "w"); if (!f) { MLOG("【红】 DM_NVN_VCAP: cannot write %s", g_vcap_path); return; }
+@@ -935,7 +944,7 @@ static int sx_draw(NvProg *pr, const p_draw *dw0, const p_draw_idx *di0) {
+     if (di0) enc_r_draw_indexed(re, MTLPrimitiveTypePoint, nu, MTLIndexTypeUInt32, ix, nu * 4, instances, di.base_vertex, first_instance);
+     else enc_r_draw_instanced(re, MTLPrimitiveTypePoint, dw.first, count, instances, first_instance);
+     enc_r_end(re);
+-    args_dirty_all(); g_enc_pso = nil; g_enc_dss = nil; g_ed.ok = 0;
++    args_dirty_all(); g_enc_pso = nil; g_enc_dss = nil; g_ed.ok = 0; g_enc_mtk_tab = 0;
+     swrite_note(pr); udc_note_draw(pr); g_wr_epoch++; g_mdx_epoch++;
+     static int once; if (!once++) MLOG("rasterizer discard: vertex shader %s that writes storage run for its writes (%s, %llu vertices, %d instances)", vs->key, di0 ? "indexed" : "array", (unsigned long long)span, instances);
+     return 1;
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 2705c0f..64c9eed 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -10388,7 +10388,7 @@ static void size_abi_target(MTLRenderPassColorAttachmentDescriptorArray *colors,
+                             MTLRenderPassDepthAttachmentDescriptor *depth,
+                             MTLRenderPassStencilAttachmentDescriptor *stencil, const p_set_rt *rt);
+ static int g_rp_layered;   // the pass about to open is for a vertex shader that writes the layer (draw → rp_begin_ex)
+-static id<MTLRenderPipelineState> g_enc_pso; static id<MTLDepthStencilState> g_enc_dss;   // Already set on this encoder (not set again if identical)
++static id<MTLRenderPipelineState> g_enc_pso; static id<MTLDepthStencilState> g_enc_dss; static uint8_t g_enc_mtk_tab; static __unsafe_unretained id<MTLRenderPipelineState> g_cur_mtk_ps;   // Already set on this encoder (not set again if identical); g_enc_mtk_tab bit 0=mesh, 1=object
+ // Dynamic state already sent on the open render encoder: each draw used to send all nine (stencil reference, viewport, scissor, cull, winding, fill, depth bias, depth clip, blend colour);
+ // now a value is sent only when it differs. g_ed.ok holds one bit per item and is cleared for every new encoder and after a clear triangle (which sets its own)
+ static struct { unsigned ok; uint32_t sref[2]; MTLViewport vp; MTLScissorRect sc; int cull, wind, fill, clip, origin_ll, rast_flip, widen; float bias[3], blend[4]; } g_ed;
+@@ -11451,7 +11451,7 @@ static id<MTL4RenderCommandEncoder> rp_begin_ex_(int clear_only) {
+         size_abi_target(pd.colorAttachments, pd.depthAttachment, pd.stencilAttachment, &R.rt);
+         if (rt_range_on()) { g_pass.reg_gen = reg0; g_pass.ser_gen = ser0; }
+         if (rt_range_on()) { g_pass.range_dirty=dirty0; g_pass.range_color=pd.colorAttachments[0].texture; g_pass.range_depth=pd.depthAttachment.texture; }
+-        g_enc_pso = nil; g_enc_dss = nil; g_ed.ok = 0;
++        g_enc_pso = nil; g_enc_dss = nil; g_ed.ok = 0; g_enc_mtk_tab = 0;
+     }
+     if (g_vis_on) {
+         if (!vis_reserve()) return nil;
+@@ -24502,7 +24502,7 @@ static void tf_draw(NvProg *pr, const p_draw *dw, const p_draw_idx *di) {
+     }
+     for (int b = 0; b < 4; b++) if (vs->tf_stride[b]) { uint64_t n = (uint64_t)count * inst * vs->tf_stride[b]; pend_add(S.tf[b].addr + S.tf_off[b], n, 4); S.tf_off[b] += n; }
+     free(order);
+-    args_dirty_all(); g_enc_pso = nil; g_enc_dss = nil; g_ed.ok = 0;
++    args_dirty_all(); g_enc_pso = nil; g_enc_dss = nil; g_ed.ok = 0; g_enc_mtk_tab = 0;
+     { static int once; if (!once++) MLOG("transform feedback: first capture (vertex %s, %d vertices)", vs->key, count); }
+     { static int once; if ((di || inst > 1) && !once++) MLOG("transform feedback: first %s capture (vertex %s, %d %s × %u instances)", di ? "indexed" : "instanced", vs->key, count, di ? "indices" : "vertices", inst); }
+     PD("T %llu tf capture vs=%s first=%lld count=%d instances=%u indexed=%d written %llu/%llu/%llu/%llu", g_stat_pass, vs->key, (long long)first, count, inst, di != NULL,
+@@ -25185,7 +25185,7 @@ static void tess_draw(NvProg *pr, const p_draw *dw0, const p_draw_idx *di0) {
+     if (di0) enc_r_draw_indexed(re, MTLPrimitiveTypePoint, nu, MTLIndexTypeUInt32, ix_gpu, (NSUInteger)nu * 4, instances, di.base_vertex, first_instance);
+     else enc_r_draw_instanced(re, MTLPrimitiveTypePoint, dw.first, Vp, instances, first_instance);
+     enc_r_end(re);
+-    args_dirty_all(); g_enc_pso = nil; g_enc_dss = nil; g_ed.ok = 0;
++    args_dirty_all(); g_enc_pso = nil; g_enc_dss = nil; g_ed.ok = 0; g_enc_mtk_tab = 0;
+     // 搬运核：捕获记录 → 规范布局控制点（一个线程一个控制点，Vp × instances 个）
+     id ce = enc_c_begin(NULL); enc_c_pso(ce, g_tess_gather);
+     { id tab = tab_new(4, 0, 0, NULL); tab_addr(tab, gp_gpu, 0); tab_addr(tab, cap_gpu, 1); tab_addr(tab, map_gpu, 2); tab_addr(tab, vsout_gpu, 3); enc_c_table(ce, tab); }
+@@ -25782,6 +25782,8 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+     if (skip_d) { g_stat_ds_omit++; if (mode == 3) g_stat_s_only++; else if (mode == 4) g_stat_d_only++; }
+     // The pipeline depends only on (program, render pass targets, blend / color / write mask / multisample state, vertex layout): if these did not change, reuse the previous one
+     static id<MTLRenderPipelineState> cur_ps; static NvProg *cur_pr; static uint64_t cur_ps_pass; static int cur_ps_fc; static uint8_t cur_ps_round;
++    static __unsafe_unretained NvShader *cur_mtk_ts, *cur_mtk_ms, *cur_mtk_fs;
++    static uint64_t cur_mtk_sub, cur_mtk_pass; static int cur_mtk_fc; static uint8_t cur_mtk_round;
+     if (g_fz.active && !g_defer_replaying) { g_pso_lmap = g_fz.phase == 1 ? g_fz.lmap1 : g_fz.lmap2; g_pso_fsfn = g_fz.phase == 1 ? nil : fz_fn; g_pso_fz = g_fz.phase == 1 ? (pso_fz_desc){0} : g_fz_desc; g_pso_dirty = 1; }
+     else if (g_fbt.on && g_enc && !g_defer_replaying) {   // ⑤ 遍内自采样片上读取：本笔用可读瓦片版（输出不搬位置）
+         g_pso_lmap = g_fbt.lmap; g_pso_fsfn = g_fbt.fn; memset(&g_pso_fz, 0, sizeof g_pso_fz); g_pso_fz.kind = 1; g_pso_fz.fbmask = g_fbt.fbmask;
+@@ -25791,13 +25793,25 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+     //   GPU has no native reduction (0 at once on Apple10)
+     g_fold_sh[1] = NULL;   // reset here too: the readable-tile paths below skip se_want
+     int fc = g_pso_lmap || g_pso_fsfn ? 0 : se_want(pr->gp, pr->sh[1], 1);
+-    if (g_mtk.on) {   // a task / mesh draw (mesh_tasks_draw): its own pipeline kind; the next draw fetches its own again (cur_pr nil)
+-        g_pso_fc = fc; cur_ps = mtk_pso(pr); cur_ps_round = g_pso_color_round; g_pso_fc = 0; cur_pr = nil;
++    if (g_mtk.on) {   // a task / mesh draw (mesh_tasks_draw): its own pipeline kind; 1-entry cache avoids key build, lock and NSMutableSet lookup on steady draws
++        if (!g_pso_dirty && !g_pso_lmap && !g_pso_fsfn && g_cur_mtk_ps && cur_mtk_sub == g_sub_serial && cur_mtk_pass == g_pass.serial &&
++            cur_mtk_ts == g_mtk.ts && cur_mtk_ms == g_mtk.ms && cur_mtk_fs == pr->sh[1] && cur_mtk_fc == fc) {
++            cur_ps = g_cur_mtk_ps; cur_ps_round = cur_mtk_round;
++        } else {
++            g_pso_fc = fc; cur_ps = mtk_pso(pr); cur_ps_round = g_pso_color_round; g_pso_fc = 0;
++            if (cur_ps && !g_pso_lmap && !g_pso_fsfn) {
++                g_cur_mtk_ps = cur_ps; cur_mtk_ts = g_mtk.ts; cur_mtk_ms = g_mtk.ms; cur_mtk_fs = pr->sh[1];
++                cur_mtk_sub = g_sub_serial; cur_mtk_pass = g_pass.serial; cur_mtk_fc = fc; cur_mtk_round = cur_ps_round;
++                g_pso_dirty = 0;
++            } else { g_cur_mtk_ps = nil; }
++        }
++        cur_pr = nil;
+         if (!cur_ps) { g_mtk.miss = 1; if (g_pso_lmap) { g_pso_lmap = NULL; g_pso_fsfn = nil; memset(&g_pso_fz, 0, sizeof g_pso_fz); g_pso_dirty = 1; } rb_cover_undrawn(rb_cov_wait, en); return; } }
+-    else if (g_pso_dirty || pr != cur_pr || cur_ps_pass != g_pass.serial || fc != cur_ps_fc) { g_pso_fc = fc;
++    else { g_cur_mtk_ps = nil;
++        if (g_pso_dirty || pr != cur_pr || cur_ps_pass != g_pass.serial || fc != cur_ps_fc) { g_pso_fc = fc;
+         p_draw_idx shape;
+         g_rb_first_indexed = rb_first_draw_on() && rb_observed_workers_on() && !g_geo_program ? rb_first_shape(dw,di,&shape) : NULL;
+-        cur_ps = pso_get(pr, nil); g_rb_first_indexed=NULL; cur_ps_round = g_pso_color_round; g_pso_fc = 0; cur_pr = pr; cur_ps_pass = g_pass.serial; cur_ps_fc = fc; g_pso_dirty = !cur_ps; }
++        cur_ps = pso_get(pr, nil); g_rb_first_indexed=NULL; cur_ps_round = g_pso_color_round; g_pso_fc = 0; cur_pr = pr; cur_ps_pass = g_pass.serial; cur_ps_fc = fc; g_pso_dirty = !cur_ps; } }
+     g_udc_lmap = g_pso_lmap; g_udc_fsfn = g_pso_fsfn != nil;   // udc_note_draw (below) judges this draw's writes by the map its pipeline used
+     if (g_pso_lmap) { g_pso_lmap = NULL; g_pso_fsfn = nil; memset(&g_pso_fz, 0, sizeof g_pso_fz); g_pso_dirty = 1; }   // The next draw fetches again according to its own situation
+     __unsafe_unretained id<MTLRenderPipelineState> ps = cur_ps;
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index f8ebaa6..0bdfc60 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -238,6 +238,7 @@ int nvn_be_shutdown_session(void) {
+     nvn_hm_clear(&g_cps, hm_rel);
+     rb_pso_retirement_end();
+     if (g_mtk_group) dispatch_group_wait(g_mtk_group, DISPATCH_TIME_FOREVER);   // task / mesh pipelines (nvn_geometry.inc mtk_pso): the background builds write the map
++    g_cur_mtk_ps = nil; g_enc_mtk_tab = 0;
+     os_unfair_lock_lock(&g_pso_mtk_lock); nvn_hm_clear(&g_pso_mtk, hm_rel);
+     [g_mtk_names removeAllObjects]; [g_mtk_ready removeAllObjects];   // RewindBox (patch 0044): the names table (pipelines as strong keys), the pace list and the first-draw set kept every
+     os_unfair_lock_unlock(&g_pso_mtk_lock);                             //   mesh pipeline of a closed session alive for the process; a RewindBox guest's process goes on to the next session

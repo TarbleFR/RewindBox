@@ -1,0 +1,283 @@
+diff --git a/graphics/nvn/gfx/nvn/hle_nvn.c b/graphics/nvn/gfx/nvn/hle_nvn.c
+index 3e642ce..24ac524 100644
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -453,76 +453,121 @@ NVN(nvnMemoryPoolGetBufferAddress, NVNbufferAddress, const NVNmemoryPool *p) { R
+ // Fire Emblem: Three Houses: a 12,544-entry texture pool and a 3,856-entry sampler pool for the scene, and 4,096-entry ones its 2D UI command buffer binds. Both fill IDs from 256 up; the scene's
+ // default 8×8 white texture overwrote the UI's textures, and the title menu's labels, the name entry and other menus drew as plain bars or not at all. The scene also registers each draw's
+ // textures into fresh IDs of a ring in its large pool (8,729 and up a few seconds in); with the table's capacity taken from the last pool alone, those all read as empty slots and the screen was black
+-enum { NDPOOL_INIT = 16 };   // 初始容量；按需增长，容量不是合法池上限（审计 B1）
+-static struct dpool_base { const void *pool; int base, cap; } *g_tpb, *g_spb;   // cap：这一段编号的容量（建池时按 256 取整）；pool = NULL = 已退休、编号段可给新池
+-static int g_cap_tpb, g_cap_spb, g_ntpb, g_nspb, g_tnext, g_snext;
++enum { NDPOOL_BLK = 16 };   // 初始容量；按需增长，容量不是合法池上限（审计 B1）；块链不 realloc，无锁读安全
++struct dpool_entry { _Atomic(const void *) pool; int base, cap; };   // cap：这一段编号的容量（建池时按 256 取整）；pool = NULL = 已退休、编号段可给新池
++struct dpool_blk { struct dpool_entry e[NDPOOL_BLK]; _Atomic(struct dpool_blk *) next; };
++struct dpool_tab { struct dpool_blk head; struct dpool_blk *tail; _Atomic int n; int next_base; };
++static struct dpool_tab g_tpb_tab, g_spb_tab;
+ static pthread_mutex_t g_dpool_mu = PTHREAD_MUTEX_INITIALIZER;
+-static int dpool_grow(struct dpool_base **t, int *cap) {   // g_dpool_mu held
+-    int ncap = *cap ? *cap * 2 : NDPOOL_INIT;
+-    struct dpool_base *nt = (struct dpool_base *)realloc(*t, (size_t)ncap * sizeof **t);
+-    if (!nt) return -1;
+-    memset(nt + *cap, 0, (size_t)(ncap - *cap) * sizeof **t);
+-    *t = nt; *cap = ncap; return 0;
+-}
+-static int dpool_add(struct dpool_base **t, int *cap, int *nt, int *next, const void *pool, int n, const char *kind) {   // → base, -1 = accurate failure
++static int dpool_add(struct dpool_tab *tb, const void *pool, int n, const char *kind) {   // → base, -1 = accurate failure
+     pthread_mutex_lock(&g_dpool_mu);
+-    int i = 0; while (i < *nt && (*t)[i].pool != pool) i++;
++    int cur = atomic_load_explicit(&tb->n, memory_order_relaxed);
+     int need = (n + 255) & ~255;
+-    if (i == *nt) {   // 新池：先找已退休、容量够的编号段复用（取最小的够用段），没有才在表尾另开一段
+-        int r = -1; for (int k = 0; k < *nt; k++) if (!(*t)[k].pool && (*t)[k].cap >= need && (r < 0 || (*t)[k].cap < (*t)[r].cap)) r = k;
+-        if (r >= 0) { (*t)[r].pool = pool; int b = (*t)[r].base; pthread_mutex_unlock(&g_dpool_mu); return b; }
++    struct dpool_entry *best = NULL;
++    struct dpool_blk *blk = &tb->head;
++    for (int i = 0; i < cur && blk; ) {
++        int lim = cur - i < NDPOOL_BLK ? cur - i : NDPOOL_BLK;
++        for (int j = 0; j < lim; j++) {
++            const void *p = atomic_load_explicit(&blk->e[j].pool, memory_order_relaxed);
++            if (p == pool) { int b = blk->e[j].base; pthread_mutex_unlock(&g_dpool_mu); return b; }
++            if (!p && blk->e[j].cap >= need && (!best || blk->e[j].cap < best->cap)) best = &blk->e[j];
++        }
++        i += NDPOOL_BLK;
++        blk = atomic_load_explicit(&blk->next, memory_order_relaxed);
++    }
++    if (best) {   // 新池：复用最小的够用退休段
++        atomic_store_explicit(&best->pool, pool, memory_order_release);
++        int b = best->base; pthread_mutex_unlock(&g_dpool_mu); return b;
+     }
+-    if (i == *nt) {
+-        if (*nt == *cap && dpool_grow(t, cap) != 0) {
++    if (cur == 0) tb->tail = &tb->head;
++    else if ((cur % NDPOOL_BLK) == 0) {
++        struct dpool_blk *nb = (struct dpool_blk *)calloc(1, sizeof *nb);
++        if (!nb) {
+             pthread_mutex_unlock(&g_dpool_mu);
+-            LOG("【红】 %s pool table growth failed (out of memory) at %d pools", kind, *nt);
++            LOG("【红】 %s pool table growth failed (out of memory) at %d pools", kind, cur);
+             return -1;
+         }
+-        (*t)[i] = (struct dpool_base){pool, *next, need}; (*nt)++; *next += need;
+-        if (i) LOG("[nvn] pool #%d (%s, %d entries): numbered from %d in the host table, separate from the earlier pools", i + 1, kind, n, (*t)[i].base);
++        atomic_store_explicit(&tb->tail->next, nb, memory_order_release);
++        tb->tail = nb;
+     }
+-    int b = (*t)[i].base; pthread_mutex_unlock(&g_dpool_mu); return b;
++    struct dpool_entry *slot = &tb->tail->e[cur % NDPOOL_BLK];
++    int b = tb->next_base;
++    slot->base = b; slot->cap = need;
++    atomic_store_explicit(&slot->pool, pool, memory_order_release);
++    atomic_store_explicit(&tb->n, cur + 1, memory_order_release);
++    tb->next_base += need;
++    if (cur) LOG("[nvn] pool #%d (%s, %d entries): numbered from %d in the host table, separate from the earlier pools", cur + 1, kind, n, b);
++    pthread_mutex_unlock(&g_dpool_mu); return b;
+ }
+ // 池销毁：退休它的编号段，之后新建的池复用（dpool_add 取最小的够用段）。贴图池另把这一段的登记清掉（释放缓存的视图）。
+ // 原先编号只退休不复用（担心旧命令仍引用）：11-02 神之天平 外传（010052A01E9C0000）每帧新建 / 销毁贴图池（272 项），1800 帧建到第 26746 个，
+ //   宿主登记表按最大编号长到约 1370 万项（每项一份贴图对象快照 + 视图），常驻 1537 → 5292 MB 被内存哨兵杀。
+ //   复用安全：编号在回放提交时当场解析（tex_by_id 在 nvnQueueSubmitCommands 里跑），NVN 要求游戏等 GPU 用完才销毁池——销毁时没有在跑的回放还引用这段；
+ //   之后提交引用已销毁池的命令在真机也是未定义（池内存被重用就读到新描述符），同此
+-static void dpool_finalize(struct dpool_base *t, int nt, const void *pool, int tex) {
++static void dpool_finalize(struct dpool_tab *tb, const void *pool, int tex) {
+     pthread_mutex_lock(&g_dpool_mu);
++    int cur = atomic_load_explicit(&tb->n, memory_order_relaxed);
+     int base = -1, cap = 0;
+-    for (int i = 0; i < nt; i++) if (t[i].pool == pool) { t[i].pool = NULL; base = t[i].base; cap = t[i].cap; break; }
++    struct dpool_blk *blk = &tb->head;
++    for (int i = 0; i < cur && blk && base < 0; ) {
++        int lim = cur - i < NDPOOL_BLK ? cur - i : NDPOOL_BLK;
++        for (int j = 0; j < lim; j++) {
++            if (atomic_load_explicit(&blk->e[j].pool, memory_order_relaxed) == pool) {
++                atomic_store_explicit(&blk->e[j].pool, NULL, memory_order_release);
++                base = blk->e[j].base; cap = blk->e[j].cap; break;
++            }
++        }
++        i += NDPOOL_BLK;
++        blk = atomic_load_explicit(&blk->next, memory_order_relaxed);
++    }
+     pthread_mutex_unlock(&g_dpool_mu);
+     if (tex && base >= 0) nvn_be_unreg_tex_range(base, cap);   // 采样器项是参数值、不持 GPU 对象，复用时被新登记覆盖，不必清
+ }
+-static int dpool_base(const struct dpool_base *t, int nt, const void *pool) { for (int i = 0; i < nt; i++) if (t[i].pool == pool) return t[i].base; return 0; }
+-int nvn_dpool_base(const void *pool, int tex) { return tex ? dpool_base(g_tpb, g_ntpb, pool) : dpool_base(g_spb, g_nspb, pool); }   // the replay's bound pools (nvn_mtl.m state_op)
++static int dpool_base(const struct dpool_tab *tb, const void *pool) {
++    int cur = atomic_load_explicit(&tb->n, memory_order_acquire);
++    const struct dpool_blk *blk = &tb->head;
++    for (int i = 0; i < cur && blk; ) {
++        int lim = cur - i < NDPOOL_BLK ? cur - i : NDPOOL_BLK;
++        for (int j = 0; j < lim; j++) {
++            if (atomic_load_explicit(&blk->e[j].pool, memory_order_acquire) == pool) return blk->e[j].base;
++        }
++        i += NDPOOL_BLK;
++        blk = atomic_load_explicit(&blk->next, memory_order_acquire);
++    }
++    return 0;
++}
++static void dpool_reset(struct dpool_tab *tb) {
++    struct dpool_blk *blk = atomic_load_explicit(&tb->head.next, memory_order_relaxed);
++    while (blk) { struct dpool_blk *nx = atomic_load_explicit(&blk->next, memory_order_relaxed); free(blk); blk = nx; }
++    memset(tb, 0, sizeof *tb);
++}
++int nvn_dpool_base(const void *pool, int tex) { return tex ? dpool_base(&g_tpb_tab, pool) : dpool_base(&g_spb_tab, pool); }   // the replay's bound pools (nvn_mtl.m state_op)
+ // The pools each command buffer last bound are kept in its own host state (cmd_t tex_base / samp_base). They used to be a 64-entry list of command buffers that was never cleared:
+ // Dark Souls Remastered binds one of 12 sampler pools in more than 64 command buffers, and every later one read its samplers through the first pool's numbering
+ NVN(nvnTexturePoolInitialize, NVNboolean, NVNtexturePool *tp, const NVNmemoryPool *p, ptrdiff_t off, int n) { RB_REPLAY_GUARD(1);
+     *(dpool_t *)tp = (dpool_t){(const pool_t *)p, off, n}; OLOG("TexturePool n=%d", n);
+-    if (dpool_add(&g_tpb, &g_cap_tpb, &g_ntpb, &g_tnext, tp, n, "texture") < 0) return 0;
+-    nvn_be_set_tex_pool_n(g_tnext);
++    if (dpool_add(&g_tpb_tab, tp, n, "texture") < 0) return 0;
++    nvn_be_set_tex_pool_n(g_tpb_tab.next_base);
+     return 1;
+ }
+-NVN(nvnTexturePoolFinalize, void, NVNtexturePool *tp) { RB_REPLAY_GUARD(1); dpool_finalize(g_tpb, g_ntpb, tp, 1); }
++NVN(nvnTexturePoolFinalize, void, NVNtexturePool *tp) { RB_REPLAY_GUARD(1); dpool_finalize(&g_tpb_tab, tp, 1); }
+ NVN(nvnTexturePoolRegisterTexture, void, const NVNtexturePool *tp, int id, const NVNtexture *t, const NVNtextureView *v) { RB_REPLAY_GUARD(1);
+-    nvn_be_reg_tex(dpool_base(g_tpb, g_ntpb, tp) + id, (const tex_t *)t, (const view_t *)v);
++    nvn_be_reg_tex(dpool_base(&g_tpb_tab, tp) + id, (const tex_t *)t, (const view_t *)v);
+ }
+ // Image descriptors live in the same pool index space as texture descriptors, and image handles are pool indices (nvnDeviceGetImageHandle; BindImages below), so an image
+ // registers into the same table. Hyrule Warriors: Age of Calamity registers the images its compute shaders write in the first battle (earlier games registered only textures)
+ NVN(nvnTexturePoolRegisterImage, void, const NVNtexturePool *tp, int id, const NVNtexture *t, const NVNtextureView *v) { RB_REPLAY_GUARD(1);
+-    nvn_be_reg_tex(dpool_base(g_tpb, g_ntpb, tp) + id, (const tex_t *)t, (const view_t *)v);
++    nvn_be_reg_tex(dpool_base(&g_tpb_tab, tp) + id, (const tex_t *)t, (const view_t *)v);
+ }
+ NVN(nvnSamplerPoolInitialize, NVNboolean, NVNsamplerPool *sp, const NVNmemoryPool *p, ptrdiff_t off, int n) { RB_REPLAY_GUARD(1);
+     *(dpool_t *)sp = (dpool_t){(const pool_t *)p, off, n}; OLOG("SamplerPool n=%d", n);
+-    if (dpool_add(&g_spb, &g_cap_spb, &g_nspb, &g_snext, sp, n, "sampler") < 0) return 0;
++    if (dpool_add(&g_spb_tab, sp, n, "sampler") < 0) return 0;
+     return 1;
+ }
+-NVN(nvnSamplerPoolFinalize, void, NVNsamplerPool *sp) { RB_REPLAY_GUARD(1); dpool_finalize(g_spb, g_nspb, sp, 0); }
+-NVN(nvnSamplerPoolRegisterSampler, void, const NVNsamplerPool *sp, int id, const NVNsampler *s) { RB_REPLAY_GUARD(1); nvn_be_reg_samp(dpool_base(g_spb, g_nspb, sp) + id, &((const samp_t *)s)->p); }
++NVN(nvnSamplerPoolFinalize, void, NVNsamplerPool *sp) { RB_REPLAY_GUARD(1); dpool_finalize(&g_spb_tab, sp, 0); }
++NVN(nvnSamplerPoolRegisterSampler, void, const NVNsamplerPool *sp, int id, const NVNsampler *s) { RB_REPLAY_GUARD(1); nvn_be_reg_samp(dpool_base(&g_spb_tab, sp) + id, &((const samp_t *)s)->p); }
+ // straight from a builder, without a sampler object (FINAL FANTASY TACTICS - The Ivalice Chronicles registers its samplers this way)
+-NVN(nvnSamplerPoolRegisterSamplerBuilder, void, const NVNsamplerPool *sp, int id, const NVNsamplerBuilder *b) { nvn_be_reg_samp(dpool_base(g_spb, g_nspb, sp) + id, &((const samp_builder_t *)b)->p); }
++NVN(nvnSamplerPoolRegisterSamplerBuilder, void, const NVNsamplerPool *sp, int id, const NVNsamplerBuilder *b) { nvn_be_reg_samp(dpool_base(&g_spb_tab, sp) + id, &((const samp_builder_t *)b)->p); }
+ // Unreal Engine reads a descriptor pool's size back at device setup (Octopath Traveler 0)
+ NVN(nvnTexturePoolGetMemoryPool, const NVNmemoryPool *, const NVNtexturePool *tp) { RB_REPLAY_GUARD(1); return (const NVNmemoryPool *)((const dpool_t *)tp)->pool; }
+ NVN(nvnTexturePoolGetMemoryOffset, ptrdiff_t, const NVNtexturePool *tp) { RB_REPLAY_GUARD(1); return (ptrdiff_t)((const dpool_t *)tp)->off; }
+@@ -1711,6 +1756,8 @@ static sblk *g_sh_free[SH_NCLS];
+ typedef struct { uint8_t *mem; uint32_t cls, carved; } schunk;
+ static schunk *g_sh_chunk; static int g_sh_nchunk, g_sh_cchunk, g_sh_carving[SH_NCLS];   // g_sh_carving: index + 1 of the chunk a class carves from
+ static snode *g_sh_bkt[SH_NBKT];
++static _Atomic uint64_t g_sh_index_gen;   // bumped under g_sh_mu in sh_index and sh_shutdown
++static __thread struct { uintptr_t lo, hi; uint64_t gen; } t_sh_clean;
+ static srec g_sh_all = { .prev = &g_sh_all, .next = &g_sh_all };
+ static srec *g_sh_qhead, *g_sh_qtail; static uint64_t g_sh_qbytes;
+ static uint64_t g_sh_nlive, g_sh_live_bytes, g_sh_unanchored;
+@@ -1773,6 +1820,7 @@ static void sh_index(srec *r) {   // g_sh_mu held
+             *d = (snode){*h, h, r, r->iv[i].lo, r->iv[i].hi, pg}; if (*h) (*h)->pprev = &d->next;
+             __atomic_store_n(h, d, __ATOMIC_RELEASE);
+         }
++    atomic_fetch_add_explicit(&g_sh_index_gen, 1, memory_order_release);
+ }
+ static void sh_free_rec(srec *r) {   // g_sh_mu held: blocks back to their classes
+     if (r->blk) r->blk->rb_tag = 0;   // RewindBox (patch 0072): no more its handle's (nvn_hle_handle_sigs)
+@@ -1798,25 +1846,38 @@ static void sh_kill(srec *r) {   // g_sh_mu held: the recording is dead; unindex
+     g_sh_qtail = r;
+     if (g_sh_qbytes > SH_QUAR_CAP) atomic_store(&rb_replay_shadow_pressure, 1);
+ }
+-// Release every ended recording with a device interval overlapping [lo, hi) (g_sh_mu held)
+-static void sh_kill_range(uintptr_t lo, uintptr_t hi) {
+-    if (hi <= lo) return;
++// Release every ended recording with a device interval overlapping [lo, hi) (g_sh_mu held).
++// When gap_hi_out != NULL, computes the largest clean [lo, gap_hi) on [p0, p1] with no live recording.
++static void sh_kill_range_ex(uintptr_t lo, uintptr_t hi, uintptr_t *gap_hi_out) {
++    if (hi <= lo) { if (gap_hi_out) *gap_hi_out = lo; return; }
+     uintptr_t p0 = lo >> SH_PAGE_SHIFT, p1 = (hi - 1) >> SH_PAGE_SHIFT; int all = p1 - p0 >= SH_NBKT;
++    uintptr_t gap_hi = (!all && ((p1 + 1) << SH_PAGE_SHIFT) > hi) ? ((p1 + 1) << SH_PAGE_SHIFT) : hi;
+     for (uintptr_t i = all ? 0 : p0; all ? i < SH_NBKT : i <= p1; i++) {
+         snode **h = &g_sh_bkt[all ? (uint32_t)i : sh_hash(i)];
+         for (snode *d = *h; d; ) {
+             if ((all || d->page == i) && d->lo < hi && d->hi > lo) { sh_kill(d->r); d = *h; continue; }   // the kill unlinks all its nodes: walk the bucket again
++            if (gap_hi_out && !all && d->page == i && d->lo >= hi && d->lo < gap_hi) gap_hi = d->lo;
+             d = d->next;
+         }
+     }
++    if (gap_hi_out) *gap_hi_out = all ? lo : gap_hi;
+ }
+-// The device cursor is about to cover [lo, hi) of the game's memory: recordings there are being overwritten. Lock-free look at the buckets first: most writes land on
+-// pages no live recording touches (a game re-records memory only after the recording there is dead to it, so no other thread indexes these pages meanwhile)
++static void sh_kill_range(uintptr_t lo, uintptr_t hi) { sh_kill_range_ex(lo, hi, NULL); }
++// The device cursor is about to cover [lo, hi) of the game's memory: recordings there are being overwritten.
++// Fast path: reuse the thread's proven clean gap [lo, gap_hi) from the last locked scan while g_sh_index_gen is unchanged.
++// Otherwise lock-free look at buckets first; only lock g_sh_mu when a bucket on [p0, p1] is non-empty.
+ static void sh_overwrite(uintptr_t lo, uintptr_t hi) {
++    if (lo >= t_sh_clean.lo && hi <= t_sh_clean.hi &&
++        atomic_load_explicit(&g_sh_index_gen, memory_order_acquire) == t_sh_clean.gen) return;
+     uintptr_t p0 = lo >> SH_PAGE_SHIFT, p1 = (hi - 1) >> SH_PAGE_SHIFT; int any = p1 - p0 >= SH_NBKT;
+     for (uintptr_t p = p0; !any && p <= p1; p++) any = __atomic_load_n(&g_sh_bkt[sh_hash(p)], __ATOMIC_ACQUIRE) != NULL;
+     if (!any) return;
+-    pthread_mutex_lock(&g_sh_mu); sh_kill_range(lo, hi); pthread_mutex_unlock(&g_sh_mu);
++    uintptr_t gap_hi = lo;
++    pthread_mutex_lock(&g_sh_mu);
++    sh_kill_range_ex(lo, hi, &gap_hi);
++    uint64_t gen = atomic_load_explicit(&g_sh_index_gen, memory_order_relaxed);
++    pthread_mutex_unlock(&g_sh_mu);
++    if (gap_hi > lo) { t_sh_clean.lo = lo; t_sh_clean.hi = gap_hi; t_sh_clean.gen = gen; }
+ }
+ // A memory pool is finalized: the recordings in its memory can no longer run on the device (also where a game drops a whole command pool instead of re-recording it)
+ static void cmdshadow_pool_gone(const uint8_t *mem, size_t n) {
+@@ -1831,6 +1892,7 @@ static void sh_shutdown(void) {   // session end: every recording and chunk goes
+     free(g_sh_chunk); g_sh_chunk = NULL; g_sh_nchunk = g_sh_cchunk = 0;
+     memset(g_sh_carving, 0, sizeof g_sh_carving); memset(g_sh_free, 0, sizeof g_sh_free); memset(g_sh_bkt, 0, sizeof g_sh_bkt);
+     g_sh_all.next = g_sh_all.prev = &g_sh_all; g_sh_qhead = g_sh_qtail = NULL; g_sh_qbytes = g_sh_nlive = g_sh_live_bytes = g_sh_unanchored = 0; rb_heap_free(&g_rb_commands, g_sh_it); g_sh_it = NULL; g_sh_itcap = g_sh_itn = 0; g_sh_shared_n = 0;
++    atomic_fetch_add_explicit(&g_sh_index_gen, 1, memory_order_release);
+     pthread_mutex_unlock(&g_sh_mu);
+ }
+ // The open recording leaves the command buffer's current window: note the device bytes it took there. In a host-lent window it took none of the game's memory; it hangs off
+@@ -1970,13 +2032,16 @@ static int sh_intern(cmd_t *o, srec *r) {   // g_sh_mu held: 1 = r dropped, hand
+ static void sh_end(cmd_t *o) {
+     srec *r = o->rec; sh_piece(o);
+     uint64_t h = r->rbytes + OP_RESERVE + sizeof(sblk); o->hint = (uint32_t)(h < 256 ? 256 : h > (1u << 20) ? (1u << 20) : h);
+-    pthread_mutex_lock(&g_sh_mu); int shared = sh_intern(o, r); pthread_mutex_unlock(&g_sh_mu);
+-    if (shared) { o->rec = NULL; return; }
+-    sh_anchor_empty(o, r);
+-    pthread_mutex_lock(&g_sh_mu); r->open = 0;
+-    uint64_t un = 0; if (r->niv) sh_index(r); else un = ++g_sh_unanchored;
++    uint64_t un = 0;
++    pthread_mutex_lock(&g_sh_mu);
++    int shared = sh_intern(o, r);
++    if (!shared) {
++        sh_anchor_empty(o, r);
++        r->open = 0;
++        if (r->niv) sh_index(r); else un = ++g_sh_unanchored;
++    }
+     pthread_mutex_unlock(&g_sh_mu);
+-    if (un && (un == 1 || un % 1024 == 0)) LOG("【黄】[nvn] command recording without any of the game's memory: its host blocks stay until the session ends (%llu so far)", (unsigned long long)un);
++    if (!shared && un && (un == 1 || un % 1024 == 0)) LOG("【黄】[nvn] command recording without any of the game's memory: its host blocks stay until the session ends (%llu so far)", (unsigned long long)un);
+     o->rec = NULL;
+ }
+ // RewindBox (patch 0072): the events a recording signals from the GPU and the handles it calls, noted as they are recorded. nvn_xqueue.inc xq_push walked every record of every
+@@ -2455,8 +2520,8 @@ NVN(nvnCommandBufferDispatchComputeIndirect, void, NVNcommandBuffer *c, NVNbuffe
+     *REC(c, OP_DISPATCH, p_dispatch) = (p_dispatch){0, 0, 0, (uint64_t)__builtin_return_address(0), GA(ind)};
+ }
+ NVN(nvnCommandBufferBarrier, void, NVNcommandBuffer *c, int bits) { *(int32_t *)rec(c, OP_BARRIER, 8) = bits; }
+-NVN(nvnCommandBufferSetTexturePool, void, NVNcommandBuffer *c, const NVNtexturePool *p) { REC(c, OP_SET_TEX_POOL, p_set_pool)->pool = (const dpool_t *)p; CB(c)->tex_base = dpool_base(g_tpb, g_ntpb, p); }
+-NVN(nvnCommandBufferSetSamplerPool, void, NVNcommandBuffer *c, const NVNsamplerPool *p) { REC(c, OP_SET_SAMP_POOL, p_set_pool)->pool = (const dpool_t *)p; CB(c)->samp_base = dpool_base(g_spb, g_nspb, p); }
++NVN(nvnCommandBufferSetTexturePool, void, NVNcommandBuffer *c, const NVNtexturePool *p) { REC(c, OP_SET_TEX_POOL, p_set_pool)->pool = (const dpool_t *)p; CB(c)->tex_base = dpool_base(&g_tpb_tab, p); }
++NVN(nvnCommandBufferSetSamplerPool, void, NVNcommandBuffer *c, const NVNsamplerPool *p) { REC(c, OP_SET_SAMP_POOL, p_set_pool)->pool = (const dpool_t *)p; CB(c)->samp_base = dpool_base(&g_spb_tab, p); }
+ 
+ NVN(nvnCommandBufferCopyBufferToTexture, void, NVNcommandBuffer *c, NVNbufferAddress src, const NVNtexture *t, const NVNtextureView *v,
+     const NVNcopyRegion *r, int flags) {
+@@ -2700,7 +2765,7 @@ static _Atomic int g_session_stopping;
+ int dm_gfx_session_stopping(void) { return atomic_load(&g_session_stopping); }
+ __thread _Atomic int dm_host_work;   // see hle.h (defined here: the graphics unit tests compile this file but not hle_thread.c)
+ static void gfx_enter(void) { pthread_mutex_lock(&g_susp_mu); int blk = g_susp; if (blk) DM_BLOCK_BEGIN(); while (g_susp && !dm_gfx_session_stopping()) pthread_cond_wait(&g_susp_cv, &g_susp_mu); g_inflight_api++; pthread_mutex_unlock(&g_susp_mu); if (blk) DM_BLOCK_END(); dm_host_work++; }
+-static void gfx_leave(void) { dm_host_work--; pthread_mutex_lock(&g_susp_mu); g_inflight_api--; pthread_cond_broadcast(&g_susp_cv); pthread_mutex_unlock(&g_susp_mu); }
++static void gfx_leave(void) { dm_host_work--; pthread_mutex_lock(&g_susp_mu); if (--g_inflight_api == 0 && g_susp) pthread_cond_broadcast(&g_susp_cv); pthread_mutex_unlock(&g_susp_mu); }
+ void dm_gfx_enter(void) { gfx_enter(); }   // the same gate for the Vulkan layer's submits and presents (dm/gfx/vk)
+ void dm_gfx_leave(void) { gfx_leave(); }
+ __attribute__((weak)) void dm_vk_drain(void) {}   // dm/gfx/vk/hle_vk.m: wait for the Vulkan layer's queue (the graphics unit tests do not link it)
+@@ -6660,8 +6725,7 @@ int dm_nvn_shutdown_session(void) {
+     if (g_pk) { CFDictionaryApplyFunction(g_pk, pk_free_session, NULL); CFRelease(g_pk); g_pk = NULL; }
+     sh_shutdown();
+     free(g_ft); g_ft = NULL; g_nft = g_cft = 0;
+-    free(g_tpb); free(g_spb); g_tpb = g_spb = NULL;   // 池表按需增长（#1209），整表释放，下个会话从初始容量重来
+-    g_cap_tpb = g_cap_spb = g_ntpb = g_nspb = g_tnext = g_snext = 0;
++    dpool_reset(&g_tpb_tab); dpool_reset(&g_spb_tab);   // 池表按需增长（#1209），整表释放，下个会话从初始容量重来
+     pthread_mutex_lock(&rb_gap_lock); rb_calls = (rb_gap_clock){0}; pthread_mutex_unlock(&rb_gap_lock);
+     if (g_frame) rb_report_intervals(g_frame - 1);
+     rb_last_present = 0;

@@ -1,0 +1,93 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_rec.h b/graphics/nvn/gfx/nvn/nvn_rec.h
+index 02704cb..95592bf 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rec.h
++++ b/graphics/nvn/gfx/nvn/nvn_rec.h
+@@ -167,7 +167,7 @@ static inline int rec_on(void) {
+ static pthread_mutex_t g_rb_mu = PTHREAD_MUTEX_INITIALIZER;
+ static pthread_cond_t g_rb_work = PTHREAD_COND_INITIALIZER, g_rb_idle = PTHREAD_COND_INITIALIZER;
+ static rec_blk *g_rb_cur, *g_rb_head, *g_rb_tail, *g_rb_free;   // the submit thread's open block; blocks waiting for the encode thread; empty blocks
+-static int g_rb_busy, g_rb_started, g_rb_sleeping;              // the encode thread is working through a block; the thread exists; it waits for work
++static int g_rb_busy, g_rb_started, g_rb_sleeping, g_rb_idle_waiters;   // the encode thread is working through a block; the thread exists; it waits for work; threads waiting on g_rb_idle
+ 
+ static inline uint64_t rec_obj(id o) { return o ? (uint64_t)(uintptr_t)CFBridgingRetain(o) : 0; }
+ static inline id rec_id(uint64_t v) { return (__bridge id)(void *)(uintptr_t)v; }
+@@ -329,25 +329,42 @@ int thread_selfcounts(int type, void *buf, size_t nbytes);
+ static _Atomic uint64_t g_thr_lv[2][2][2];
+ static inline void thr_lv_take(uint64_t v[2][4]) { memset(v, 0, 2 * sizeof v[0]); thread_selfcounts(4, v, 2 * sizeof v[0]); }
+ static inline void thr_lv_add(int who, uint64_t a[2][4], uint64_t b[2][4]) {
+-    for (int k = 0; k < 2; k++) { atomic_fetch_add(&g_thr_lv[who][k][0], (b[k][2] + b[k][3]) - (a[k][2] + a[k][3])); atomic_fetch_add(&g_thr_lv[who][k][1], b[k][1] - a[k][1]); }
++    for (int k = 0; k < 2; k++) {
++        atomic_fetch_add_explicit(&g_thr_lv[who][k][0], (b[k][2] + b[k][3]) - (a[k][2] + a[k][3]), memory_order_relaxed);
++        atomic_fetch_add_explicit(&g_thr_lv[who][k][1], b[k][1] - a[k][1], memory_order_relaxed);
++    }
+ }
+-void dm_thread_lv_stats(uint64_t out[2][2][2]) { for (int w = 0; w < 2; w++) for (int k = 0; k < 2; k++) for (int j = 0; j < 2; j++) out[w][k][j] = atomic_load(&g_thr_lv[w][k][j]); }
++void dm_thread_lv_stats(uint64_t out[2][2][2]) { for (int w = 0; w < 2; w++) for (int k = 0; k < 2; k++) for (int j = 0; j < 2; j++) out[w][k][j] = atomic_load_explicit(&g_thr_lv[w][k][j], memory_order_relaxed); }
+ static void *rec_thread(void *arg) {
+     (void)arg; pthread_setname_np("dm-encode");
+     s2a_qos_set_self(S2A_QOS_ENCODE);
+     rb_rt_start(0); uint64_t rb_rt_last = 0;   // RewindBox (patch 0073)
++    rec_blk *done_head = NULL, *done_tail = NULL;
+     for (;;) {
+         pthread_mutex_lock(&g_rb_mu);
+-        while (!g_rb_head) { g_rb_sleeping = 1; RB_WAKE_CALL("encode.wait", -1, pthread_cond_wait(&g_rb_work, &g_rb_mu)); g_rb_sleeping = 0; }
+-        rec_blk *b = g_rb_head; g_rb_head = b->next; if (!g_rb_head) g_rb_tail = NULL; g_rb_busy = 1;
++        if (done_head) { done_tail->next = g_rb_free; g_rb_free = done_head; done_head = done_tail = NULL; }
++        if (!g_rb_head) {
++            if (g_rb_busy) {
++                g_rb_busy = 0;
++                if (g_rb_idle_waiters) RB_WAKE_CALL("encode.broadcast", -2, pthread_cond_broadcast(&g_rb_idle));
++            }
++            while (!g_rb_head) { g_rb_sleeping = 1; RB_WAKE_CALL("encode.wait", -1, pthread_cond_wait(&g_rb_work, &g_rb_mu)); g_rb_sleeping = 0; }
++        }
++        // Drain up to 16 queued blocks per lock / autoreleasepool / thread_selfcounts burst.
++        rec_blk *burst = g_rb_head, *last = burst; int nb = 1;
++        while (last->next && nb < 16) { last = last->next; nb++; }
++        g_rb_head = last->next; if (!g_rb_head) g_rb_tail = NULL;
++        last->next = NULL; g_rb_busy = 1;
+         pthread_mutex_unlock(&g_rb_mu);
+         uint64_t lv0[2][4], lv1[2][4]; thr_lv_take(lv0);
+-        @autoreleasepool { for (int i = 0; i < b->n; i++) rec_exec(&b->r[i]); }
++        @autoreleasepool {
++            for (rec_blk *b = burst; b; b = b->next) {
++                for (int i = 0; i < b->n; i++) rec_exec(&b->r[i]);
++                b->n = 0;
++            }
++        }
+         thr_lv_take(lv1); thr_lv_add(0, lv0, lv1);
+-        pthread_mutex_lock(&g_rb_mu);
+-        b->n = 0; b->next = g_rb_free; g_rb_free = b; g_rb_busy = 0;
+-        if (!g_rb_head) RB_WAKE_CALL("encode.broadcast", -2, pthread_cond_broadcast(&g_rb_idle));
+-        pthread_mutex_unlock(&g_rb_mu);
++        done_head = burst; done_tail = last;
+         rb_rt_tick(0, &rb_rt_last);   // RewindBox (patch 0073)
+     }
+     return NULL;
+@@ -406,7 +423,7 @@ static void rec_drain(void) {
+     if (!g_rb_started) { g_rlane = lane; return; }
+     rec_publish();
+     pthread_mutex_lock(&g_rb_mu);
+-    if (g_rb_head || g_rb_busy) { uint64_t w0 = now_ns(); while (g_rb_head || g_rb_busy) RB_WAKE_CALL("encode.wait", -1, pthread_cond_wait(&g_rb_idle, &g_rb_mu)); t_rb_blk[1] += now_ns() - w0; }   // RewindBox (patch 0068): timed (nvn_mtl.m t_rb_blk)
++    if (g_rb_head || g_rb_busy) { uint64_t w0 = now_ns(); g_rb_idle_waiters++; while (g_rb_head || g_rb_busy) RB_WAKE_CALL("encode.wait", -1, pthread_cond_wait(&g_rb_idle, &g_rb_mu)); g_rb_idle_waiters--; t_rb_blk[1] += now_ns() - w0; }   // RewindBox (patch 0068): timed (nvn_mtl.m t_rb_blk)
+     pthread_mutex_unlock(&g_rb_mu);
+     g_rlane = lane;
+ }
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index cba3e14..f8ebaa6 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -65,8 +65,12 @@ static int session_wait_backend(void) {
+     // A guest submit returns only after publishing its encode records. No
+     // producer remains here; neither queue can gain new work after this point.
+     pthread_mutex_lock(&g_rb_mu);
+-    while (g_rb_head || g_rb_busy) {
+-        if (RB_WAKE_CALL("session.timed", s2a_rb_wake_absolute(&dl), pthread_cond_timedwait(&g_rb_idle, &g_rb_mu, &dl)) == ETIMEDOUT) { pthread_mutex_unlock(&g_rb_mu); return -ETIMEDOUT; }
++    if (g_rb_head || g_rb_busy) {
++        g_rb_idle_waiters++;
++        while (g_rb_head || g_rb_busy) {
++            if (RB_WAKE_CALL("session.timed", s2a_rb_wake_absolute(&dl), pthread_cond_timedwait(&g_rb_idle, &g_rb_mu, &dl)) == ETIMEDOUT) { g_rb_idle_waiters--; pthread_mutex_unlock(&g_rb_mu); return -ETIMEDOUT; }
++        }
++        g_rb_idle_waiters--;
+     }
+     pthread_mutex_unlock(&g_rb_mu);
+     if (atomic_load(&g_ubc_done) != atomic_load(&g_ubc_head) || g_cb || g_up_cb) return -EBUSY;

@@ -1,0 +1,100 @@
+diff --git a/runtime/src/far.c b/runtime/src/far.c
+index e7c98de..4bf8734 100644
+--- a/runtime/src/far.c
++++ b/runtime/src/far.c
+@@ -180,8 +180,21 @@ int s2a_far_map(uint64_t a, uint64_t n) {
+     return 0;
+ }
+ // 还页：影子页换成新的不可访问占位（物理页当场归还，再给出去是零页；同 svc_mem.c pages_release）
++// 按 CHUNK 内连续宿主影子地址合并还页，避免 16 Kio 逐页系统调用与 TLB 刷新。
+ void s2a_far_release(uint64_t a, uint64_t n) {
+-    for (uint64_t p = a; p < a + n; p += FPG) { uint8_t *h = g2h(p, NULL, NULL); if (h && !s2a_guest_zero((uint64_t)(uintptr_t)h, FPG) && mmap(h, FPG, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0) == MAP_FAILED) die("远端还页 errno=%d", errno); }
++    uint8_t *rlo = NULL; uint64_t rlen = 0, rchk = ~0ull;
++    for (uint64_t p = a; p < a + n; p += FPG) {
++        uint8_t *h = g2h(p, NULL, NULL);
++        uint64_t chk = (p >= g_lo) ? (p - g_lo) / CHUNK : ~0ull;
++        if (h && rlen && chk == rchk && rlo + rlen == h) { rlen += FPG; continue; }
++        if (rlen && !s2a_guest_zero((uint64_t)(uintptr_t)rlo, rlen) &&
++            mmap(rlo, rlen, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0) == MAP_FAILED)
++            die("远端还页 errno=%d", errno);
++        rlo = h; rlen = h ? FPG : 0; rchk = chk;
++    }
++    if (rlen && !s2a_guest_zero((uint64_t)(uintptr_t)rlo, rlen) &&
++        mmap(rlo, rlen, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0) == MAP_FAILED)
++        die("远端还页 errno=%d", errno);
+ }
+ 
+ // 点表：开放寻址（键 = pc，0 空），信号处理里只做原子操作
+diff --git a/runtime/src/svc_mem.c b/runtime/src/svc_mem.c
+index 0dbc81c..67fe087 100644
+--- a/runtime/src/svc_mem.c
++++ b/runtime/src/svc_mem.c
+@@ -604,14 +604,33 @@ static void query(uint64_t addr, s2a_meminfo *o) {   // 持 g_mu
+         uint64_t lo = p, hi = p + 0x1000;
+         // 并段不设距离上限（原先各向最多 1 GB：SDK 的 nn::os::AllocateAddressRegion 靠 QueryMemory 找整段空闲，
+         // 八方2 要 62 GB 一段，只看到 ≤2 GB 的空闲段 → ResultOutOfVirtualAddressSpace 退出，10-20 M3 摸底）。整页（16 KB 一字节）相同就整页跳
++        const uint64_t aend = L.alias_base + L.alias_size;
+         const uint8_t full = (uint8_t)((1u << (HPG >> 12)) - 1), want = on ? full : 0;
++        const uint64_t want64 = (uint64_t)want * 0x0101010101010101ull;
++        const uint64_t step8 = 8ull * HPG;
+         while (lo > L.alias_base) {
+-            if (!(lo & (HPG - 1)) && lo - HPG >= L.alias_base && *amask_at(lo - HPG) == want) { lo -= HPG; continue; }
++            if (!(lo & (HPG - 1))) {
++                while (lo - L.alias_base >= step8) {
++                    uint64_t w; memcpy(&w, amask_at(lo - step8), sizeof w);
++                    if (w != want64) break;
++                    lo -= step8;
++                }
++                if (lo - L.alias_base >= HPG && *amask_at(lo - HPG) == want) { lo -= HPG; continue; }
++                if (lo == L.alias_base) break;
++            }
+             if ((*amask_at(lo - 0x1000) >> (((lo - 0x1000) & (HPG - 1)) >> 12) & 1) != on) break;
+             lo -= 0x1000;
+         }
+-        while (hi < L.alias_base + L.alias_size) {
+-            if (!(hi & (HPG - 1)) && hi + HPG <= L.alias_base + L.alias_size && *amask_at(hi) == want) { hi += HPG; continue; }
++        while (hi < aend) {
++            if (!(hi & (HPG - 1))) {
++                while (aend - hi >= step8) {
++                    uint64_t w; memcpy(&w, amask_at(hi), sizeof w);
++                    if (w != want64) break;
++                    hi += step8;
++                }
++                if (aend - hi >= HPG && *amask_at(hi) == want) { hi += HPG; continue; }
++                if (hi == aend) break;
++            }
+             if ((*amask_at(hi) >> ((hi & (HPG - 1)) >> 12) & 1) != on) break;
+             hi += 0x1000;
+         }
+@@ -1815,14 +1834,30 @@ static int svc_mem_impl(int num, uint64_t *regs, uint64_t orig) {
+             if (run) perm_set(run, a + size, -1);
+             if (a + size - L.alias_base > g_pk_alias_end) g_pk_alias_end = a + size - L.alias_base;
+         } else {
++            // Coalesce contiguous freed HPG pages into batched pages_release / s2a_far_release runs (splits at file/anon boundary so punch_defer_locked never falls back).
++            uint64_t rlo = 0, rhi = 0, flo = 0, fhi = 0; int rfile = 0;
+             for (uint64_t p = a; p < a + size; p += 0x1000) {
+                 uint8_t *m = amask_at(p), bit = (uint8_t)(1u << ((p & (HPG - 1)) >> 12));
+                 if (!(*m & bit)) continue;
+                 *m &= (uint8_t)~bit; g_phys -= 0x1000;
+                 // 宿主页还有别的子页：不清零——再映射时上面的映射路径先放开整页再清新子页；解除时清会撞上游戏设的只读页
+                 //   （10-31 Minecraft：SetMemoryPermission 只读后合法解除，memset SIGBUS；真机解除只查状态与属性、不查权限）
+-                if (!*m) { uint64_t hp = p & ~(HPG - 1); if (hp >= we) { s2a_far_release(hp, HPG); continue; } pages_release(hp, HPG); if (hp < rel_lo) rel_lo = hp; if (hp + HPG > rel_hi) rel_hi = hp + HPG; }
++                if (!*m) {
++                    uint64_t hp = p & ~(HPG - 1);
++                    if (hp >= we) {
++                        if (fhi == hp) fhi = hp + HPG;
++                        else { if (fhi > flo) s2a_far_release(flo, fhi - flo); flo = hp; fhi = hp + HPG; }
++                    } else {
++                        int inf = s2a_guest_in_file(hp, HPG);
++                        if (rhi == hp && rfile == inf) rhi = hp + HPG;
++                        else { if (rhi > rlo) pages_release(rlo, rhi - rlo); rlo = hp; rhi = hp + HPG; rfile = inf; }
++                        if (hp < rel_lo) rel_lo = hp;
++                        if (hp + HPG > rel_hi) rel_hi = hp + HPG;
++                    }
++                }
+             }
++            if (fhi > flo) s2a_far_release(flo, fhi - flo);
++            if (rhi > rlo) pages_release(rlo, rhi - rlo);
+             perm_set(a, a + size, -1);
+         }
+         if (wl > lo) backing_end_locked(lo, wl - lo, num == 0x2C, 1);

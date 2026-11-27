@@ -1,0 +1,12 @@
+independent source cases 3024, complete backing mismatches before alias tests (base, fixed, direct, regional, safe, suffix): 828 0 0 0 0 0
+two pool preparations before alias tests: 2016 3024 3024 3024 3024 3024
+divergence variant=2 dest-folded=0 region=0 source-same-va=0
+divergence variant=2 dest-folded=0 region=1 source-same-va=0
+divergence variant=2 dest-folded=1 region=0 source-same-va=0
+divergence variant=3 dest-folded=1 region=0 source-same-va=0
+divergence variant=3 dest-folded=1 region=0 source-same-va=1
+divergence variant=2 dest-folded=1 region=1 source-same-va=0
+divergence variant=3 dest-folded=1 region=1 source-same-va=0
+divergence variant=3 dest-folded=1 region=1 source-same-va=1
+alias cases 16, cumulative mismatches: 828 0 4 4 0 0
+six wide repeated-page cases, range and pointer refusals, allocation fallback and four public dispatch refusals: passed

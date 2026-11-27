@@ -1,0 +1,145 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 74d980e..2705c0f 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -4513,8 +4513,8 @@ static fsig_t *fsig_cur(void) {   // the record of the frame being replayed, for
+         if (pr && t_prev) pr->dur = (uint32_t)MIN((now - t_prev) / 1000, (uint64_t)UINT32_MAX);
+         t_prev = now;
+         // Keep draw totals and complete interval data. Detailed comparisons and GPU-word
+-        // readbacks belong to captures or an explicit diagnostic run on this profile.
+-        int full = !rb_course_exact() || fsig_full_requested() || fsig_capture_active();
++        // readbacks belong to captures or an explicit S2A_RB_FSIG=1 diagnostic run across all titles.
++        int full = fsig_full_requested() || fsig_capture_active();
+         c->has_detail = full;
+         if (full) fpd_open(f);
+         atomic_store(&c->frame, f + 1);
+@@ -4901,13 +4901,16 @@ typedef struct { uint64_t cnt, frame; const volatile uint32_t *seen, *after; uin
+ static rb_mdxchk g_mdxchk[MDXCHK_PIECE]; static int g_mdxchk_n;
+ static id<MTLBuffer> g_mdxchk_buf;   // the slots, CPU-visible (mdx_run makes it)
+ static int rb_mdxchk_on(void) {
+-    const char *mode = getenv("S2A_RB_MDX_CHECK");
+-    // This optional check uses an extra blit and full barrier after a replay piece.
+-    // Its kernel has the same masking rule, but the extra readback is diagnostic.
+-    int enabled = mode ? strcmp(mode, "0") != 0 : !rb_course_exact() || fsig_full_requested();
+-    if (rb_course_exact())
+-        MLOG("RewindBox cup indirect-count verification %s (S2A_RB_MDX_CHECK)", enabled ? "enabled" : "disabled");
+-    return enabled;
++    static int cached = -1;
++    if (cached < 0) {
++        const char *mode = getenv("S2A_RB_MDX_CHECK");
++        // This optional check uses an extra blit and full barrier after a replay piece.
++        // Its kernel has the same masking rule, but the extra readback is diagnostic-only across all titles.
++        cached = mode ? strcmp(mode, "0") != 0 : fsig_full_requested();
++        if (cached || rb_course_exact())
++            MLOG("RewindBox indirect-count verification %s (S2A_RB_MDX_CHECK)", cached ? "enabled" : "disabled");
++    }
++    return cached;
+ }
+ static void mdxchk_after(void) {   // nvn_be_sub_commit (the replaying thread), once the piece's passes are ended: each count with no later check copied after all of the piece's work (blit: a full barrier)
+     id e = nil;
+@@ -25307,7 +25310,7 @@ static void draw_tex(const p_draw_tex *t) {
+     int prior_rs_scope __attribute__((cleanup(rs_restore_draw_scope))) = g_rs_native_draw;
+     if (rs_on() && rs_retain_on() && !rs_prepare_work(nil, 0)) return;
+     g_udc_precise = 0;   // not draw(): its encode marks every attachment of the pass written (udc_encode)
+-    static int failed, once[6]; static NSMutableDictionary<NSData *, id<MTLRenderPipelineState>> *psos;
++    static int failed, once[6]; static nvn_hmap psos = {.klen = sizeof(pso_key)};
+     if (failed) return;
+     if (!g_dt_vs) {
+         const char *src = rb_texture_copy_msl();
+@@ -25318,7 +25321,7 @@ static void draw_tex(const p_draw_tex *t) {
+         NvShader *v = [NvShader new], *f = [NvShader new];
+         v->fn = vf; v->stage = 0; strlcpy(v->key, "s2a_drawtex_vs", sizeof v->key); rb_keep_frame_key(v);
+         f->fn = ff; f->stage = 1; strlcpy(f->key, "s2a_drawtex_fs", sizeof f->key); rb_keep_frame_key(f); f->rf.color_known = 1; f->rf.color_mask = 1;   // writes color(0) only (pso_key_norm / pso_desc: the rest masked)
+-        g_dt_vs = v; g_dt_fs = f; psos = [NSMutableDictionary dictionary];
++        g_dt_vs = v; g_dt_fs = f;
+     }
+     int tid = (int)(t->handle & 0xfffff), sid = (int)(t->handle >> 20);
+     pthread_mutex_lock(&g_rmu);
+@@ -25346,12 +25349,12 @@ static void draw_tex(const p_draw_tex *t) {
+         if (!once[2]++) MLOG("【红】 DrawTexture: target 0 is %s (format %u): not drawn (first case)", g_pass.cfmt[0] ? "an integer target" : "not bound", g_pass.cfmt[0]);
+         return; }
+     pso_key k; pso_key_fill(&k, g_dt_vs, g_dt_fs, g_pass.cfmt, g_pass.dfmt, g_pass.sfmt, g_pass.samples, 0);
+-    NSData *kd = [NSData dataWithBytes:&k length:sizeof k];
+-    id<MTLRenderPipelineState> ps = psos[kd];
++    __unsafe_unretained id<MTLRenderPipelineState> ps = hm_get_id(&psos, &k);
+     if (!ps) {
+-        NSError *e = nil; ps = [g_dev newRenderPipelineStateWithDescriptor:pso_desc(&k, g_dt_vs, g_dt_fs, nil, 0) error:&e];
+-        if (!ps) { if (!once[3]++) MLOG("【红】 DrawTexture: pipeline for target format %u failed: %s (first case)", g_pass.cfmt[0], e.localizedDescription.UTF8String); return; }
+-        psos[kd] = ps;
++        NSError *e = nil; id<MTLRenderPipelineState> nps = [g_dev newRenderPipelineStateWithDescriptor:pso_desc(&k, g_dt_vs, g_dt_fs, nil, 0) error:&e];
++        if (!nps) { if (!once[3]++) MLOG("【红】 DrawTexture: pipeline for target format %u failed: %s (first case)", g_pass.cfmt[0], e.localizedDescription.UTF8String); return; }
++        hm_put_id(&psos, &k, nps);
++        ps = nps;
+     }
+     // The destination as the viewport, no culling, no depth / stencil test: the game's state is put back right after (the next draw sets its own through g_ed / g_dss_dirty)
+     ds_st ds0 = S.ds; poly_st po0 = S.poly; int hv0 = S.has_vp; float vp0[4], dr0[2]; uint8_t sw0[4];
+@@ -25926,18 +25929,18 @@ static void draw_impl(const p_draw *dw, const p_draw_idx *di) {
+ static void draw_emit(id en, MTLPrimitiveType mp, int prim, const p_draw *dw, const p_draw_idx *di, uint64_t mdx) {
+     if ((dw && dw->ind) || (di && di->ind)) {   // DrawArraysIndirect / DrawElementsIndirect: NVN's argument records {count, instances, first, base instance} and {count, instances, first index,
+         // base vertex, base instance} have the layouts of MTLDrawPrimitivesIndirectArguments and MTLDrawIndexedPrimitivesIndirectArguments; quads, fans and 8-bit indices use the converted ones (ixc_run)
+-        const ixc_ent *e = ixc_wanted(dw, di) ? ixc_find(dw, di) : NULL; void *mb, *ab; uint64_t mo, ao, ig;
++        const ixc_ent *e = ixc_wanted(dw, di) ? ixc_find(dw, di) : NULL; void *mb, *ab; uint64_t mo, ao, ig, ag = 0, il = 0;
+         if (di && S.restart.on) { int isz = di->itype == 0 ? 1 : di->itype == 1 ? 2 : 4; int64_t rv = rst_val(isz);   // the indices are only known to the GPU: restart is not translated
+             int native = isz != 1 && rv == (isz == 2 ? 0xFFFF : 0xFFFFFFFF);   // a 16 / 32-bit strip restarting at all-ones: Metal does the same (8-bit ones are widened without it)
+             if (prim == 6 || prim == 7 || ((prim == 3 || prim == 5) && !native))
+                 RED_ONCE(131, "indirect indexed draw (primitive %d, %d-byte indices) with primitive restart %#llx: the GPU path does not translate it, a restart index draws as a vertex", prim, isz, (unsigned long long)rv); }
+         uint64_t ind = dw ? dw->ind : di->ind;
+         if (ixc_wanted(dw, di)) { if (e && e->args) enc_r_draw_indexed_indirect(en, mp, MTLIndexTypeUInt32, e->ixb, e->ixlen, e->args); else RED_ONCE(88, "indirect draw skipped: the arguments for primitive %d were not converted (argument address %#llx is in no memory pool, or the conversion pipeline was not created)", prim, (unsigned long long)ind); }
+-        else if (!mdx && !nvn_be_addr(ind, dw ? 16 : 20, &ab, &ao)) RED_ONCE(88, "indirect draw skipped: argument address %#llx is in no memory pool", (unsigned long long)ind);
+-        else if (dw) { enc_r_draw_indirect(en, mp, mdx ? mdx : ((__bridge id<MTLBuffer>)ab).gpuAddress + ao); if (mdx) mdx_chain(dw->mdi_cnt, dw->mdi_i, mp, MTLIndexTypeUInt32, 0, 0); }
+-        else if (!gpu_addr_want(di->ibuf, 1, 0, &mb, &mo, &ig, &(uint64_t){0})) RED_ONCE(22, "index buffer is in no memory pool");
+-        else { MTLIndexType ty = di->itype == 1 ? MTLIndexTypeUInt16 : MTLIndexTypeUInt32; uint64_t il = ((__bridge id<MTLBuffer>)mb).length - mo;
+-            enc_r_draw_indexed_indirect(en, mp, ty, ig, il, mdx ? mdx : ((__bridge id<MTLBuffer>)ab).gpuAddress + ao); if (mdx) mdx_chain(di->mdi_cnt, di->mdi_i, mp, ty, ig, il); }
++        else if (!mdx && !gpu_addr_avail(ind, dw ? 16 : 20, &ab, &ao, &ag, &(uint64_t){0})) RED_ONCE(88, "indirect draw skipped: argument address %#llx is in no memory pool", (unsigned long long)ind);
++        else if (dw) { enc_r_draw_indirect(en, mp, mdx ? mdx : ag); if (mdx) mdx_chain(dw->mdi_cnt, dw->mdi_i, mp, MTLIndexTypeUInt32, 0, 0); }
++        else if (!gpu_addr_want(di->ibuf, 1, 0, &mb, &mo, &ig, &il)) RED_ONCE(22, "index buffer is in no memory pool");
++        else { MTLIndexType ty = di->itype == 1 ? MTLIndexTypeUInt16 : MTLIndexTypeUInt32;
++            enc_r_draw_indexed_indirect(en, mp, ty, ig, il, mdx ? mdx : ag); if (mdx) mdx_chain(di->mdi_cnt, di->mdi_i, mp, ty, ig, il); }
+     } else if (dw && (prim == 7 || prim == 6)) {   // Quads (shared indices 0,1,2,0,2,3) and triangle fans (13 Sentinels, shared (0, i, i+1)), first as the base vertex
+         uint32_t nt = fanquad_tris(prim, dw->count);
+         if (!nt) return;
+@@ -26003,9 +26006,9 @@ static void draw_emit(id en, MTLPrimitiveType mp, int prim, const p_draw *dw, co
+             }
+         }
+         void *mb; uint64_t mo;
+-        uint64_t gpu;
+-        if (!gpu_addr_want(di->ibuf, 1, (uint64_t)di->count << (di->itype == 1 ? 1 : di->itype == 2 ? 2 : 0), &mb, &mo, &gpu, &(uint64_t){0})) { RED_ONCE(22, "index buffer is in no memory pool"); return; }
+-        if (di->count) enc_r_draw_indexed(en, mp, di->count, di->itype == 1 ? MTLIndexTypeUInt16 : MTLIndexTypeUInt32, gpu, ((__bridge id<MTLBuffer>)mb).length - mo,
++        uint64_t gpu, avail = 0;
++        if (!gpu_addr_want(di->ibuf, 1, (uint64_t)di->count << (di->itype == 1 ? 1 : di->itype == 2 ? 2 : 0), &mb, &mo, &gpu, &avail)) { RED_ONCE(22, "index buffer is in no memory pool"); return; }
++        if (di->count) enc_r_draw_indexed(en, mp, di->count, di->itype == 1 ? MTLIndexTypeUInt16 : MTLIndexTypeUInt32, gpu, avail,
+                 di->instances ? di->instances : 1, di->base_vertex, di->base_instance);
+     }
+     if (g_rt_range_pending) { PD("j rt_level_range pass=%llu vc=%u", g_stat_pass, (unsigned)(dw ? dw->count : di->count)); g_rt_range_pending=0; }
+@@ -26412,7 +26415,7 @@ static id<MTL4ComputeCommandEncoder> dispatch_enc(void) {
+     g_rb_dispatch_bits=0; g_rb_last_guest_dispatch=1;
+     g_bw_lo[0] = 0; g_bw_hi[0] = ~0ull; g_bw_n = 1; g_br_n = 0; g_blit_ops = 1;   // recorded as "everything written": the next copy or dispatch gets a barrier
+     if (!g_blit_ct) { enc_c_table(g_blit, g_ct); g_blit_ct = 1; }
+-    args_dirty_all();
++    g_args_dirty[5] = 1; rb_args_mod_mark_other(&g_rb_mod[5]);
+     return g_blit;
+ }
+ // A dispatch's own image slots holding textures made without shader writes (see img_wr_note): queued so they are upgraded before its encoder opens
+@@ -27319,17 +27322,17 @@ static id<MTLLibrary> clr_lib(int slot, int kind) {   // vertex clr_vs (the tria
+ }
+ typedef struct { int32_t slot, kind, mask; uint32_t cfmt[8], dfmt, sfmt, samples; } clr_key;   // slot -1: a depth / stencil clear (no fragment function)
+ static id<MTLRenderPipelineState> clr_pso(const clr_key *k) {
+-    static NSMutableDictionary<NSData *, id<MTLRenderPipelineState>> *cache; if (!cache) cache = [NSMutableDictionary dictionary];
+-    NSData *kd = [NSData dataWithBytes:k length:sizeof *k]; id<MTLRenderPipelineState> ps = cache[kd]; if (ps) return ps;
++    static nvn_hmap cache = {.klen = sizeof(clr_key)};
++    __unsafe_unretained id<MTLRenderPipelineState> ps = hm_get_id(&cache, k); if (ps) return ps;
+     id<MTLLibrary> lib = clr_lib(k->slot < 0 ? 0 : k->slot, k->slot < 0 ? 0 : k->kind); if (!lib) return nil;
+     MTLRenderPipelineDescriptor *d = [MTLRenderPipelineDescriptor new];
+     d.vertexFunction = rb_library_function(lib,@"clr_vs",nil,NULL); if (k->slot >= 0) d.fragmentFunction = rb_library_function(lib,@"clr_fs",nil,NULL);
+     for (int i = 0; i < 8; i++) if (k->cfmt[i]) { d.colorAttachments[i].pixelFormat = (MTLPixelFormat)k->cfmt[i]; d.colorAttachments[i].writeMask = MTLColorWriteMaskNone; }   // the other attachments stay as they are
+     if (k->slot >= 0) d.colorAttachments[k->slot].writeMask = (MTLColorWriteMask)((k->mask & 1 ? MTLColorWriteMaskRed : 0) | (k->mask & 2 ? MTLColorWriteMaskGreen : 0) | (k->mask & 4 ? MTLColorWriteMaskBlue : 0) | (k->mask & 8 ? MTLColorWriteMaskAlpha : 0));
+     d.depthAttachmentPixelFormat = (MTLPixelFormat)k->dfmt; d.stencilAttachmentPixelFormat = (MTLPixelFormat)k->sfmt; d.rasterSampleCount = k->samples ? k->samples : 1;
+-    NSError *e = nil; ps = [g_dev newRenderPipelineStateWithDescriptor:d error:&e];
+-    if (!ps) { static int n; if (n++ < 4) MLOG("【红】 cannot create the clear-triangle pipeline (slot %d color format %u depth %u stencil %u samples %u): %s; this clear is skipped", k->slot, k->slot >= 0 ? k->cfmt[k->slot] : 0, k->dfmt, k->sfmt, k->samples, e.localizedDescription.UTF8String); return nil; }
+-    cache[kd] = ps; return ps;
++    NSError *e = nil; id<MTLRenderPipelineState> nps = [g_dev newRenderPipelineStateWithDescriptor:d error:&e];
++    if (!nps) { static int n; if (n++ < 4) MLOG("【红】 cannot create the clear-triangle pipeline (slot %d color format %u depth %u stencil %u samples %u): %s; this clear is skipped", k->slot, k->slot >= 0 ? k->cfmt[k->slot] : 0, k->dfmt, k->sfmt, k->samples, e.localizedDescription.UTF8String); return nil; }
++    hm_put_id(&cache, k, nps); return nps;
+ }
+ static id<MTLDepthStencilState> clr_dss(int dw, unsigned sm) {   // depth ALWAYS, written when dw; stencil ALWAYS → REPLACE through write mask sm (no stencil test when 0)
+     static id<MTLDepthStencilState> c[2][256];

@@ -1,0 +1,347 @@
+diff --git a/services/S2A.Services/Application.cs b/services/S2A.Services/Application.cs
+index a8e9a7c..ef883e2 100644
+--- a/services/S2A.Services/Application.cs
++++ b/services/S2A.Services/Application.cs
+@@ -256,14 +256,15 @@ namespace S2A.Services
+         }
+     }
+ 
+-    // 只读、按需打开的宿主文件：读时经句柄缓存取 FileStream（缓存满了关最久没用的）。
++    // 只读、按需打开的宿主文件：读时经句柄缓存取 SafeFileHandle（缓存满了关最久没用的，侵入式 LRU 零节点分配）。
+     // 锁只管最近使用表与登记，打开文件和 pread 都在锁外（10-26 01006F8002326000 Mac 满载 90 秒黑屏：全局锁包着阻塞的 pread，一次慢读让所有 RomFS 读排队）；
+     // _busy = 正在锁外读这个文件的线程数，淘汰时跳过它们（句柄不会在读到一半时被关）
+     sealed class LazyHostFile : IFile
+     {
+         private const int MaxOpen = 128;
+         private static readonly object _lock = new();
+-        private static readonly LinkedList<LazyHostFile> _lru = new();
++        private static LazyHostFile _lruHead, _lruTail;
++        private static int _lruCount;
+ 
+         /// <summary>单测钩子：锁外 pread / 打开文件之前调（参数 = 宿主路径），null = 不调。</summary>
+         internal static Action<string> S2ATestBeforeRead, S2ATestBeforeOpen;
+@@ -272,21 +273,31 @@ namespace S2A.Services
+         {
+             lock (_lock)
+             {
+-                foreach (LazyHostFile file in _lru)
++                for (LazyHostFile file = _lruHead; file != null; file = file._next)
+                 {
+                     if (file._busy != 0) throw new InvalidOperationException("RomFS 读取尚未返回，禁止关闭");
+-                    file._stream.Dispose();
+-                    file._stream = null;
+-                    file._node = null;
+                 }
+-                _lru.Clear();
++
++                for (LazyHostFile file = _lruHead; file != null;)
++                {
++                    LazyHostFile next = file._next;
++                    file._handle.Dispose();
++                    file._handle = null;
++                    file._prev = null;
++                    file._next = null;
++                    file = next;
++                }
++
++                _lruHead = null;
++                _lruTail = null;
++                _lruCount = 0;
+             }
+         }
+ 
+         private readonly string _path;
+         private readonly long _size;
+-        private FileStream _stream;
+-        private LinkedListNode<LazyHostFile> _node;
++        private SafeFileHandle _handle;
++        private LazyHostFile _prev, _next;
+         private int _busy;
+ 
+         // 诊断（缺省关）：S2A_ROMFS_READ_MBPS=<MB/s> 时每次 RomFS 读完按「字节 ÷ 吞吐」睡在读线程上，模拟卡带读速，只作复现手段（11-05 假面骑士重复加载同一 AssetBundle），不得变成产品行为、不许用它修崩溃（维护者 11-05）
+@@ -301,30 +312,41 @@ namespace S2A.Services
+ 
+         protected override Result DoRead(out long bytesRead, long offset, Span<byte> destination, in ReadOption option)
+         {
+-            FileStream stream = null;
+-            FileStream evicted = null;
++            SafeFileHandle handle = null;
++            SafeFileHandle evicted = null;
+ 
+             lock (_lock)
+             {
+-                if (_stream != null)
++                if (_handle != null)
+                 {
+                     Touch();
+                     _busy++;
+-                    stream = _stream;
++                    handle = _handle;
+                 }
+             }
+ 
+-            if (stream == null)
++            if (handle == null)
+             {
+                 // 打开（含 stat）也在锁外：10-26 巫师3 Mac 满载局 nx-84 卡在 FileStream 构造的 FStat 里、拿着锁，游戏主线程等锁整局冻住
+                 S2ATestBeforeOpen?.Invoke(_path);
+-                FileStream opened = new(_path, FileMode.Open, FileAccess.Read, FileShare.Read, 1, FileOptions.RandomAccess);
++                SafeFileHandle opened = File.OpenHandle(_path, FileMode.Open, FileAccess.Read, FileShare.Read, FileOptions.RandomAccess);
+ 
+                 // 长度来自目录枚举或预建索引：文件被换过（索引过期）就对不上，读出的数据会错位。
+                 //   回失败、不按索引长度补零当完整（审计 #1534 P1-6）；不缓存这个句柄，下次读再核
+-                if (opened.Length != _size)
++                long actualLength;
++                try
+                 {
+-                    Red.Report("RomFS 文件长度与索引不符（romfs.s2aidx 过期？），本次读回失败", $"{_path}：索引 {_size}，实际 {opened.Length}");
++                    actualLength = RandomAccess.GetLength(opened);
++                }
++                catch
++                {
++                    opened.Dispose();
++                    throw;
++                }
++
++                if (actualLength != _size)
++                {
++                    Red.Report("RomFS 文件长度与索引不符（romfs.s2aidx 过期？），本次读回失败", $"{_path}：索引 {_size}，实际 {actualLength}");
+                     RomFsIndex.RbMismatch(_path);   // RewindBox (patch 0014): an index written on this device is dropped, the next start writes it again
+                     opened.Dispose();
+                     bytesRead = 0;
+@@ -333,11 +355,11 @@ namespace S2A.Services
+ 
+                 lock (_lock)
+                 {
+-                    if (_stream == null)
++                    if (_handle == null)
+                     {
+                         evicted = DetachIdleFile();
+-                        _stream = opened;
+-                        _node = _lru.AddFirst(this);
++                        _handle = opened;
++                        LinkFirst();
+                         opened = null;
+                     }
+                     else
+@@ -346,7 +368,7 @@ namespace S2A.Services
+                     }
+ 
+                     _busy++;
+-                    stream = _stream;
++                    handle = _handle;
+                 }
+ 
+                 opened?.Dispose();
+@@ -365,7 +387,7 @@ namespace S2A.Services
+ 
+                     while (bytesRead < n)
+                     {
+-                        int r = RandomAccess.Read(stream.SafeFileHandle, destination[(int)bytesRead..n], offset + bytesRead);
++                        int r = RandomAccess.Read(handle, destination[(int)bytesRead..n], offset + bytesRead);
+ 
+                         if (r == 0)
+                         {
+@@ -377,7 +399,7 @@ namespace S2A.Services
+                 }
+                 catch (IOException e) when (e.HResult == EFault)
+                 {
+-                    if (!ReadViaBounce(stream.SafeFileHandle, destination[..n], offset, out bytesRead))
++                    if (!ReadViaBounce(handle, destination[..n], offset, out bytesRead))
+                     {
+                         return ResultFs.UnexpectedInLocalFileSystemE.Value;
+                     }
+@@ -472,34 +494,74 @@ namespace S2A.Services
+             }
+         }
+ 
+-        // 以下两个持 _lock 调
++        // 以下持 _lock 调
++        private void LinkFirst()
++        {
++            _prev = null;
++            _next = _lruHead;
++
++            if (_lruHead != null)
++            {
++                _lruHead._prev = this;
++            }
++            else
++            {
++                _lruTail = this;
++            }
++
++            _lruHead = this;
++            _lruCount++;
++        }
++
++        private void Unlink()
++        {
++            if (_prev != null)
++            {
++                _prev._next = _next;
++            }
++            else
++            {
++                _lruHead = _next;
++            }
++
++            if (_next != null)
++            {
++                _next._prev = _prev;
++            }
++            else
++            {
++                _lruTail = _prev;
++            }
++
++            _prev = null;
++            _next = null;
++            _lruCount--;
++        }
++
+         private void Touch()
+         {
+-            if (_node != _lru.First)
++            if (this != _lruHead)
+             {
+-                _lru.Remove(_node);
+-                _lru.AddFirst(_node);
++                Unlink();
++                LinkFirst();
+             }
+         }
+ 
+         // 满了关最久没用、且没人正在读的那个（都在读就暂时超出上限）
+-        private static FileStream DetachIdleFile()
++        private static SafeFileHandle DetachIdleFile()
+         {
+-            if (_lru.Count < MaxOpen)
++            if (_lruCount < MaxOpen)
+             {
+                 return null;
+             }
+ 
+-            for (LinkedListNode<LazyHostFile> n = _lru.Last; n != null; n = n.Previous)
++            for (LazyHostFile old = _lruTail; old != null; old = old._prev)
+             {
+-                LazyHostFile old = n.Value;
+-
+                 if (old._busy == 0)
+                 {
+-                    _lru.Remove(n);
+-                    FileStream detached = old._stream;
+-                    old._stream = null;
+-                    old._node = null;
++                    old.Unlink();
++                    SafeFileHandle detached = old._handle;
++                    old._handle = null;
+                     return detached;
+                 }
+             }
+diff --git a/services/S2A.Services/RomFsIndex.cs b/services/S2A.Services/RomFsIndex.cs
+index ba7b9f5..cc6f0f6 100644
+--- a/services/S2A.Services/RomFsIndex.cs
++++ b/services/S2A.Services/RomFsIndex.cs
+@@ -923,6 +923,7 @@ namespace S2A.Services
+             private readonly bool _measureReads;
+             private readonly string _rootPrefix;
+             private readonly long[] _imageOffset;   // 文件号 → 镜像偏移，-1 = 在覆盖层
++            private int _lastIdx;                   // 上一次命中的区间号提示（顺序/分块读免整表二分）
+ 
+             public IndexedStorage(string root, byte[] idx, string where, Dictionary<string, string> overlay, Microsoft.Win32.SafeHandles.SafeFileHandle image, long[] imageOffset)
+             {
+@@ -1023,16 +1024,52 @@ namespace S2A.Services
+                     return ResultFs.OutOfRange.Value;
+                 }
+ 
+-                // 第一个可能相交的区间：起点 ≤ offset 的最后一个
+-                int i = Array.BinarySearch(_start, offset);
+-                i = i >= 0 ? i : Math.Max(0, ~i - 1);
++                if (destination.IsEmpty)
++                {
++                    return Result.Success;
++                }
++
++                // 第一个可能相交的区间：起点 ≤ offset 的最后一个；先探上次命中区间及其后继，顺序/分块读避开整表二分
++                long[] starts = _start;
++                int n = starts.Length;
++                int hint = System.Threading.Volatile.Read(ref _lastIdx);
++                int i;
++
++                if ((uint)hint < (uint)n && offset >= starts[hint])
++                {
++                    if (offset < starts[hint] + _len[hint])
++                    {
++                        i = hint;
++                    }
++                    else
++                    {
++                        int next = hint + 1;
++
++                        if ((uint)next < (uint)n && offset < starts[next] + _len[next])
++                        {
++                            i = next;
++                        }
++                        else
++                        {
++                            int found = Array.BinarySearch(starts, offset);
++                            i = found >= 0 ? found : Math.Max(0, ~found - 1);
++                        }
++                    }
++                }
++                else
++                {
++                    int found = Array.BinarySearch(starts, offset);
++                    i = found >= 0 ? found : Math.Max(0, ~found - 1);
++                }
++
++                int lastHit = -1;
+ 
+                 while (!destination.IsEmpty)
+                 {
+-                    if (i >= _start.Length || offset < _start[i])
++                    if (i >= n || offset < starts[i])
+                     {
+                         // 区间之前（或之间）的填充
+-                        long next = i < _start.Length ? _start[i] : _size;
++                        long next = i < n ? starts[i] : _size;
+                         int z = (int)Math.Min(destination.Length, next - offset);
+                         destination[..z].Clear();
+                         destination = destination[z..];
+@@ -1040,7 +1077,7 @@ namespace S2A.Services
+                         continue;
+                     }
+ 
+-                    long end = _start[i] + _len[i];
++                    long end = starts[i] + _len[i];
+ 
+                     if (offset >= end)
+                     {
+@@ -1049,7 +1086,7 @@ namespace S2A.Services
+                     }
+ 
+                     int count = (int)Math.Min(destination.Length, end - offset);
+-                    long inner = offset - _start[i];
++                    long inner = offset - starts[i];
+ 
+                     if (_ref[i] >= 0 && _image != null && _imageOffset[_ref[i]] >= 0)
+                     {
+@@ -1095,11 +1132,17 @@ namespace S2A.Services
+                         int file = _ref[i];
+                         NoteRouteFile(_idx.AsSpan(_pathBase + _pathOff[file], _pathLen[file]));
+                     }
++                    lastHit = i;
+                     destination = destination[count..];
+                     offset += count;
+                     i++;
+                 }
+ 
++                if (lastHit >= 0 && lastHit != hint)
++                {
++                    System.Threading.Volatile.Write(ref _lastIdx, lastHit);
++                }
++
+                 return Result.Success;
+             }
+ 

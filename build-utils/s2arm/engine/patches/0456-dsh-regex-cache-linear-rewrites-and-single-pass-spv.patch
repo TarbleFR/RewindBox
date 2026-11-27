@@ -1,0 +1,730 @@
+diff --git a/graphics/tools/direct/compiler/DirectComputeC0Reads.cs b/graphics/tools/direct/compiler/DirectComputeC0Reads.cs
+index e5ad024..2d9ec6b 100644
+--- a/graphics/tools/direct/compiler/DirectComputeC0Reads.cs
++++ b/graphics/tools/direct/compiler/DirectComputeC0Reads.cs
+@@ -20,13 +20,20 @@ namespace S2A.DirectCompiler
+ 
+         public static int[][] Analyze(ReadOnlySpan<byte> spv, int set, int binding)
+         {
++            var map = AnalyzeBindings(spv, set, new[] { binding });
++            return map != null && map.TryGetValue(binding, out var ranges) ? ranges : null;
++        }
++
++        public static Dictionary<int, int[][]> AnalyzeBindings(ReadOnlySpan<byte> spv, int set, IReadOnlyCollection<int> targetBindings)
++        {
++            if (targetBindings == null || targetBindings.Count == 0) return new Dictionary<int, int[][]>();
+             var coarse = SpirvCbufUse.Analyze(spv);
+             if (coarse == null) return null;
+             ReadOnlySpan<uint> w = MemoryMarshal.Cast<byte, uint>(spv);
+             var bindings = new Dictionary<uint, uint>();
+             var sets = new Dictionary<uint, uint>();
+             var constants = new Dictionary<uint, uint>();
+-            var types = new Dictionary<uint, uint[]>();
++            var types = new Dictionary<uint, (int Off, int Len)>();
+             var strides = new Dictionary<uint, uint>();
+             var offsets = new Dictionary<uint, uint>();
+             var variables = new Dictionary<uint, uint>();
+@@ -42,60 +49,133 @@ namespace S2A.DirectCompiler
+                 if (op == 72 && n == 5 && w[i + 2] == 0 && w[i + 3] == 35)
+                     offsets[w[i + 1]] = w[i + 4];
+                 if (op >= 19 && op <= 33 && n >= 2)
+-                    types[w[i + 1]] = w.Slice(i, n).ToArray();
++                    types[w[i + 1]] = (i, n);
+                 if (op == 43 && n == 4) constants[w[i + 2]] = w[i + 3];
+                 if (op == 59 && n >= 4 && w[i + 3] == 2) variables[w[i + 2]] = w[i + 1];
+                 i += n;
+             }
+-            var roots = variables.Keys.Where(id => bindings.GetValueOrDefault(id, uint.MaxValue) == (uint)binding &&
+-                sets.GetValueOrDefault(id, uint.MaxValue) == (uint)set).ToArray();
+-            if (roots.Length != 1) return null;
+-            uint root = roots[0];
+-            // Dynamic/unmodelled uses reported by the shared analysis cannot become [].
+-            // 同一 (set, binding) 才算 c0 的读法：不同描述符集里同 binding 号的其它 UBO
+-            // （如 set1/binding1 的动态索引槽）与 c0 无关，不能借它的 dynamic 判 c0 不可证。
+-            if (coarse.Any(u => u.Set == set && u.Binding == binding && u.Dynamic)) return null;
+-            bool Type(uint id, int op, int length, out uint[] t) =>
+-                types.TryGetValue(id, out t) && (t[0] & 65535) == op && t.Length == length;
+-            if (!Type(variables[root], 32, 4, out var pointer) || pointer[2] != 2 ||
+-                !Type(pointer[3], 30, 3, out var structure) || offsets.GetValueOrDefault(pointer[3], uint.MaxValue) != 0 ||
+-                !Type(structure[2], 28, 4, out var array) || strides.GetValueOrDefault(structure[2]) != 16 ||
+-                !Type(array[2], 23, 4, out var vector) || vector[3] != 4 ||
+-                !types.TryGetValue(vector[2], out var scalar) ||
+-                !(((scalar[0] & 65535) == 21 || (scalar[0] & 65535) == 22) && scalar[2] == 32) ||
+-                !constants.TryGetValue(array[3], out uint count)) return null;
+-            var pointers = new Dictionary<uint, (int Offset, int Size)>();
+-            var reads = new SortedSet<(int Offset, int Size)>();
++            var dynamicBindings = new HashSet<int>();
++            foreach (var u in coarse)
++                if (u.Set == set && u.Dynamic) dynamicBindings.Add(u.Binding);
++
++            var wanted = new HashSet<int>(targetBindings);
++            var bindingRoots = new Dictionary<int, List<uint>>();
++            foreach (uint id in variables.Keys)
++            {
++                if (sets.GetValueOrDefault(id, uint.MaxValue) != (uint)set) continue;
++                uint b = bindings.GetValueOrDefault(id, uint.MaxValue);
++                if (b == uint.MaxValue) continue;
++                int bi = (int)b;
++                if (!wanted.Contains(bi)) continue;
++                if (!bindingRoots.TryGetValue(bi, out var list)) bindingRoots[bi] = list = new List<uint>(1);
++                list.Add(id);
++            }
++
++            static bool Type(ReadOnlySpan<uint> words, Dictionary<uint, (int Off, int Len)> tmap, uint id, int op, int length, out int off)
++            {
++                if (tmap.TryGetValue(id, out var s) && (words[s.Off] & 65535) == op && s.Len == length)
++                { off = s.Off; return true; }
++                off = 0; return false;
++            }
++
++            var rootToIdx = new Dictionary<uint, int>();
++            var activeBindings = new List<int>();
++            var scalarTypes = new List<uint>();
++            var vecTypes = new List<uint>();
++            var counts = new List<uint>();
++            var reads = new List<SortedSet<(int Offset, int Size)>>();
++
++            foreach (var kv in bindingRoots)
++            {
++                int b = kv.Key;
++                if (kv.Value.Count != 1 || dynamicBindings.Contains(b)) continue;
++                uint root = kv.Value[0];
++                if (!Type(w, types, variables[root], 32, 4, out int ptrOff) || w[ptrOff + 2] != 2 ||
++                    !Type(w, types, w[ptrOff + 3], 30, 3, out int structOff) || offsets.GetValueOrDefault(w[ptrOff + 3], uint.MaxValue) != 0 ||
++                    !Type(w, types, w[structOff + 2], 28, 4, out int arrOff) || strides.GetValueOrDefault(w[structOff + 2]) != 16 ||
++                    !Type(w, types, w[arrOff + 2], 23, 4, out int vecOff) || w[vecOff + 3] != 4 ||
++                    !types.TryGetValue(w[vecOff + 2], out var scalar) ||
++                    !(((w[scalar.Off] & 65535) == 21 || (w[scalar.Off] & 65535) == 22) && w[scalar.Off + 2] == 32) ||
++                    !constants.TryGetValue(w[arrOff + 3], out uint count)) continue;
++                int idx = activeBindings.Count;
++                rootToIdx[root] = idx;
++                activeBindings.Add(b);
++                scalarTypes.Add(w[vecOff + 2]);
++                vecTypes.Add(w[arrOff + 2]);
++                counts.Add(count);
++                reads.Add(new SortedSet<(int Offset, int Size)>());
++            }
++
++            var result = new Dictionary<int, int[][]>();
++            if (activeBindings.Count == 0) return result;
++
++            var invalid = new bool[activeBindings.Count];
++            var pointers = new Dictionary<uint, (int Idx, int Offset, int Size)>();
++
+             for (int i = 5; i < w.Length;)
+             {
+                 int n = (int)(w[i] >> 16), op = (int)(w[i] & 65535);
+                 if (op == 65 || op == 66)
+                 {
+-                    if (n >= 4 && w[i + 3] == root)
++                    if (n >= 4)
+                     {
+-                        if ((n != 6 && n != 7) || !constants.TryGetValue(w[i + 4], out uint member) || member != 0 ||
+-                            !constants.TryGetValue(w[i + 5], out uint index) || index >= count || index > int.MaxValue / 16)
+-                            return null;
+-                        uint component = 0;
+-                        if (n == 7 && (!constants.TryGetValue(w[i + 6], out component) || component >= 4)) return null;
+-                        int size = n == 7 ? 4 : 16;
+-                        if (!Type(w[i + 1], 32, 4, out var resultPointer) || resultPointer[2] != 2 ||
+-                            resultPointer[3] != (n == 7 ? vector[2] : array[2])) return null;
+-                        pointers[w[i + 2]] = ((int)(index * 16 + component * 4), size);
++                        uint baseId = w[i + 3];
++                        if (rootToIdx.TryGetValue(baseId, out int bi))
++                        {
++                            if (!invalid[bi])
++                            {
++                                if ((n != 6 && n != 7) || !constants.TryGetValue(w[i + 4], out uint member) || member != 0 ||
++                                    !constants.TryGetValue(w[i + 5], out uint index) || index >= counts[bi] || index > int.MaxValue / 16)
++                                    invalid[bi] = true;
++                                else
++                                {
++                                    uint component = 0;
++                                    if (n == 7 && (!constants.TryGetValue(w[i + 6], out component) || component >= 4))
++                                        invalid[bi] = true;
++                                    else
++                                    {
++                                        int size = n == 7 ? 4 : 16;
++                                        if (!Type(w, types, w[i + 1], 32, 4, out int rpOff) || w[rpOff + 2] != 2 ||
++                                            w[rpOff + 3] != (n == 7 ? scalarTypes[bi] : vecTypes[bi]))
++                                            invalid[bi] = true;
++                                        else
++                                            pointers[w[i + 2]] = (bi, (int)(index * 16 + component * 4), size);
++                                    }
++                                }
++                            }
++                        }
++                        else if (pointers.TryGetValue(baseId, out var pe))
++                        {
++                            invalid[pe.Idx] = true;
++                        }
+                     }
+-                    else if (n >= 4 && pointers.ContainsKey(w[i + 3])) return null;
+                 }
+                 else if (op == 61 && n >= 4 && pointers.TryGetValue(w[i + 3], out var range))
+                 {
+-                    if (w[i + 1] != (range.Size == 4 ? vector[2] : array[2])) return null;
+-                    reads.Add(range);
++                    if (!invalid[range.Idx])
++                    {
++                        if (w[i + 1] != (range.Size == 4 ? scalarTypes[range.Idx] : vecTypes[range.Idx]))
++                            invalid[range.Idx] = true;
++                        else
++                            reads[range.Idx].Add((range.Offset, range.Size));
++                    }
++                    // Preserve exact single-binding escape checks for any OTHER binding referenced in operands.
++                    for (int j = 1; j < n; j++)
++                    {
++                        if (j == 3) continue;
++                        uint id = w[i + j];
++                        if (rootToIdx.TryGetValue(id, out int obi) && obi != range.Idx) invalid[obi] = true;
++                        else if (pointers.TryGetValue(id, out var ope) && ope.Idx != range.Idx) invalid[ope.Idx] = true;
++                    }
+                 }
+                 else if (!Declaration(op))
+                 {
+-                    // Unknown pointer escapes (copy, phi, parameter, whole-block load) fail closed.
+-                    // Literal coincidences may conservatively reject, never under-report reads.
+                     for (int j = 1; j < n; j++)
+-                        if (w[i + j] == root || pointers.ContainsKey(w[i + j])) return null;
++                    {
++                        uint id = w[i + j];
++                        if (rootToIdx.TryGetValue(id, out int obi)) invalid[obi] = true;
++                        else if (pointers.TryGetValue(id, out var ope)) invalid[ope.Idx] = true;
++                    }
+                 }
+                 i += n;
+             }
+@@ -106,20 +186,45 @@ namespace S2A.DirectCompiler
+                 int n = (int)(w[i] >> 16), op = (int)(w[i] & 65535);
+                 if (op == 65 || op == 66)
+                 {
+-                    if (n >= 4 && pointers.ContainsKey(w[i + 3])) return null;
++                    if (n >= 4 && pointers.TryGetValue(w[i + 3], out var pe)) invalid[pe.Idx] = true;
+                 }
+                 else if (op == 61 && n >= 4 && pointers.TryGetValue(w[i + 3], out var range))
+                 {
+-                    if (w[i + 1] != (range.Size == 4 ? vector[2] : array[2])) return null;
+-                    reads.Add(range);
++                    if (!invalid[range.Idx])
++                    {
++                        if (w[i + 1] != (range.Size == 4 ? scalarTypes[range.Idx] : vecTypes[range.Idx]))
++                            invalid[range.Idx] = true;
++                        else
++                            reads[range.Idx].Add((range.Offset, range.Size));
++                    }
++                    for (int j = 1; j < n; j++)
++                    {
++                        if (j == 3) continue;
++                        uint id = w[i + j];
++                        if (rootToIdx.TryGetValue(id, out int obi) && obi != range.Idx) invalid[obi] = true;
++                        else if (pointers.TryGetValue(id, out var ope) && ope.Idx != range.Idx) invalid[ope.Idx] = true;
++                    }
++                }
++                else if (op == 59 && n >= 5)
++                {
++                    uint id = w[i + 4];
++                    if (rootToIdx.TryGetValue(id, out int obi)) invalid[obi] = true;
++                    else if (pointers.TryGetValue(id, out var ope)) invalid[ope.Idx] = true;
+                 }
+-                else if (op == 59 && n >= 5 && (w[i + 4] == root || pointers.ContainsKey(w[i + 4]))) return null;
+                 else if (!Declaration(op))
++                {
+                     for (int j = 1; j < n; j++)
+-                        if (w[i + j] == root || pointers.ContainsKey(w[i + j])) return null;
++                    {
++                        uint id = w[i + j];
++                        if (rootToIdx.TryGetValue(id, out int obi)) invalid[obi] = true;
++                        else if (pointers.TryGetValue(id, out var ope)) invalid[ope.Idx] = true;
++                    }
++                }
+                 i += n;
+             }
+-            return reads.Select(r => new[] { r.Offset, r.Size }).ToArray();
++            for (int bi = 0; bi < activeBindings.Count; bi++)
++                if (!invalid[bi]) result[activeBindings[bi]] = reads[bi].Select(r => new[] { r.Offset, r.Size }).ToArray();
++            return result;
+         }
+     }
+ }
+diff --git a/graphics/tools/direct/dsh/Dsh.cs b/graphics/tools/direct/dsh/Dsh.cs
+index f3ac4d8..13f09cc 100644
+--- a/graphics/tools/direct/dsh/Dsh.cs
++++ b/graphics/tools/direct/dsh/Dsh.cs
+@@ -781,8 +781,8 @@ namespace S2A.Dsh
+                 if (!m.Success || Pow(m.Groups[7].Value) != L(1) || Pow(m.Groups[12].Value) != L(0)) return none;
+                 guard = m.Groups[20].Success ? "!" + Esc(m.Groups[20].Value) : Esc(m.Groups[19].Value);
+             }
+-            var held = R(@"\Gint (\w+) = \w+;\s*if \(" + guard + @"\)\s*\{\s*\1 = (\d+);\s*\}\s*int (\w+) = \1;\s*");   // 第一个调用里设成常量的局部量
+-            var block = R(@"\Gif \(" + guard + @"\)\s*\{\s*((?:" + FirstStoreOne + @"\s*)+)\}\s*");
++            var held = Raw(@"\Gint (\w+) = \w+;\s*if \(" + guard + @"\)\s*\{\s*\1 = (\d+);\s*\}\s*int (\w+) = \1;\s*");   // 第一个调用里设成常量的局部量
++            var block = Raw(@"\Gif \(" + guard + @"\)\s*\{\s*((?:" + FirstStoreOne + @"\s*)+)\}\s*");
+             int at = m.Index + m.Length; var outp = new StringBuilder(msl, 0, at, msl.Length);
+             var stores = new List<(string, long, long)>(); var values = new Dictionary<string, long>(StringComparer.Ordinal);
+             while (true)
+@@ -806,7 +806,7 @@ namespace S2A.Dsh
+                 outp.Append(msl, at, p.Index + p.Length - at); at = p.Index + p.Length;
+             }
+             string rest = msl[at..];
+-            if (stores.Count == 0 || stores.Count > 4 || Search(@"if \(" + guard + @"\)", rest).Success) return none;
++            if (stores.Count == 0 || stores.Count > 4 || SearchRaw(@"if \(" + guard + @"\)", rest).Success) return none;
+             return (outp.Append(rest).ToString(), stores);
+         }
+ 
+@@ -1443,6 +1443,41 @@ namespace S2A.Dsh
+             }
+             return depth != 0 ? null : (i, args, m.Groups[1].Value);
+         }
++        /// <summary>Materialize [st, end) with any enclosed reverse-ordered edits in edits[firstPop..] applied.</summary>
++        static string PatchSlice(string src, int st, int end, List<(int Start, int End, string Repl)> edits, int firstPop)
++        {
++            int cap = end - st;
++            for (int e = firstPop; e < edits.Count; e++) cap += edits[e].Repl.Length - (edits[e].End - edits[e].Start);
++            var sb = new StringBuilder(Math.Max(cap, 0));
++            int cur = st;
++            for (int e = edits.Count - 1; e >= firstPop; e--)
++            {
++                var (es, ee, er) = edits[e];
++                if (es > cur) sb.Append(src, cur, es - cur);
++                sb.Append(er);
++                cur = ee;
++            }
++            if (end > cur) sb.Append(src, cur, end - cur);
++            return sb.ToString();
++        }
++        /// <summary>Apply non-overlapping reverse-ordered edits to src in a single O(L) pass.</summary>
++        static string ApplyEdits(string src, List<(int Start, int End, string Repl)> edits)
++        {
++            if (edits.Count == 0) return src;
++            int cap = src.Length;
++            for (int e = 0; e < edits.Count; e++) cap += edits[e].Repl.Length - (edits[e].End - edits[e].Start);
++            var sb = new StringBuilder(Math.Max(cap, 0));
++            int cur = 0;
++            for (int e = edits.Count - 1; e >= 0; e--)
++            {
++                var (es, ee, er) = edits[e];
++                if (es > cur) sb.Append(src, cur, es - cur);
++                sb.Append(er);
++                cur = ee;
++            }
++            if (src.Length > cur) sb.Append(src, cur, src.Length - cur);
++            return sb.ToString();
++        }
+         /// <summary>= fs_lb：片元 / 计算着色器 main0 里经单个采样器成员的每次采样加该采样器的偏置 b = spvDescriptorSet0.s2a_lb[成员 id]：level(l) → level((l) + b)、bias(x) → bias((x) + b)、
+         /// gradient → 两个导数 × precise::exp2(b)、没写 LOD → 片元插 bias(b) / 计算插 level(b)（计算只带 min_lod_clamp(m) 的 → level(max(b, m))）；参数块末尾加 constant float* s2a_lb。没有可改的采样原样返回。
+         /// 深度比较采样 sample_compare 同样改（缺口族 31：本机不吃采样器偏置时比较采样的偏置原来丢掉），LOD 参数排在参考值之后</summary>
+@@ -1458,11 +1493,21 @@ namespace S2A.Dsh
+             int b0 = ent.Index + ent.Length, b1 = src.IndexOf("\n}\n", b0 - 1, StringComparison.Ordinal);
+             if (b1 < 0) return src;
+             string main = src[b0..(b1 + 1)]; int n = 0;
++            var edits = new List<(int Start, int End, string Repl)>();
+             foreach (int st in Starts(main, tex, s_lbCall))
+             {
+                 var ca = CallAt(main, st, s_lbCall);
+                 if (ca == null) continue;
+-                var (i, args, t) = ca.Value;
++                int origEnd = ca.Value.End;
++                int firstPop = edits.Count;
++                while (firstPop > 0 && edits[firstPop - 1].Start < origEnd) firstPop--;
++                if (firstPop < edits.Count)
++                {
++                    string local = PatchSlice(main, st, origEnd, edits, firstPop);
++                    ca = CallAt(local, 0, s_lbCall);
++                    if (ca == null) continue;
++                }
++                var (_, args, t) = ca.Value;
+                 bool cmp = string.CompareOrdinal(main, st + "spvDescriptorSet0.".Length + t.Length, ".sample_compare(", 0, ".sample_compare(".Length) == 0;
+                 string kind = tex[t].Kind; int k = (kind.EndsWith("_array", StringComparison.Ordinal) ? 3 : 2) + (cmp ? 1 : 0);   // 比较采样：参考值在 LOD 之前
+                 var sm = args.Count > 0 ? Full(@"spvDescriptorSet0\.(\w+)", args[0]) : null;
+@@ -1486,13 +1531,17 @@ namespace S2A.Dsh
+                 }
+                 else if (!frag && lods.Count > 0) { var (j, lm) = lods[0]; na[j] = "level(max(" + b + ", " + lm.Groups[2].Value + "))"; }   // 计算、只带 min_lod_clamp(m)：level(max(b, m))
+                 else na.Insert(k, frag ? "bias(" + b + ")" : "level(" + b + ")");
+-                main = main[..st] + "spvDescriptorSet0." + t + (cmp ? ".sample_compare(" : ".sample(") + string.Join(", ", na) + ")" + main[i..]; n++;
++                string rw = "spvDescriptorSet0." + t + (cmp ? ".sample_compare(" : ".sample(") + string.Join(", ", na) + ")";
++                if (firstPop < edits.Count) edits.RemoveRange(firstPop, edits.Count - firstPop);
++                edits.Add((st, origEnd, rw)); n++;
+             }
+             if (n == 0) return src;
+-            src = src[..b0] + main + src[(b1 + 1)..];
+-            var nb = Search(@"struct spvDescriptorSetBuffer0\s*\{(.*?)\};", src, RegexOptions.Singleline);   // 结构体在 main0 之前：位置没动
+-            int e = nb.Groups[1].Index + nb.Groups[1].Length;
+-            return src[..e] + "    constant float* " + LB + " [[id(" + nid + ")]];\n" + src[e..];
++            main = ApplyEdits(main, edits);
++            int e = body.Groups[1].Index + body.Groups[1].Length;
++            string lbDecl = "    constant float* " + LB + " [[id(" + nid.ToString(CultureInfo.InvariantCulture) + ")]];\n";
++            var res = new StringBuilder(src.Length - (b1 + 1 - b0) + main.Length + lbDecl.Length);
++            res.Append(src, 0, e).Append(lbDecl).Append(src, e, b0 - e).Append(main).Append(src, b1 + 1, src.Length - (b1 + 1));
++            return res.ToString();
+         }
+         /// <summary>main0 入口之前（辅助函数里）有经参数块贴图或采样器参数的采样：FsLb / FsRd 只改 main0，这类采样不加偏置、不进归约（审计 1101 18:00 P2-2）。
+         /// SPIRV-Cross 把采样内联进 main0，11-01 动森真库 6031 支片元 / 计算一处都没有；没有读数前不改改写范围，出了就记一条反射笔记作读数</summary>
+@@ -1515,11 +1564,21 @@ namespace S2A.Dsh
+             int b0 = ent.Index + ent.Length, b1 = src.IndexOf("\n}\n", b0 - 1, StringComparison.Ordinal);
+             if (b1 < 0) return src;
+             string main = src[b0..(b1 + 1)]; int n = 0;
++            var edits = new List<(int Start, int End, string Repl)>();
+             foreach (int st in Starts(main, tex))
+             {
+                 var ca = CallAt(main, st);
+                 if (ca == null) continue;
+-                var (i, args, t) = ca.Value;
++                int origEnd = ca.Value.End;
++                int firstPop = edits.Count;
++                while (firstPop > 0 && edits[firstPop - 1].Start < origEnd) firstPop--;
++                if (firstPop < edits.Count)
++                {
++                    string local = PatchSlice(main, st, origEnd, edits, firstPop);
++                    ca = CallAt(local, 0);
++                    if (ca == null) continue;
++                }
++                var (_, args, t) = ca.Value;
+                 var (kind, elem) = tex[t]; bool arr = kind.EndsWith("_array", StringComparison.Ordinal); int k = arr ? 3 : 2;
+                 var sm = args.Count > 0 ? Full(@"spvDescriptorSet0\.(\w+)", args[0]) : null;
+                 if (sm == null || !sm.Success || !smp.ContainsKey(sm.Groups[1].Value) || args.Count < 2 || elem != "float") continue;
+@@ -1542,9 +1601,11 @@ namespace S2A.Dsh
+                     string rs = "s2a_rs(spvDescriptorSet0." + t + ", " + args[1] + ", " + (arr ? args[2] : "0u") + ", " + lv + ", " + (args.Count > k + 1 ? args[k + 1] : "int2(0)") + ", " + q + ")";
+                     rw = "(" + q + ".m.x != 0.0 ? (" + rs + ") : (" + bs + "))";
+                 }
+-                main = main[..st] + rw + main[i..]; n++;
++                if (firstPop < edits.Count) edits.RemoveRange(firstPop, edits.Count - firstPop);
++                edits.Add((st, origEnd, rw)); n++;
+             }
+             if (n == 0) return src;
++            main = ApplyEdits(main, edits);
+             int p1 = b0 - ")\n{\n".Length;
+             return RED_BEGIN + src[..ent.Index] + RedHelp + "\n" + src[ent.Index..p1] + ", constant S2ASe* " + RED + " [[buffer(" + RED_SLOT + ")]]" + src[p1..b0] + main + src[(b1 + 1)..];
+         }
+@@ -1649,6 +1710,7 @@ namespace S2A.Dsh
+             foreach (Match m in s_uvxCall.Matches(src)) if (tex.ContainsKey(m.Groups[1].Value)) starts.Add(m.Index);
+             starts.Reverse();   // 从后往前：外层坐标里套着的内层访问先改
+             int n = 0;
++            var edits = new List<(int Start, int End, string Repl)>();
+             foreach (int st in starts)
+             {
+                 var m = s_uvxCall.Match(src, st);
+@@ -1660,11 +1722,37 @@ namespace S2A.Dsh
+                     if ((c == ',' && depth == 1) || depth == 0) { args.Add((a0, i)); a0 = i + 1; }
+                     i++;
+                 }
+-                if (args.Count < 2) continue;
+-                var (a, b) = args[1]; string arg = src[a..b]; int lead = arg.Length - arg.TrimStart().Length;
+-                src = src[..(a + lead)] + "s2a_uv(" + src[(a + lead)..b].Trim() + ", spvDescriptorSet0." + UVX + "[" + tex[m.Groups[1].Value] + "])" + src[b..]; n++;
++                int callEnd = i;
++                int firstPop = edits.Count;
++                while (firstPop > 0 && edits[firstPop - 1].Start < callEnd) firstPop--;
++                if (firstPop == edits.Count)
++                {
++                    if (args.Count < 2) continue;
++                    var (a, b) = args[1]; string arg = src[a..b]; int lead = arg.Length - arg.TrimStart().Length;
++                    string repl = "s2a_uv(" + src[(a + lead)..b].Trim() + ", spvDescriptorSet0." + UVX + "[" + tex[m.Groups[1].Value] + "])";
++                    edits.Add((a + lead, b, repl)); n++;
++                }
++                else
++                {
++                    string local = PatchSlice(src, st, callEnd, edits, firstPop);
++                    var lm = s_uvxCall.Match(local, 0);
++                    if (!lm.Success || lm.Index != 0) continue;
++                    int li = lm.Length, la0 = li, ld = 1; var largs = new List<(int A, int B)>();
++                    while (ld > 0 && li < local.Length)
++                    {
++                        char c = local[li]; ld += c == '(' || c == '[' ? 1 : 0; ld -= c == ')' || c == ']' ? 1 : 0;
++                        if ((c == ',' && ld == 1) || ld == 0) { largs.Add((la0, li)); la0 = li + 1; }
++                        li++;
++                    }
++                    if (largs.Count < 2) continue;
++                    var (la, lb) = largs[1]; string larg = local[la..lb]; int llead = larg.Length - larg.TrimStart().Length;
++                    string rewritten = local[..(la + llead)] + "s2a_uv(" + local[(la + llead)..lb].Trim() + ", spvDescriptorSet0." + UVX + "[" + tex[lm.Groups[1].Value] + "])" + local[lb..];
++                    edits.RemoveRange(firstPop, edits.Count - firstPop);
++                    edits.Add((st, callEnd, rewritten)); n++;
++                }
+             }
+             if (n == 0) return src;
++            src = ApplyEdits(src, edits);
+             body = Search(@"struct spvDescriptorSetBuffer0\s*\{(.*?)\};", src, RegexOptions.Singleline);
+             long nid = NextId(body.Groups[1].Value) - 1;   // 同 FsLb：数组成员占 n 个 id、带第二属性的成员也算（原先取最大 id：数组排在最后时新成员撞它的第 2 个元素；审计 1101 18:00 P1-18 同族）
+             int e1 = body.Groups[1].Index + body.Groups[1].Length, e2 = body.Index + body.Length;
+@@ -1767,7 +1855,7 @@ namespace S2A.Dsh
+                     if (defs.ContainsKey(v)) notDef.Add(v); else defs[v] = m.Groups[2].Value.Trim();
+                 }
+                 foreach (string v in notDef) defs.Remove(v);
+-                string Last(string lhs) { string v = null; foreach (Match m in All(Esc(lhs) + @"\s*=(?!=)\s*([^;]+);", top)) v = m.Groups[1].Value.Trim(); return v; }
++                string Last(string lhs) { string v = null; foreach (Match m in AllRaw(Esc(lhs) + @"\s*=(?!=)\s*([^;]+);", top)) v = m.Groups[1].Value.Trim(); return v; }
+                 var lin = new LinForm(defs);
+                 string px = Last("out.gl_Position.x"), py = Last("out.gl_Position.y"), pw = Last("out.gl_Position.w");
+                 if (px == null || py == null || pw == null) return new List<object>();
+@@ -1910,7 +1998,7 @@ namespace S2A.Dsh
+             (string, string)? Var(string v) => vr.TryGetValue(v, out var r) ? r : null;
+             ((string, string) V, List<object> A, List<object> B)? Fm(string v_)
+             {
+-                var m = Search(@"float " + Esc(v_) + @" = fma\((_\w+), \(\*spvDescriptorSet0\.vp_c(\d+)\)\._m0\[(\d+)\]\.([xyzw]), \(\*spvDescriptorSet0\.vp_c(\d+)\)\._m0\[(\d+)\]\.([xyzw])\);", b);
++                var m = SearchRaw(@"float " + Esc(v_) + @" = fma\((_\w+), \(\*spvDescriptorSet0\.vp_c(\d+)\)\._m0\[(\d+)\]\.([xyzw]), \(\*spvDescriptorSet0\.vp_c(\d+)\)\._m0\[(\d+)\]\.([xyzw])\);", b);
+                 if (!m.Success || !vr.ContainsKey(m.Groups[1].Value)) return null;
+                 return (vr[m.Groups[1].Value], new List<object> { (long)(Int(m.Groups[2].Value) - 3), (long)Int(m.Groups[3].Value), (long)"xyzw".IndexOf(m.Groups[4].Value) },
+                         new List<object> { (long)(Int(m.Groups[5].Value) - 3), (long)Int(m.Groups[6].Value), (long)"xyzw".IndexOf(m.Groups[7].Value) });
+@@ -2095,7 +2183,7 @@ namespace S2A.Dsh
+                 var e = new PyDict { ["msl_name"] = nm, ["msl_type"] = ty, ["arg_id"] = aid };
+                 string bare = nm.EndsWith("Smplr", StringComparison.Ordinal) ? nm[..^5] : nm;
+                 Match mm;
+-                Match pool = ty == "constant spvPool_" + nm + "*" ? Search(@"struct spvPool_" + Esc(nm) + @"\s*\{\s*uint n;\s*ulong seen;\s*array<(.+), \d+> e;", msl) : Match.Empty;
++                Match pool = ty == "constant spvPool_" + nm + "*" ? SearchRaw(@"struct spvPool_" + Esc(nm) + @"\s*\{\s*uint n;\s*ulong seen;\s*array<(.+), \d+> e;", msl) : Match.Empty;
+                 bool sampPool = pool.Success && pool.Groups[1].Value == "sampler";
+                 if (pool.Success) e.Set("kind", sampPool ? "samp_pool" : "tex_pool").Set("elem", pool.Groups[1].Value);   // 追不到槽的句柄读的池（PoolArrays；宿主 nvn_refl.h TEXP / SAMPP）
+                 else if (HELPERS.TryGetValue(nm, out long hr)) e.Set("kind", "geometry").Set("reg", hr);
+@@ -2142,7 +2230,7 @@ namespace S2A.Dsh
+                     {
+                         e["fetch1d"] = true;
+                         if (fetch1dExact) e["fetch1d_exact"] = true;   // the host binds a texture buffer here as exact rows (nvn_mtl.m tbuf_as_2d, nvn_refl f1d = 2)
+-                        if (Search(@"\b" + Esc(nm) + @"\.get_width\(", msl).Success) e["fetch1d_size"] = true;
++                        if (SearchRaw(@"\b" + Esc(nm) + @"\.get_width\(", msl).Success) e["fetch1d_size"] = true;
+                     }
+                 }
+                 binds.Add(e);
+@@ -2245,13 +2333,28 @@ namespace S2A.Dsh
+         }
+ 
+         static readonly string[] CAST = { "as_type<int>(", "as_type<uint>(" };
++        static readonly Regex s_inRef = R(@"in\.(\w+)\b");
++        static readonly Regex s_inTmp = R(@"\A\s*float\s+(_\w+)\s*=\s*in\.(\w+)\.[xyzw];\z");
++        static readonly Regex s_inCopy = R(@"\A\s*[\w.\[\]]+\s*=\s*in\.(\w+)\.[xyzw];\z");
++        static readonly Regex s_varCopy = R(@"\A\s*[\w.\[\]]+\s*=\s*(_\w+);\z");
++        static readonly Regex s_outWrite = R(@"\bout\.(\w+)(?:\.\w+)? = ([^;]+);");
++        static readonly Regex s_asFloat = R(@"\Aas_type<float\d?>\(");
++        static bool IsWordChar(char c) => (c <= 'z' && (c >= 'a' || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_')) || (c > 127 && char.IsLetterOrDigit(c));
+         static bool EndsCast(string body, int at) { var s = body.AsSpan(0, at); return s.EndsWith(CAST[0]) || s.EndsWith(CAST[1]); }
+-        // 一处读出值（直接读的 in.m_N.c 或承接它的浮点临时量，正则 expr）怎么用：1 = 整数用法（as_type<int / uint>(…)），0 = 原样拷贝（整条语句是「左值 = 它;」，位型不变），-1 = 别的
+-        static int IntUse(string body, int at, string expr)
++        // 一处读出值（直接读的 in.m_N.c 或承接它的浮点临时量）怎么用：1 = 整数用法（as_type<int / uint>(…)），0 = 原样拷贝（整条语句是「左值 = 它;」，位型不变），-1 = 别的
++        static int IntUseIn(string body, int at, string name)
++        {
++            if (EndsCast(body, at)) return 1;
++            int ls = RFind(body, '\n', at) + 1, le = Find(body, '\n', at);
++            var m = s_inCopy.Match(Sl(body, ls, le));
++            return m.Success && m.Groups[1].Value == name ? 0 : -1;
++        }
++        static int IntUseVar(string body, int at, string v)
+         {
+             if (EndsCast(body, at)) return 1;
+             int ls = RFind(body, '\n', at) + 1, le = Find(body, '\n', at);
+-            return MatchStart(@"\s*[\w.\[\]]+\s*=\s*" + expr + ";$", Sl(body, ls, le)).Success ? 0 : -1;
++            var m = s_varCopy.Match(Sl(body, ls, le));
++            return m.Success && m.Groups[1].Value == v ? 0 : -1;
+         }
+         // 整数输入推断：某个属性的读出值只经位型转换当整数用、或原样拷贝（至少有一处整数用法），就按 uint 声明（重翻后 Metal 按整数格式取数，宿主不在 CPU 上转顶点）。
+         //   读出值两种写法同一判法：DebugMode 开时先落浮点临时量「float _N = in.m_X.c;」再用 _N；关了（11-07 起顶点阶段缺省）表达式传播把临时量内联，
+@@ -2261,29 +2364,38 @@ namespace S2A.Dsh
+             var ins = new PyDict(); foreach (Match m in All(@"(\w+)\s+(\w+)\s*\[\[attribute\((\d+)\)\]\]", src)) ins[m.Groups[2].Value] = Int(m.Groups[3].Value);
+             int i = Find(src, "vertex main0_out main0(");
+             var o = new PyDict();
+-            if (i < 0) return o;
++            if (i < 0 || ins.Count == 0) return o;
+             string body = src[i..];
++            var byName = new Dictionary<string, List<(int Index, int Length)>>(StringComparer.Ordinal);
++            foreach (Match u in s_inRef.Matches(body))
++            {
++                string nm = u.Groups[1].Value;
++                if (!ins.ContainsKey(nm)) continue;
++                if (!byName.TryGetValue(nm, out var list)) byName[nm] = list = new List<(int, int)>();
++                list.Add((u.Index, u.Length));
++            }
+             foreach (var kv in ins)
+             {
+                 string name = kv.Key; int loc = (int)kv.Value;
++                if (!byName.TryGetValue(name, out var uses)) continue;
+                 int nint = 0; bool bad = false;
+-                string rd = @"in\." + Esc(name) + @"\.[xyzw]";
+-                foreach (Match u in All(@"in\." + Esc(name) + @"\b", body))
++                foreach (var (uIdx, uLen) in uses)
+                 {
+-                    int ls = RFind(body, '\n', u.Index) + 1, le = Find(body, '\n', u.Index + u.Length);
+-                    var m = MatchStart(@"\s*float\s+(_\w+)\s*=\s*" + rd + ";$", Sl(body, ls, le));
+-                    if (!m.Success)
++                    int ls = RFind(body, '\n', uIdx) + 1, le = Find(body, '\n', uIdx + uLen);
++                    var m = s_inTmp.Match(Sl(body, ls, le));
++                    if (!m.Success || m.Groups[2].Value != name)
+                     {
+-                        int k = IntUse(body, u.Index, rd);
++                        int k = IntUseIn(body, uIdx, name);
+                         if (k < 0) { bad = true; break; }
+                         nint += k; continue;
+                     }
+                     string v = m.Groups[1].Value;
+                     bool first = true;
+-                    foreach (Match oc in All(@"\b" + Esc(v) + @"\b", body))
++                    for (int pos = 0; (pos = body.IndexOf(v, pos, StringComparison.Ordinal)) >= 0; pos += v.Length)
+                     {
++                        if ((pos > 0 && IsWordChar(body[pos - 1])) || (pos + v.Length < body.Length && IsWordChar(body[pos + v.Length]))) continue;
+                         if (first) { first = false; continue; }
+-                        int k = IntUse(body, oc.Index, Esc(v));
++                        int k = IntUseVar(body, pos, v);
+                         if (k < 0) { bad = true; break; }
+                         nint += k;
+                     }
+@@ -2400,8 +2512,19 @@ namespace S2A.Dsh
+             var cols = new PyDict(); foreach (var x in mem) if (Has(x.At, "color(") && x.Ty.StartsWith("float", StringComparison.Ordinal)) cols[x.Nm] = x.Ty;
+             // 量化新增的赋值不参与猜测整数写入；复制的函数体仍含量化，实际整数槽的 mask 由管线清零。
+             string probe = analysis ?? src;
+-            var fromInt = cols.Keys.Where(nm => Search(@"\bout\." + nm + @"(?:\.\w+)? = as_type<float\d?>\(", probe).Success).ToHashSet();
+-            var writes = cols.Keys.SelectMany(nm => All(@"\bout\." + nm + @"(?:\.\w+)? = ([^;]+);", probe).Select(x => x.Groups[1].Value)).ToList();
++            var fromInt = new HashSet<string>(StringComparer.Ordinal);
++            var writes = new List<string>();
++            if (cols.Count > 0)
++            {
++                foreach (Match x in s_outWrite.Matches(probe))
++                {
++                    string nm = x.Groups[1].Value;
++                    if (!cols.ContainsKey(nm)) continue;
++                    string rhs = x.Groups[2].Value;
++                    writes.Add(rhs);
++                    if (s_asFloat.IsMatch(rhs)) fromInt.Add(nm);
++                }
++            }
+             // 哪些输出真装整数（上游参考实现（MIT）a4d7bb7b int_outputs）：翻译器把寄存器放在整数局部量里，浮点颜色也经 as_type<float>(_n) 写出，只看 as_type 会把它们全算成整数
+             var pm = Search(@"^.*\bfragment\s+main0_out\s+main0\s*\(", probe, RegexOptions.Multiline);
+             string body = pm.Success ? probe[pm.Index..] : ""; int ret = body.IndexOf("return out;", StringComparison.Ordinal); if (ret >= 0) body = body[..(ret + 1)];
+@@ -2457,19 +2580,21 @@ namespace S2A.Dsh
+                 }
+                 return e.StartsWith("(*spvDescriptorSet0", StringComparison.Ordinal) || e.StartsWith("spvDescriptorSet0", StringComparison.Ordinal) ? new() : new() { "int" };
+             }
+-            var found = new List<(string Nm, HashSet<string> K)>();
+-            foreach (var nm in cols)
++            var colMap = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
++            foreach (var nm in cols) colMap[nm] = new HashSet<string>(StringComparer.Ordinal);
++            if (colMap.Count > 0)
+             {
+-                var k = new HashSet<string>();
+-                foreach (Match wm in All(@"\bout\." + nm + @"(?:\.\w+)? = ([^;]+);", body))
++                foreach (Match wm in s_outWrite.Matches(body))
+                 {
+-                    string w = wm.Groups[1].Value.Trim(); var a = Full(@"as_type<float\d?>\((.*)\)", w);
++                    if (!colMap.TryGetValue(wm.Groups[1].Value, out var k)) continue;
++                    string w = wm.Groups[2].Value.Trim(); var a = Full(@"as_type<float\d?>\((.*)\)", w);
+                     if (a.Success) k.UnionWith(Kinds(a.Groups[1].Value.Trim(), new HashSet<string>(StringComparer.Ordinal)));
+                     else if (Full(@"-?[0-9.]+(?:e[-+]?\d+)?f?", w).Success) { if (double.TryParse(w.TrimEnd('f'), NumberStyles.Float, CultureInfo.InvariantCulture, out double fv) && Math.Abs(fv) > 0 && Math.Abs(fv) < 1.17549e-38) k.Add("int"); }
+                     else k.Add("float");
+                 }
+-                found.Add((nm, k));
+             }
++            var found = new List<(string Nm, HashSet<string> K)>(colMap.Count);
++            foreach (var kv in colMap) found.Add((kv.Key, kv.Value));
+             var clean = found.Where(f => f.K.Count == 1 && f.K.Contains("int")).Select(f => f.Nm).ToHashSet(StringComparer.Ordinal);
+             return clean.Count > 0 ? clean : found.Where(f => f.K.Contains("int")).Select(f => f.Nm).ToHashSet(StringComparer.Ordinal);
+         }
+diff --git a/graphics/tools/direct/dsh/Py.cs b/graphics/tools/direct/dsh/Py.cs
+index f88da9a..3287be1 100644
+--- a/graphics/tools/direct/dsh/Py.cs
++++ b/graphics/tools/direct/dsh/Py.cs
+@@ -72,6 +72,7 @@ namespace S2A.Dsh
+         //   缓存满 RegexMax 条后不再收新式子（照旧现建解释版）。匹配语义与原先逐字相同（RegexOptions.Compiled 只换执行方式）
+         sealed class RegexSlot { public Regex Rx; public int Uses; }
+         static readonly System.Collections.Concurrent.ConcurrentDictionary<(string, RegexOptions), RegexSlot> Rc = new();
++        static readonly bool CanCompileRegex = System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported;
+         const int RegexHot = 32, RegexMax = 4096;
+         public static Regex R(string pattern, RegexOptions o = RegexOptions.None)
+         {
+@@ -81,9 +82,14 @@ namespace S2A.Dsh
+                 if (Rc.Count >= RegexMax) return new Regex(pattern, o | O);
+                 slot = Rc.GetOrAdd(key, k => new RegexSlot { Rx = new Regex(k.Item1, k.Item2) });
+             }
+-            if (System.Threading.Interlocked.Increment(ref slot.Uses) == RegexHot) slot.Rx = new Regex(pattern, o | O | RegexOptions.Compiled);
++            if (CanCompileRegex && System.Threading.Interlocked.Increment(ref slot.Uses) == RegexHot)
++                slot.Rx = new Regex(pattern, o | O | RegexOptions.Compiled);
+             return slot.Rx;
+         }
++        /// <summary>Uncached regex for per-shader dynamic patterns so they never pollute Rc.</summary>
++        public static Regex Raw(string pattern, RegexOptions o = RegexOptions.None) => new Regex(pattern, o | O);
++        public static Match SearchRaw(string pattern, string s, RegexOptions o = RegexOptions.None) => Raw(pattern, o).Match(s);
++        public static MatchCollection AllRaw(string pattern, string s, RegexOptions o = RegexOptions.None) => Raw(pattern, o).Matches(s);
+         /// <summary>re.search</summary>
+         public static Match Search(string pattern, string s, RegexOptions o = RegexOptions.None) => R(pattern, o).Match(s);
+         /// <summary>re.match（只在开头）</summary>
+diff --git a/graphics/tools/direct/dsh/RbUniformExtents.cs b/graphics/tools/direct/dsh/RbUniformExtents.cs
+index 9694d1a..11f317a 100644
+--- a/graphics/tools/direct/dsh/RbUniformExtents.cs
++++ b/graphics/tools/direct/dsh/RbUniformExtents.cs
+@@ -14,6 +14,16 @@ namespace S2A.Dsh
+         internal static List<object> Analyze(byte[] spv, JsonArray buffers)
+         {
+             var rows = new List<object>();
++            var wantedBindings = new HashSet<int>();
++            foreach (JsonNode b in buffers)
++            {
++                int slot = (int)b["slot"];
++                if (slot == 1 || (slot >= 3 && slot <= 16))
++                    wantedBindings.Add((int)b["binding"]);
++            }
++            if (wantedBindings.Count == 0) return rows;
++            var analyzed = DirectComputeC0Reads.AnalyzeBindings(spv, 0, wantedBindings);
++            if (analyzed == null) return rows;
+             // More than one descriptor for a guest slot requires a union. One
+             // dynamic or unmodelled descriptor disqualifies the entire slot.
+             foreach (var slotGroup in buffers.GroupBy(b => (int)b["slot"]))
+@@ -23,8 +33,7 @@ namespace S2A.Dsh
+                 int end = 0;
+                 foreach (JsonNode b in slotGroup)
+                 {
+-                    int[][] ranges = DirectComputeC0Reads.Analyze(spv, 0, (int)b["binding"]);
+-                    if (ranges == null) { end = -1; break; }
++                    if (!analyzed.TryGetValue((int)b["binding"], out int[][] ranges) || ranges == null) { end = -1; break; }
+                     foreach (int[] range in ranges)
+                     {
+                         if (range[0] < 0 || range[1] <= 0 || range[1] > 65536 || range[0] > 65536 - range[1])
+diff --git a/graphics/widen/shader/SpirvCbufUse.cs b/graphics/widen/shader/SpirvCbufUse.cs
+index 15db779..aa58ad5 100644
+--- a/graphics/widen/shader/SpirvCbufUse.cs
++++ b/graphics/widen/shader/SpirvCbufUse.cs
+@@ -13,17 +13,29 @@ namespace S2Arm.Gfx.Widen
+         public int Set;
+         public bool Dynamic;
+         int[] _idx = Array.Empty<int>();   // 常量下标，升序去重（建程序时定，之后只读）
++        int _count;
+ 
+-        public ReadOnlySpan<int> Indices => _idx;
+-        public bool Contains(int i) => Array.BinarySearch(_idx, i) >= 0;
++        public ReadOnlySpan<int> Indices => _idx.AsSpan(0, _count);
++        public bool Contains(int i) => Array.BinarySearch(_idx, 0, _count, i) >= 0;
+         public void Add(int i)
+         {
+-            int p = Array.BinarySearch(_idx, i);
++            int p = Array.BinarySearch(_idx, 0, _count, i);
+             if (p >= 0) return;
+             p = ~p;
+-            var n = new int[_idx.Length + 1];
+-            Array.Copy(_idx, n, p); n[p] = i; Array.Copy(_idx, p, n, p + 1, _idx.Length - p);
+-            _idx = n;
++            if (_count == _idx.Length)
++            {
++                var n = new int[_idx.Length == 0 ? 8 : _idx.Length * 2];
++                Array.Copy(_idx, 0, n, 0, p);
++                n[p] = i;
++                Array.Copy(_idx, p, n, p + 1, _count - p);
++                _idx = n;
++            }
++            else
++            {
++                if (p < _count) Array.Copy(_idx, p, _idx, p + 1, _count - p);
++                _idx[p] = i;
++            }
++            _count++;
+         }
+ 
+         /// <summary>这块绑定区间（缓冲内偏移 off，长 size）里，着色器会读的字节范围是否与 [lo, hi) 相交。零分配。</summary>
+@@ -32,9 +44,9 @@ namespace S2Arm.Gfx.Widen
+             if (Dynamic) return lo < off + size && off < hi;
+             int a = Math.Max(0, (lo - off) >> 4), b = Math.Min((hi - off - 1) >> 4, (size - 1) >> 4);
+             if (b < a) return false;
+-            int p = Array.BinarySearch(_idx, a);
++            int p = Array.BinarySearch(_idx, 0, _count, a);
+             if (p < 0) p = ~p;
+-            return p < _idx.Length && _idx[p] <= b;
++            return p < _count && _idx[p] <= b;
+         }
+ 
+         /// <summary>[lo, hi)（16 字节对齐、整个在绑定区间里）覆盖的每个 vec4 着色器都会读（动态下标的按会读算）。零分配。</summary>
+@@ -76,6 +88,7 @@ namespace S2Arm.Gfx.Widen
+                 else if (op == OpVariable && n >= 4 && w[i + 3] == StorageUniform) uniforms[w[i + 2]] = new CbufUse();
+                 i += n;
+             }
++            if (uniforms.Count == 0) return new List<CbufUse>();
+             foreach (var kv in uniforms)
+             {
+                 kv.Value.Binding = binding.TryGetValue(kv.Key, out int b) ? b : -1;

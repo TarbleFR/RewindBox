@@ -1,0 +1,43 @@
+patching file 'graphics/nvn/gfx/nvn/nvn_mtl.m'
+byte ranges=7680 incorrect=7570 ; GPU regions=7680 incorrect=7619
+format=0x1 flags=0x40 size=513x129 bad_surfaces=5/6 bytes_encoded=397062 blits=6
+format=0x25 flags=0x40 size=389x193 bad_surfaces=5/6 bytes_encoded=1801848 blits=6
+format=0x42 flags=0x40 size=259x259 bad_surfaces=5/6 bytes_encoded=202800 blits=6
+format=0x8b flags=0x40 size=387x197 bad_surfaces=5/6 bytes_encoded=205920 blits=6
+format=0x1 flags=0x10 size=513x129 bad_surfaces=5/6 bytes_encoded=397062 blits=6
+format=0x25 flags=0x10 size=389x193 bad_surfaces=5/6 bytes_encoded=1801848 blits=6
+format=0x42 flags=0x10 size=259x259 bad_surfaces=5/6 bytes_encoded=202800 blits=6
+format=0x8b flags=0x10 size=387x197 bad_surfaces=5/6 bytes_encoded=205920 blits=6
+format=0x1 flags=0x40 size=513x129 bad_surfaces=5/6 bytes_encoded=397062 blits=6
+format=0x25 flags=0x40 size=389x193 bad_surfaces=5/6 bytes_encoded=1801848 blits=6
+format=0x42 flags=0x40 size=259x259 bad_surfaces=5/6 bytes_encoded=202800 blits=6
+format=0x8b flags=0x40 size=387x197 bad_surfaces=5/6 bytes_encoded=205920 blits=6
+format=0x1 flags=0x10 size=513x129 bad_surfaces=5/6 bytes_encoded=397062 blits=6
+format=0x25 flags=0x10 size=389x193 bad_surfaces=5/6 bytes_encoded=1801848 blits=6
+format=0x42 flags=0x10 size=259x259 bad_surfaces=5/6 bytes_encoded=202800 blits=6
+format=0x8b flags=0x10 size=387x197 bad_surfaces=5/6 bytes_encoded=205920 blits=6
+format=0x1 flags=0x40 size=513x129 bad_surfaces=5/6 bytes_encoded=397062 blits=6
+format=0x25 flags=0x40 size=389x193 bad_surfaces=5/6 bytes_encoded=1801848 blits=6
+format=0x42 flags=0x40 size=259x259 bad_surfaces=5/6 bytes_encoded=202800 blits=6
+format=0x8b flags=0x40 size=387x197 bad_surfaces=5/6 bytes_encoded=205920 blits=6
+byte ranges=7680 incorrect=0 ; GPU regions=7680 incorrect=0
+format=0x1 flags=0x40 size=513x129 bad_surfaces=0/6 bytes_encoded=115204 blits=10
+format=0x25 flags=0x40 size=389x193 bad_surfaces=0/6 bytes_encoded=468096 blits=10
+format=0x42 flags=0x40 size=259x259 bad_surfaces=0/6 bytes_encoded=66672 blits=10
+format=0x8b flags=0x40 size=387x197 bad_surfaces=0/6 bytes_encoded=68480 blits=10
+format=0x1 flags=0x10 size=513x129 bad_surfaces=0/6 bytes_encoded=115204 blits=10
+format=0x25 flags=0x10 size=389x193 bad_surfaces=0/6 bytes_encoded=468096 blits=10
+format=0x42 flags=0x10 size=259x259 bad_surfaces=0/6 bytes_encoded=66672 blits=10
+format=0x8b flags=0x10 size=387x197 bad_surfaces=0/6 bytes_encoded=68480 blits=10
+format=0x1 flags=0x40 size=513x129 bad_surfaces=0/6 bytes_encoded=115204 blits=10
+format=0x25 flags=0x40 size=389x193 bad_surfaces=0/6 bytes_encoded=468096 blits=10
+format=0x42 flags=0x40 size=259x259 bad_surfaces=0/6 bytes_encoded=66672 blits=10
+format=0x8b flags=0x40 size=387x197 bad_surfaces=0/6 bytes_encoded=68480 blits=10
+format=0x1 flags=0x10 size=513x129 bad_surfaces=0/6 bytes_encoded=115204 blits=10
+format=0x25 flags=0x10 size=389x193 bad_surfaces=0/6 bytes_encoded=468096 blits=10
+format=0x42 flags=0x10 size=259x259 bad_surfaces=0/6 bytes_encoded=66672 blits=10
+format=0x8b flags=0x10 size=387x197 bad_surfaces=0/6 bytes_encoded=68480 blits=10
+format=0x1 flags=0x40 size=513x129 bad_surfaces=0/6 bytes_encoded=115204 blits=10
+format=0x25 flags=0x40 size=389x193 bad_surfaces=0/6 bytes_encoded=468096 blits=10
+format=0x42 flags=0x40 size=259x259 bad_surfaces=0/6 bytes_encoded=66672 blits=10
+format=0x8b flags=0x40 size=387x197 bad_surfaces=0/6 bytes_encoded=68480 blits=10
