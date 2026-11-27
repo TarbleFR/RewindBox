@@ -8,7 +8,7 @@ import re
 import subprocess
 import sys
 
-from replay_sync_oracle import canonical_trace, check_events, sync_rows, verify_negative_controls
+from replay_sync_oracle import canonical_event, canonical_trace, check_events, sync_rows, verify_negative_controls
 
 
 FLAGS = ("S2A_RB_REC_EARLY", "S2A_RB_REPLAY_WORKER", "S2A_RB_REPLAY_SCALAR_QUERIES", "S2A_RB_PARALLEL_TRACE")
@@ -37,8 +37,8 @@ def validate(out, fixed, rounds):
                     round(sum(cuts)/FRAMES, 1) != run_metrics["pass_cuts"]):
                 raise ValueError(f"{name}.{run}: observed events differ from production totals")
             extras = [check_events(events, cut, wait, update, metrics["backend"], fixed) for cut, events in rows]
-            sync = [[e for i,e in enumerate(events) if i not in extra and i-1 not in extra]
-                    for (_, events), extra in zip(rows, extras)]
+            sync = [[canonical_event(event, cuts, wait, fixed) for i, event in enumerate(events)
+                     if i not in extra and i-1 not in extra] for (cuts, events), extra in zip(rows, extras)]
             ops = [s for s in log.splitlines() if s.startswith("OPSEQ ")]
             if len(ops) != FRAMES or any(not re.fullmatch(rf"OPSEQ {i} [1-9][0-9]* [0-9a-f]{{16}}", line)
                                          for i, line in enumerate(ops, 1)):
@@ -48,7 +48,7 @@ def validate(out, fixed, rounds):
             if sync != baseline_sync or (fixed and ops != baseline_ops):
                 raise ValueError(f"{name}.{run}: core sync sequence or fixed opcode stream differs")
             if run == "diagnostic":
-                trace_hash = canonical_trace(out / f"{name}.diagnostic.trace", rows, extras)
+                trace_hash = canonical_trace(out / f"{name}.diagnostic.trace", rows, extras, wait, fixed)
                 if baseline_trace is None:
                     baseline_trace = trace_hash
                 if trace_hash != baseline_trace:

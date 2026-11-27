@@ -17,6 +17,15 @@ def split_pair(events, index, wait, update):
     return stage is not None and events[index:index+2] == [(at, update, 1, 3), (at, wait, 1, 1)]
 
 
+def canonical_event(event, cuts, wait, fixed):
+    # An adaptive cut in the MRT pass can shift the next budget boundary to
+    # the first downsample. A fresh CB waits from vertex there, which also
+    # covers the normal fragment dependency. Fixed work compares exact stages.
+    if not fixed and cuts and event == (338, wait, 1, 1):
+        return (338, wait, 1, 2)
+    return event
+
+
 def check_events(events, cuts, wait, update, backend, fixed):
     if fixed and cuts:
         raise ValueError("fixed-work profile split a render pass")
@@ -36,7 +45,7 @@ def check_events(events, cuts, wait, update, backend, fixed):
             extras.add(i)
             i += 2
         else:
-            core.append(events[i])
+            core.append(canonical_event(events[i], cuts, wait, fixed))
             i += 1
     # With inter-pass cuts disabled, shadow -> MRT (guest barrier 0x12) can
     # wait before the fragment stage in the same CB. Fixed runs still compare
@@ -65,7 +74,7 @@ def sync_rows(log, frames):
     return wait, update, rows
 
 
-def canonical_trace(path, rows, extras):
+def canonical_trace(path, rows, extras, wait, fixed):
     """Erase only justified close/reopen pairs after verifying the same attachments are reopened."""
     data = path.read_text().splitlines()
     canonical = []
@@ -88,7 +97,7 @@ def canonical_trace(path, rows, extras):
         elif tag in ("D", "K"):
             work += 1
         elif tag == "S":
-            events = rows[frame-1][1]
+            cuts, events = rows[frame-1]
             if event >= len(events) or (work, *map(int, line.split()[1:])) != events[event]:
                 raise ValueError("diagnostic trace differs from compact sync record")
             if event in extras[frame-1]:
@@ -102,6 +111,7 @@ def canonical_trace(path, rows, extras):
                 event += 2
                 i += 4
                 continue
+            line = "S " + " ".join(map(str, canonical_event(events[event], cuts, wait, fixed)[1:]))
             event += 1
         elif tag != "E":
             raise ValueError(f"unexpected diagnostic record {line}")
@@ -122,12 +132,19 @@ def verify_negative_controls():
     sample = source[:3] + pair + source[3:]
     if check_events(sample, 1, wait, update, "Metal3", False) != {3}:
         raise ValueError("valid additional split rejected")
+    conservative = [(338, wait, 1, 1) if event == (338, wait, 1, 2) else event for event in sample]
+    if check_events(conservative, 1, wait, update, "Metal3", False) != {3}:
+        raise ValueError("conservative downsample wait after an adaptive split rejected")
+    unexpected_stage = [(338, wait, 1, 3) if event == (338, wait, 1, 1) else event for event in conservative]
+    uncut_conservative = conservative[:3] + conservative[5:]
     for events, count, fixed in [(source[1:], 0, False), (source[1::-1]+source[2:], 0, False),
                                  ([(0, wait, 1, 2)]+source[1:], 0, False),
                                  (sample, 0, False), (sample, 1, True),
                                  (source[:3]+pair[::-1]+source[3:], 1, False),
                                  (source[:3]+[pair[0], (129, wait, 1, 1)]+source[3:], 1, False),
-                                 (source[:3]+[(128, update, 1, 1), pair[1]]+source[3:], 1, False)]:
+                                 (source[:3]+[(128, update, 1, 1), pair[1]]+source[3:], 1, False),
+                                 (unexpected_stage, 1, False), (uncut_conservative, 0, False),
+                                 (uncut_conservative, 0, True)]:
         try:
             check_events(events, count, wait, update, "Metal3", fixed)
         except ValueError:
