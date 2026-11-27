@@ -1,0 +1,35 @@
+{
+  "run_id": 46021383946,
+  "url": "https://github.com/TarbleFR/RewindBox/actions/runs/46021383946",
+  "source_commit": "7c476455bfd77bb181565aa3bb9c2a182a0ea404",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "id": 140581607370,
+      "runner": "macos-15",
+      "conclusion": "success",
+      "make_ios_seconds": 545
+    },
+    {
+      "id": 140581607846,
+      "runner": "macos-26",
+      "conclusion": "success",
+      "make_ios_seconds": 455,
+      "native_checks_seconds": 319
+    }
+  ],
+  "native_checks": {
+    "t_svc_mem": "213/213",
+    "t_far": "111/111",
+    "t_thread_pthread_qos_fixture": "PASS"
+  },
+  "exports": 153,
+  "missing_host_symbols": 0,
+  "new_cpu_warnings_vs_run": {
+    "reference_run_id": 46012990218,
+    "count": 0
+  },
+  "ipa_produced": false,
+  "iphone_measured": false,
+  "scope": "Build and checks for the source through CPU patches 0490\u20130494; later RAM patches 0495 onward are outside this receipt."
+}

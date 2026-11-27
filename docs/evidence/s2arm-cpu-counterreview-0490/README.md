@@ -12,7 +12,7 @@ Base RewindBox `5ed52e8d92a56e3099297ffef338b287075724e7`, moteur `6b6a5715`, pa
 
 Les bancs extraient les fonctions ou branches réelles depuis les sources du moteur. Dépendances mémoire et handles remplacées par des substituts, concurrence pthread réelle ; aucune opération Mach ni création de thread invité complète. Linux x86-64, GCC 14, ASan et UBSan sur les reproductions natives ; fuites non vérifiées. Les mesures de sessions sont synthétiques et ne chronomètrent aucune requête IPC complète.
 
-Les correctifs de sûreté 0490, 0491 et 0494 restent actifs dans tous les modes ; les interrupteurs ne réactivent que les algorithmes de recherche précédents. La réserve JIT et les fichiers graphiques ne changent pas dans ce lot. Sauvegardes et caches du joueur préservés. Compilation iPhoneOS à vérifier ; aucune IPA. FPS, mémoire physique, chauffe et consommation sur iPhone non mesurés ; estimation maintenue à 50 %.
+Les correctifs de sûreté 0490, 0491 et 0494 restent actifs dans tous les modes ; les interrupteurs ne réactivent que les algorithmes de recherche précédents. La réserve JIT et les fichiers graphiques ne changent pas dans ce lot. Sauvegardes et caches du joueur préservés. [Compilation iPhoneOS réussie](https://github.com/TarbleFR/RewindBox/actions/runs/46021383946) sur macOS 15 et 26, source `7c476455` ; aucune IPA. FPS, mémoire physique, chauffe et consommation sur iPhone non mesurés ; estimation maintenue à 50 %.
 
 ## Vérification du repli des sessions
 
@@ -33,3 +33,5 @@ Aucune régression du chemin par défaut détectée sur ces charges. Ce contrôl
 `memory_resource.py` et `memory_info.py` prennent `--reference SOURCE_MEM_AVANT --candidate SOURCE_MEM_APRES --output DOSSIER` ; compiler les C produits avec les mêmes options, avec `-DFIXED` pour le candidat. `memory_info_main.inc` accompagne son générateur.
 
 `check.py` et `native.py` prennent `--reference DISPATCHER_AVANT --candidate DISPATCHER_APRES --output DOSSIER --dotnet DOTNET` ; `native.py --help` décrit le remplacement local facultatif de la tâche MSBuild. `tmem.py` prend les mêmes arguments de sources pour `thread.c`, sans `--dotnet`. Les références sont les fonctions avant le patch concerné. Les fichiers JSON conservent les résultats, conditions et limites des exécutions. `source-proof.json` vérifie les trois sources finales contre le pin et les patchs pertinents.
+
+[Reçu CI](ci.json) : `t_svc_mem 213/213`, `t_far 111/111`, fixture pthread QoS réussie, 153 exports, aucun symbole hôte manquant. Aucun nouvel avertissement CPU par rapport au run 46012990218. Ce reçu porte sur le lot 0490–0494, distinct des ajouts RAM ultérieurs.
