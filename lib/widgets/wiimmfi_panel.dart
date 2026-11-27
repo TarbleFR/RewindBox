@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:path/path.dart' as p;
 
 import '../l10n/wiimmfi_locale.dart';
 import '../services/dolphin_internal_v2_service.dart';
@@ -168,6 +169,8 @@ class _WiimmfiPanelState extends State<WiimmfiPanel> {
         content: SingleChildScrollView(
           child: Text(
             [
+              '${t('nand')}: ${t(result['nandRecognized'] == true ? 'recognized' : 'nandMissing')}',
+              if (result['supported'] != true) t('engineUnavailable'),
               for (final key in [
                 'dns',
                 'website',
@@ -204,7 +207,10 @@ class _WiimmfiPanelState extends State<WiimmfiPanel> {
     final enabled = _settings?['enabled'] == true;
     final supported = _status?['supported'] == true;
     final images = _settings?['images'];
-    final declared = images is Map && images[widget.gamePath] is Map;
+    final imageKey = widget.gamePath == null
+        ? null
+        : p.normalize(p.absolute(widget.gamePath!));
+    final declared = images is Map && images[imageKey] is Map;
     final panel = PopScope(
       canPop: !_busy,
       child: GlassSurface(

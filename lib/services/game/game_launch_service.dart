@@ -35,6 +35,8 @@ import '../../l10n/switch2_library_locale.dart';
 import '../../widgets/s2arm_internal_playlist_actions.dart';
 // DOLPHIN_ISOLATION_BEGIN: launcher_import
 import '../dolphin_internal_v2_service.dart';
+import '../wiimmfi/wiimmfi_service.dart' show WiimmfiException;
+import '../../l10n/wiimmfi_locale.dart';
 // DOLPHIN_ISOLATION_END: launcher_import
 import 'package:neostation/services/launch_prerequisites.dart';
 import 'package:neostation/services/logger_service.dart';
@@ -356,12 +358,21 @@ class GameLaunchService {
             system.folderName,
           );
         }
-        final report = await DolphinInternalV2Service.launch(
-          folderName: system.folderName,
-          gamePath: gamePath,
-          gameTitle: game.name,
-          wiimmfi: dolphinWiimmfi,
-        );
+        final DolphinLaunchReport report;
+        try {
+          report = await DolphinInternalV2Service.launch(
+            folderName: system.folderName,
+            gamePath: gamePath,
+            gameTitle: game.name,
+            wiimmfi: dolphinWiimmfi,
+          );
+        } on WiimmfiException catch (error) {
+          GamepadNavigationManager.reactivate();
+          if (!context.mounted) return GameLaunchResult.failure('', '');
+          return GameLaunchResult.failure(
+            WiimmfiLocale.text(context, error.code), error.code,
+          );
+        }
         if (!context.mounted) return GameLaunchResult.failure('', '');
         if (!report.ready) {
           // LocalDevVPN off, no pairing file, an installation without JIT…:

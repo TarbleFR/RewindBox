@@ -111,6 +111,23 @@ abstract final class WiimmfiService {
         }
         final root = await DolphinInternalV2Service.rootDirectory();
         final current = Directory(p.join(root.path, 'User', 'Wii'));
+        // Old generic imports may still lack protection and backup exclusion.
+        // Apply them before any current/previous snapshot can be renamed.
+        if (await current.parent.exists()) {
+          await for (final snapshot in current.parent.list(
+            followLinks: false,
+          )) {
+            final name = p.basename(snapshot.path);
+            if (name != 'Wii' &&
+                !RegExp(r'^Wii\.previous(?:-\d+)?$').hasMatch(name)) {
+              continue;
+            }
+            if (_cancelRequested) throw const WiimmfiException('cancelled');
+            await _channel.invokeMethod<void>('wiimmfiProtectNand', {
+              'directory': snapshot.path,
+            });
+          }
+        }
         await DolphinSystemFiles.replaceSnapshot(current, (stage) async {
           if (_cancelRequested) throw const WiimmfiException('cancelled');
           importPhase.value = 'native';
@@ -233,16 +250,16 @@ abstract final class WiimmfiService {
     if (_diagnosticDate != null &&
         DateTime.now().difference(_diagnosticDate!) <
             const Duration(minutes: 5)) {
-      return _diagnostic!;
+      return {..._diagnostic!, ...await status()};
     }
-    return _diagnosticInFlight ??= _probe().whenComplete(
+    final network = await (_diagnosticInFlight ??= _probe().whenComplete(
       () => _diagnosticInFlight = null,
-    );
+    ));
+    return {...network, ...await status()};
   }
 
   static Future<Map<String, dynamic>> _probe() async {
     final result = <String, dynamic>{
-      ...await status(),
       'dns': 'unknown',
       'website': 'unknown',
       'authentication': 'notTested',

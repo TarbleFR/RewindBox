@@ -9,7 +9,7 @@ from pathlib import Path
 import re
 import subprocess
 import tempfile
-from rpcs3_atomic_startup_test import extract_function
+from storage_contract_test import Source, Span
 
 ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / 'lib/services/melonx_internal_service.dart').read_text()
@@ -228,7 +228,11 @@ void main() {
  });
 }
 '''
-dispatch = extract_function((ROOT / 'lib/services/game/game_launch_service.dart').read_text(), 'static Future<GameLaunchResult> launchGame(')
+dispatch_source = Source('lib/services/game/game_launch_service.dart')
+dispatch_signature = 'static Future<GameLaunchResult> launchGame('
+dispatch_span = Span(dispatch_source, dispatch_signature)
+# Named arguments have braces before the body; use the Dart-aware parser.
+dispatch = dispatch_source.text[dispatch_source.masked.index(dispatch_signature):dispatch_span.end]
 declarations = r'''
 class AliveContext extends Fake implements BuildContext {@override bool get mounted=>true;}
 class SystemModel {final String folderName;SystemModel([this.folderName='switch']);}
@@ -238,7 +242,7 @@ class GameLaunchManager {static final instance=GameLaunchManager._();factory Gam
 class FrontendMediaGate {static final instance=FrontendMediaGate();int owners=0;Future<void> hold(Object o)async{owners++;}Future<void> get quiet async{}void release(Object o){owners--;}}
 class GameSessionManager {static bool pending=false;static void beginLaunchPending(){pending=true;}static void clearLaunchPending(){pending=false;}}
 class LaunchDispatch {
- static Future<GameLaunchResult> _launchGameImpl(BuildContext c,SystemModel s,GameModel g)async=>GameLaunchResult.failure('disabled','engine disabled');
+ static Future<GameLaunchResult> _launchGameImpl(BuildContext c,SystemModel s,GameModel g,{bool? dolphinWiimmfi})async=>GameLaunchResult.failure('disabled','engine disabled');
 ''' + dispatch + '\n}\n'
 tests = tests.replace('void main() {', declarations + '\nvoid main() {', 1)
 with tempfile.TemporaryDirectory(prefix='.melonx-launch-', dir=ROOT) as temporary:

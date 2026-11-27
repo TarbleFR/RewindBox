@@ -393,6 +393,8 @@ jamais traduits.
 
 ## 4. Sous-chantier « maintenance légère » (après l'outil de mesure)
 
+27 novembre — Wiimmfi : `WiimmfiService.importBootMii` est couvert par `DolphinInternalV2Service.withSystemMutation` → `_withSystemImport` → `StorageImportActivity.run`, du sélecteur à la fin du traitement. Ses seules copies temporaires reconnues sont éliminées en `finally`, après fermeture du lecteur, avec longueur revérifiée ; aucun original ni snapshot NAND supprimé. Le contrat de source vérifie cet alias et cet appel explicites.
+
 Nouveau `lib/services/storage/storage_picker_copies.dart` :
 
 ```dart

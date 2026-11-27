@@ -247,6 +247,7 @@ COPY_HELPERS = {
 # Every allowed caller of the helpers outside lib/services/storage/:
 # file -> method signatures (§ 4). Extending this list is a contract change.
 ALLOWED_CALLERS = {
+    'lib/services/wiimmfi/wiimmfi_service.dart': ('importBootMii(',),
     'lib/services/libretro_internal_service.dart': (
         'static Future<LibretroImportResult> importGames(',),
     'lib/services/dolphin_internal_v2_service.dart': (
@@ -327,6 +328,7 @@ class NothingAtStartup(unittest.TestCase):
 
     def test_each_call_site_calls_the_helper_once(self) -> None:
         expected = {
+            'lib/services/wiimmfi/wiimmfi_service.dart': (1, 0, 0),
             'lib/services/libretro_internal_service.dart': (1, 0, 0),
             'lib/services/dolphin_internal_v2_service.dart': (1, 1, 1),
             'lib/services/armsx2_internal_service.dart': (1, 0, 0),
@@ -893,6 +895,12 @@ class ImportsInProgress(unittest.TestCase):
         wrapper = Span(source, signature)
         self.assertLess(wrapper.find('throw const DolphinSystemFilesException('),
                         wrapper.find('return await StorageImportActivity.run(action);'))
+        alias = Span(source, 'static Future<T> withSystemMutation<T>(')
+        self.assertRegex(source.masked[alias.start:alias.end], r'^=>\s*_withSystemImport\(action\);$')
+        wiimmfi = Source('lib/services/wiimmfi/wiimmfi_service.dart')
+        imported = Span(wiimmfi, 'importBootMii(')
+        self.assertRegex(wiimmfi.masked[imported.start:imported.end],
+                         r'^=>\s*DolphinInternalV2Service\.withSystemMutation\(')
 
     def test_no_pick_escapes_the_list(self) -> None:
         covered = {}
@@ -908,8 +916,10 @@ class ImportsInProgress(unittest.TestCase):
             end = matching(source.masked, match.end() - 1, '(', ')')
             covered[relative].append(Range(start, end))
             wrapped += 1
-        # IPL, Wii system files, system folder.
-        self.assertEqual(wrapped, 3)
+        # IPL, Wii system files, system folder, and the verified public alias.
+        self.assertEqual(wrapped, 4)
+        relative = 'lib/services/wiimmfi/wiimmfi_service.dart'
+        covered[relative] = [Span(Source(relative), 'importBootMii(')]
         for relative, helpers in PICK_HELPERS.items():
             source = Source(relative)
             importer = None

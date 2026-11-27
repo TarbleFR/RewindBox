@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/l10n/wiimmfi_locale.dart';
 import 'package:neostation/services/dolphin_internal_v2_service.dart';
 import 'package:neostation/services/dolphin_system_files.dart';
+import 'package:neostation/services/storage/storage_import_activity.dart';
 import 'package:neostation/services/wiimmfi/wiimmfi_service.dart';
 import 'package:neostation/services/wiimmfi/wiimmfi_store.dart';
 import 'package:path/path.dart' as p;
@@ -25,6 +26,7 @@ void main() {
   Future<int> Function(Map<dynamic, dynamic>)? nativeImport;
   List<Map<String, dynamic>>? picks;
   final calls = <String>[];
+  final protectedPaths = <String>[];
 
   Future<File> write(String relative, String data) async {
     final file = File(p.join(root.path, relative));
@@ -42,7 +44,11 @@ void main() {
       }
       if (call.method == 'wiimmfiCancelImport') return null;
       if (call.method == 'wiimmfiProtectNand') {
-        if (cancelOnProtect) await WiimmfiService.cancelImport();
+        protectedPaths.add((call.arguments as Map)['directory'] as String);
+        if (cancelOnProtect &&
+            WiimmfiService.importPhase.value == 'preserving') {
+          await WiimmfiService.cancelImport();
+        }
         return null;
       }
       return switch (call.method) {
@@ -68,6 +74,7 @@ void main() {
   });
   setUp(() async {
     calls.clear();
+    protectedPaths.clear();
     running = false;
     supported = true;
     cancelOnProtect = false;
@@ -283,6 +290,10 @@ void main() {
       final live = await DolphinInternalV2Service.rootDirectory();
       const save = 'User/Wii/title/00010004/524d4350/data/profile';
       await write('NeoStation/Dolphin/$save', 'current racing profile');
+      await write(
+        'NeoStation/Dolphin/User/Wii.previous-123/keys.bin',
+        'old mock identity',
+      );
       final entered = Completer<void>();
       final release = Completer<void>();
       nativeImport = (args) async {
@@ -296,17 +307,27 @@ void main() {
       };
       final importing = WiimmfiService.importBootMii();
       await entered.future;
+      expect(StorageImportActivity.active, true);
       await expectLater(
         DolphinInternalV2Service.launchWiiMenu(),
         throwsA(isA<DolphinSystemFilesException>()),
       );
       release.complete();
       expect(await importing, true);
+      expect(StorageImportActivity.active, false);
       expect(
         await File(p.join(live.path, save)).readAsString(),
         'current racing profile',
       );
       expect(await source.length(), 0x21000400);
+      expect(
+        protectedPaths,
+        containsAll([
+          p.join(live.path, 'User/Wii'),
+          p.join(live.path, 'User/Wii.previous-123'),
+          p.join(live.path, 'User/Wii.incoming'),
+        ]),
+      );
       expect(WiimmfiService.importPhase.value, 'idle');
     },
   );

@@ -1,6 +1,6 @@
 # Wiimmfi — contre-expertise du 27 novembre 2026
 
-Périmètre relu : `cecc0117`, branche `Claude`, trois revues indépendantes en lecture seule et vérification par l’intégrateur. Aucun jeu, dump NAND réel, clé ou identifiant de console utilisé.
+Périmètre relu : `cecc0117`, branche `Claude`, revues indépendantes ciblées en lecture seule et vérification par l’intégrateur. Aucun jeu, dump NAND réel, clé ou identifiant de console utilisé.
 
 | Défaut confirmé | Correction |
 | --- | --- |
@@ -26,6 +26,16 @@ La nouvelle ABI Wiimmfi **3** distingue ce cœur corrigé du candidat ABI 2 non 
 - Barrières IP existantes : 27 requêtes ×100 réussies ; contrôles cycle de vie et gestionnaire de cheats réussis.
 - Nouvelles barrières WiiConnect24, politique OnFrame, PCAP et routage Shake : code effectivement patché relu indépendamment ; comportement réseau réel sur appareil non testé.
 - Compilation iPhoneOS du cœur corrigé : en attente du producteur existant. Le bridge UIKit complet et l’application n’ont pas été compilés ici.
+
+## Dernière revue des parcours
+
+- Protection iOS/exclusion de sauvegarde cloud étendue aux NAND actuelle et historiques avant renommage ; aucun snapshot supprimé. La revue a trouvé une absence de protection, pas une fuite observée.
+- Causes Wiimmfi traduites conservées dans le circuit normal de lancement ; les refus restent explicites.
+- Diagnostic : état NAND relu à la demande et affiché, cache de cinq minutes réservé au réseau ; clés d’images normalisées dans le panneau.
+- Dix tests Wiimmfi existants revérifiés après ces seuls changements Flutter, dont les appels de protection des snapshots via bridge simulé (attributs iOS réels non vérifiés) ; analyse Dart sans problème. Cœur inchangé depuis `a101ee24`.
+
+- Contrats CI adaptés sans retirer de contrôle : import BootMii explicitement relié au garde global de stockage ; extraction Dart du test de lancement compatible avec les paramètres nommés. Les 25 contrôles de stockage et les 15 scénarios existants de lancement réussissent. Les autres routes moteur ne sont pas modifiées.
+- Deux échecs historiques du workflow Touch restent distincts : ancienne release donneuse `0.0.1` introuvable et assertion d’affichage incompatible avec un import présent avant Wiimmfi. Ils ne démontrent pas une régression de ce lot ; l’application iOS complète reste non compilée ici.
 
 ## Limites maintenues
 
