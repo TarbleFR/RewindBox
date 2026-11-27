@@ -11,7 +11,7 @@ Rappel : iOS 26 tourne sur **Metal 3** (`nvn_be.h`, `ios26x`), le chemin à opti
   Preuve attendue : `m3_arg_hints` ≈ liaisons de blocs par image, variante `m3_arg_hint_off` pixels/état identiques. CI à relire au prochain tour.
 
 ## Prochaine action
-1. Relire le run CI du commit `0477` (`[s2arm-replay-metrics]`, homebrew, thermique). Si rouge ou pixels différents : corriger ou retirer `0477`.
+1. Relire le run CI 46005579324 (commit 3952c45ad, `0477` (`[s2arm-replay-metrics]`, homebrew, thermique). Si rouge ou pixels différents : corriger ou retirer `0477`.
 2. Puis Metal 3 `m3_table_apply` : même tampon, autre décalage → `set*BufferOffset:atIndex:` (ajouter les sélecteurs au proxy `nvn_rec.h`,
    drapeau dans `RO_M3_BUF`). Gain seulement côté pilote : pas de preuve de temps sur runner paravirtuel → ne garder que si un compteur exact suffit.
 3. Ensuite : 14 fences par image (m3_wait/m4_end entre encodeurs) — vérifier lesquelles ne protègent aucune dépendance réelle.
