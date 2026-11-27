@@ -16,6 +16,7 @@ on:
       - 'test/dolphin_memory_permissions_test.py'
       - 'test/dolphin_metal_shutdown_test.py'
       - 'test/dolphin_process_lifecycle_test.py'
+      - 'test/wiimmfi_offline_test.py'
       - 'test/achievement_translation_native_test.py'
   workflow_dispatch:
 
