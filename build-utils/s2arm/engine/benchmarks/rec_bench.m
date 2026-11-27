@@ -135,7 +135,7 @@ static __attribute__((noinline)) uint64_t standins(int fresh, int n) {
 typedef struct { uint32_t op, nobj; uint64_t a[15]; } srec;
 enum { SREC_N = 1 << 16 };
 static srec g_srec[SREC_N]; static uint32_t g_sn; static uint64_t g_sh;
-static inline srec *sput(uint32_t op) { if (g_sn == SREC_N) { for (uint32_t i = 0; i < g_sn; i++) g_sh = mix(g_sh, g_srec[i].op ^ g_srec[i].a[0] ^ g_srec[i].a[1] * 3 ^ g_srec[i].a[2] * 7 ^ g_srec[i].a[7] * 11); g_sn = 0; } srec *r = &g_srec[g_sn++]; r->op = op; r->nobj = 0; return r; }
+static inline srec *sput(uint32_t op) { if (g_sn == SREC_N) { for (uint32_t i = 0; i < g_sn; i++) g_sh = mix(g_sh, g_srec[i].op ^ g_srec[i].a[0] ^ g_srec[i].a[1] * 3 ^ g_srec[i].a[2] * 7 ^ g_srec[i].a[7] * 11); g_sn = 0; } srec *r = &g_srec[g_sn++]; r->op = op; r->nobj = 0; memset(r->a, 0, 8 * sizeof r->a[0]); return r; }   // the hash reads a[0..7]: no stale words from an earlier run
 static inline void sw_pso(uint64_t p) { sput(O_PSO)->a[0] = p; }
 static inline void sw_dss(uint64_t p) { sput(O_DSS)->a[0] = p; }
 static inline void sw_vp(uint64_t a, uint64_t b) { srec *r = sput(O_VP); r->a[0] = a; r->a[1] = b; }
