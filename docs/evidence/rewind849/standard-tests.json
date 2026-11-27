@@ -1,0 +1,73 @@
+{
+  "flutter": {
+    "result": "not-run",
+    "evidenceMode": "not-run",
+    "kind": "flutter",
+    "execution": {
+      "source": "db78c917b885463dc2c2e73222f03a24481e6d8b",
+      "tree": "b1e071df9c280f24e7e1769322b9ec2cba2fa3ed",
+      "run": 46047417246,
+      "attempt": 1
+    },
+    "job": 140670952605,
+    "commands": [],
+    "reason": "Compilation des derniers ajouts demand\u00e9e ; suites Flutter/natives non ex\u00e9cut\u00e9es conform\u00e9ment \u00e0 AGENTS.md, contr\u00f4les de livraison conserv\u00e9s.",
+    "fullRegressionSuiteExecuted": false
+  },
+  "native": {
+    "result": "not-run",
+    "evidenceMode": "not-run",
+    "kind": "native",
+    "execution": {
+      "source": "db78c917b885463dc2c2e73222f03a24481e6d8b",
+      "tree": "b1e071df9c280f24e7e1769322b9ec2cba2fa3ed",
+      "run": 46047417246,
+      "attempt": 1
+    },
+    "job": 140670953801,
+    "commands": [],
+    "reason": "Compilation des derniers ajouts demand\u00e9e ; suites Flutter/natives non ex\u00e9cut\u00e9es conform\u00e9ment \u00e0 AGENTS.md, contr\u00f4les de livraison conserv\u00e9s.",
+    "fullRegressionSuiteExecuted": false
+  },
+  "deliveryContract": {
+    "result": "authenticated",
+    "evidenceMode": "fresh",
+    "command": "python3 -B test/standard_delivery_contract_test.py",
+    "rerunInThisRun": true,
+    "job": 140670037790,
+    "artifact": 15222798396,
+    "archiveSHA256": "ab60d23f0feeee4d5d9a3df5e43962609b72f51dd3029a4f8c4a93a6aee99bfa",
+    "logSHA256": "8672054c9fb4e2aa430f412350c2da267c2e4abcab49f31c696e43a6bbe4c637",
+    "execution": {
+      "source": "db78c917b885463dc2c2e73222f03a24481e6d8b",
+      "tree": "b1e071df9c280f24e7e1769322b9ec2cba2fa3ed",
+      "run": 46047417246,
+      "attempt": 1
+    }
+  },
+  "testsExecutedInThisRun": [
+    "delivery-contract"
+  ],
+  "testsRun": {
+    "flutter": {
+      "mode": "not-run",
+      "run": 46047417246,
+      "attempt": 1,
+      "job": 140670952605,
+      "source": "db78c917b885463dc2c2e73222f03a24481e6d8b"
+    },
+    "native": {
+      "mode": "not-run",
+      "run": 46047417246,
+      "attempt": 1,
+      "job": 140670953801,
+      "source": "db78c917b885463dc2c2e73222f03a24481e6d8b"
+    },
+    "delivery-contract": {
+      "mode": "fresh",
+      "run": 46047417246,
+      "attempt": 1,
+      "job": 140670037790
+    }
+  }
+}

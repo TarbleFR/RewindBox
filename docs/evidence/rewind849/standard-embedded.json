@@ -1,0 +1,768 @@
+{
+  "result": "embedded",
+  "identity": {
+    "schema": 1,
+    "build": 849,
+    "recipe": "standard",
+    "manifest": {
+      "path": "build-utils/delivery/849.json",
+      "sha256": "fc14f95c01daab65d9a78c0c080ef16378e0f040bdeb15b980acc0841e9e9592"
+    },
+    "base": {
+      "build": 848,
+      "source": "8847d7c86b4728a28e0a3e0a69c7ae1d979c373f",
+      "ipaSHA256": "6ac54187ef65243d1cd1f95db3d716c3664426b769f2746c1ab82efb5d060a5f"
+    },
+    "application": {
+      "result": "passed",
+      "build": 849,
+      "source": "db78c917b885463dc2c2e73222f03a24481e6d8b",
+      "tree": "b1e071df9c280f24e7e1769322b9ec2cba2fa3ed",
+      "manifest": {
+        "path": "build-utils/delivery/849.json",
+        "sha256": "fc14f95c01daab65d9a78c0c080ef16378e0f040bdeb15b980acc0841e9e9592"
+      },
+      "base": {
+        "build": 848,
+        "source": "8847d7c86b4728a28e0a3e0a69c7ae1d979c373f",
+        "ipaSHA256": "6ac54187ef65243d1cd1f95db3d716c3664426b769f2746c1ab82efb5d060a5f",
+        "images": 98
+      },
+      "effective": {
+        "result": "verified",
+        "effectiveDigest": "b76c094c0588e63dd85b7c2db39a03de847cf3b0e4ec0d9564a093868b1378eb",
+        "productFiles": 10084,
+        "restored": 171,
+        "freezeCommit": "3c84321841bc4061c206eda5b268554247ecf581",
+        "laterRecipeOnlyCommits": [
+          "873617d3b17f4dd4dc28566d347ca31c611c2c7d",
+          "89d3bc93796a8a5c57d34d6216374d332dd63859",
+          "db78c917b885463dc2c2e73222f03a24481e6d8b"
+        ]
+      },
+      "reviewedCommits": [
+        "da0e8f7a9b81585fd68a9f1a23729cf461d8b305",
+        "dd53717b6346c4665be550aed12d568545fe22c6",
+        "65f122925ccbe2107bb7cb4f7c56486fda3eb81f",
+        "067bc2347344ed807d5640b041b4b5673317b7ec",
+        "3878b8b0bcd146fbd02057156d1d497eb93f72be",
+        "3952c45ad0c9bd60f163ea6f2e2bb6af207fc4b1",
+        "b9d304763df584eb67bd7251b051d75b0b273910",
+        "26562819eccbc22c79a8973a99c0d757c08c1cfe",
+        "9c791bcf89ac541974a442bef96dcdced3d298a8",
+        "5b1739e8c70b3c07b2e0db5f45f77af881480ffe",
+        "09a2aa490cd941fa87095a1f48e98b068158a221",
+        "8dfb1be96c276f5e8327245732b2ec1b449d0e16",
+        "8fbe6ddca4f4345d493680a38a6b80c4b55b0d91",
+        "a498ba53af1199ff7c86e3515e85fa8f7bfe0740",
+        "5b72632432bd5c1e36104565ab5dd6f94d0c6eef",
+        "14c9940ccdf8bfc152ff8f91e9da0f95794a407d",
+        "434ee35ae2b6295819f681e8e7563249a8eb7a43",
+        "865e6519f114698fb7321fdbb066dc8fe82fba26",
+        "cb5522e43c57bd23fe96197ded948937aae0a215",
+        "7d11d8df15267ef233c5f4fa666de0d4b807aaaa",
+        "5ed52e8d92a56e3099297ffef338b287075724e7",
+        "7c476455bfd77bb181565aa3bb9c2a182a0ea404",
+        "97663ea594f50e416f62ab34d85c3551a60d2351",
+        "5a4b9ef24e028d46fb4038daeb4c6b2a5bfd0703",
+        "7215a4380edefbc03e84198ea064c223fdf92c85",
+        "584435cb90894c561f8adcbdb65b68a16971cf5e",
+        "1a7ecf53a4d14b7cac595f22146a2e2ebedbf60e",
+        "174731462d9c1728a792e274fa2bc913e6acfd92",
+        "3e9bee458901626b67ea467cedde3b9b5332e972",
+        "198a699894cd4c87f19cd301e5e096f53be47311",
+        "9c05b902da6925a7c3b3b80bb6c2a8a79d889fd1",
+        "28b5ab491d4c44f28752f2f557c7d34c03aa00f4",
+        "56d09d52ed15ec3c3f16415b3e4e38846983891b",
+        "1df80b4160196a369697ab96eafdb068e9130045",
+        "abf35b935d860e5d750e944ddeb242fcbad0289a",
+        "dda1622f58b39fadeb6aa684da7598efebb93ce3",
+        "d2838526a76a4a9770e36e7558002d768dae0ae4",
+        "ab8b6b1743c58d58894b69c9f6a4c32ee19ab596",
+        "a9513516c1341577ade5394fae6586511a611cc2",
+        "9effc1770e21aa13d3d574a2ca144f8c0c6199e9",
+        "5cb30f917aaf701691a312d3ebe415b9dbfbe23b",
+        "93348ebdeaed4936be14cf51bdcbd43c63faee7b",
+        "f3724e8b9c9273cba4e5df39d57409bddb3b93fd",
+        "7b39ac05338a59faf72d31de603465449459b9c2",
+        "5eeaa53079f98429b17156e27d0dd470f6f491f1",
+        "a330652e9ec3429366771244c0547e1ffc0397c5",
+        "e3d17a726d2dfff1d7613a558aca10b1e1065ede",
+        "6e8fe15df38cdb1bd1d62fa36b6a3d74f177e08b",
+        "4526a952f6682cf93e48f647c4cc45ebaa3bc272",
+        "d65376e07d603c61a6d3dbd41761d13984598f31",
+        "4e3125b592cc6330d264eeac1d2dfd356a318046",
+        "491008cffa8051913ff2ee21c6427fc3e2f19190",
+        "f776b89897cc5abcf557b5e3badf03dcc05ae0c4"
+      ],
+      "sourceOnly": [],
+      "componentPins": {
+        "rpcs3": "5da69bbd019371793408c4ecd3e0437b8f68256d",
+        "melonx": "693c9c94103b5ce3dd80f8208c6c4be61b39c4cf"
+      },
+      "retainedInputs": 38,
+      "recipient": {
+        "path": "build-utils/delivery-rewindbox-recipient.pem",
+        "sha256": "e69038be1c51d6c2e89283996fd0b185635b8ed5924a824f82dc00e8fd09cff2"
+      },
+      "replacedComponents": [
+        "dolphin",
+        "melonx",
+        "rpcs3"
+      ],
+      "retainedComponents": [
+        "armsx2",
+        "donor",
+        "libretro",
+        "melonx-dependencies",
+        "melonx-upstream",
+        "s2arm",
+        "stikjit",
+        "xenia"
+      ],
+      "rebuiltForDelivery": [
+        "Flutter application and host plugins"
+      ],
+      "testsRun": {
+        "flutter": "not-run",
+        "native": "not-run",
+        "delivery-contract": "fresh"
+      },
+      "testsExecutedInThisRun": [
+        "delivery-contract"
+      ],
+      "physicalDeviceTested": false
+    },
+    "testEvidence": {
+      "flutter": {
+        "result": "not-run",
+        "evidenceMode": "not-run",
+        "kind": "flutter",
+        "execution": {
+          "source": "db78c917b885463dc2c2e73222f03a24481e6d8b",
+          "tree": "b1e071df9c280f24e7e1769322b9ec2cba2fa3ed",
+          "run": 46047417246,
+          "attempt": 1
+        },
+        "job": 140670952605,
+        "commands": [],
+        "reason": "Compilation des derniers ajouts demand\u00e9e ; suites Flutter/natives non ex\u00e9cut\u00e9es conform\u00e9ment \u00e0 AGENTS.md, contr\u00f4les de livraison conserv\u00e9s.",
+        "fullRegressionSuiteExecuted": false
+      },
+      "native": {
+        "result": "not-run",
+        "evidenceMode": "not-run",
+        "kind": "native",
+        "execution": {
+          "source": "db78c917b885463dc2c2e73222f03a24481e6d8b",
+          "tree": "b1e071df9c280f24e7e1769322b9ec2cba2fa3ed",
+          "run": 46047417246,
+          "attempt": 1
+        },
+        "job": 140670953801,
+        "commands": [],
+        "reason": "Compilation des derniers ajouts demand\u00e9e ; suites Flutter/natives non ex\u00e9cut\u00e9es conform\u00e9ment \u00e0 AGENTS.md, contr\u00f4les de livraison conserv\u00e9s.",
+        "fullRegressionSuiteExecuted": false
+      },
+      "deliveryContract": {
+        "result": "authenticated",
+        "evidenceMode": "fresh",
+        "command": "python3 -B test/standard_delivery_contract_test.py",
+        "rerunInThisRun": true,
+        "job": 140670037790,
+        "artifact": 15222798396,
+        "archiveSHA256": "ab60d23f0feeee4d5d9a3df5e43962609b72f51dd3029a4f8c4a93a6aee99bfa",
+        "logSHA256": "8672054c9fb4e2aa430f412350c2da267c2e4abcab49f31c696e43a6bbe4c637",
+        "execution": {
+          "source": "db78c917b885463dc2c2e73222f03a24481e6d8b",
+          "tree": "b1e071df9c280f24e7e1769322b9ec2cba2fa3ed",
+          "run": 46047417246,
+          "attempt": 1
+        }
+      },
+      "testsExecutedInThisRun": [
+        "delivery-contract"
+      ],
+      "testsRun": {
+        "flutter": {
+          "mode": "not-run",
+          "run": 46047417246,
+          "attempt": 1,
+          "job": 140670952605,
+          "source": "db78c917b885463dc2c2e73222f03a24481e6d8b"
+        },
+        "native": {
+          "mode": "not-run",
+          "run": 46047417246,
+          "attempt": 1,
+          "job": 140670953801,
+          "source": "db78c917b885463dc2c2e73222f03a24481e6d8b"
+        },
+        "delivery-contract": {
+          "mode": "fresh",
+          "run": 46047417246,
+          "attempt": 1,
+          "job": 140670037790
+        }
+      }
+    },
+    "evidenceModes": {
+      "flutter": "not-run",
+      "native": "not-run"
+    },
+    "components": {
+      "rpcs3": {
+        "type": "rpcs3-ios-core948",
+        "coreSource": "5da69bbd019371793408c4ecd3e0437b8f68256d",
+        "coreRun": 44186662104,
+        "coreJob": 134404884286,
+        "coreArtifact": 14376945131,
+        "coreSHA256": "63978be765105aee6a49bb666d0c419903650019dcf2213f7503f58085a42a6a",
+        "corePayloadFingerprint": "57693835b7c0d41656a6fa6ef98361cc07e1469312242953fd48a6afa0cc92e4",
+        "identitySHA256": "caf604e5ad1b6d426d405a56b0c1d42aa97db485663de22eff98dd3a022c9bd5",
+        "proofSHA256": "1521f8c224cb66d604ed2cf9f2ec9a87c81a4a8286fcfc6adc6c9e3fcaad2b0e",
+        "sourcePatchSHA256": "9fea315829eb83cc4657b1c6ce28d073c8b72bfee62d9f6f294da5bffdc913bd",
+        "codegen": {
+          "PPU": "a987639e9f838d1c",
+          "SPU": "477a3fa442d27917"
+        },
+        "exports": 92,
+        "addedExports": [
+          "_rpcs3_ios_ra_api_version",
+          "_rpcs3_ios_ra_get_session_info",
+          "_rpcs3_ios_ra_read_memory",
+          "_rpcs3_ios_ra_set_frame_callback"
+        ],
+        "origin": {
+          "core": {
+            "run": 44186662104,
+            "job": 134404884286,
+            "source": "5da69bbd019371793408c4ecd3e0437b8f68256d",
+            "artifact": 14376945131,
+            "archiveSHA256": "36c215602a868f40b402fb72483629e17c8189ac57326458ca16d3b141588845",
+            "runConclusion": "success",
+            "jobConclusion": "success",
+            "expiresAt": "2026-12-17T22:25:58Z"
+          },
+          "appleHostTests": {
+            "result": "not-run"
+          },
+          "validationMode": "build-only",
+          "coreRecompiledForDelivery": false,
+          "nativeSuitesExecutedByDelivery": 0
+        },
+        "appleHostTests": {
+          "result": "not-run",
+          "commands": [],
+          "validationMode": "build-only",
+          "fullRegressionSuiteExecuted": false
+        },
+        "compatibility": {
+          "abiVersion": 30,
+          "hostCoreHeadersSHA256": {
+            "packages/neo_swap/ios/Classes/NeoSwap.h": "88b334240200a68775aef35f1f5d632e04b8fcc43e504d42f65096760c7c292c",
+            "packages/neo_swap/ios/Classes/NeoSwapCompilerAPI.h": "7059ae33e69bcce8160946b41e2ff3410e29c3f0a5a403a27c670519669b75d5",
+            "packages/neo_swap/ios/Classes/NeoSwapClientStats.h": "55e745b85142d109075f2b8f220a288e1a5501f69a79eb8d4de15c7b993902fc",
+            "packages/neo_swap/ios/Classes/NeoSwapRelay.h": "11027a70e37efb55a0ca096b9a7c027519d4fdc8a175f98a6bcea38b0b4810dc",
+            "native/neoswap/NeoSwapClient.h": "ed6bf9bc70d4bf106463359aa87158f3352d9d0be46896c084d0c21638b5a9ab",
+            "native/neoswap-storage/StorageABI.h": "561696eecc439a6c55a685b4c456c944411fa689f822a13b709ed652032d7b7c",
+            "native/neoswap-storage/Client.h": "5698f528fe8e8916f2e9d2901234f8d719ab90df67fa724d97d6340ee82a1c79",
+            "native/neoswap-storage/ShaderKey.h": "95c492262f49f3d22791596cef412f446c9ae3a6ec5d2696302863a2a6697bdd",
+            "native/neoswap-storage/SourceABI.h": "395955dc389c492bace3584f7818b48676ac977eb43ec117a322e90aade207e9",
+            "native/neoswap-storage/SourceClient.h": "514dfe36544460ce3b5826a1493f1ebd81abc16151efa9126d50d83bd97d8f45",
+            "native/neoswap-storage/SourceClient.cpp": "938f1a0add50445fe03e1eb5d554f60feac9eb9d8d73b1f7269dcd8e3c9994d0",
+            "native/neoswap-storage/FrameClient.h": "8893b1c6f7e4a068895abf4740a6505b3b4b4978eda8807377b0ddd1ebd31f3a",
+            "native/neoswap-storage/VideoBuffer.h": "96969e0c76af6e506815a6cdc9323c523e68bf636445bb511dcb844723ffe140"
+          },
+          "neoswapStoreSHA256": "87df68227cf9e113af51ec2ea8968d8af88170834611d560ce711cf168f1ca46",
+          "hostPluginSHA256": "5fd597756150e7c7990a6743b155cd0c422085b769a915b057ac0a35eac13db0",
+          "physicalDeviceTested": false
+        },
+        "inputs": {
+          ".github/diagnostics/rpcs3_core610.py": "7cd96934bd629e7869a2178ab3724d6e5a9e6ae4a235f89322a035f2f7812abf",
+          ".github/diagnostics/rpcs3_mvk_cache_core.py": "e1f65f5cfa14e474c7632bc6aac3f33effc903330230c664eff45d16b8825ac4",
+          ".github/diagnostics/rpcs3_mvk_dependency_artifact.py": "1c885f829e7cb24c62c946a1b2c2ac2e90928670b5ba4244d082e7b24589fd33",
+          ".github/diagnostics/rpcs3_core_apple_host.py": "56f9a11cad7c7754c6cf8536fca5201e5650477951f73dfefd118fd0cb276ee0",
+          ".github/workflows/rpcs3-core610.yml": "8268941c9f1ee4f1bfb7d43ad2b24ea7b99ca602367576b86cb064bdb5f063f1",
+          "build-utils/rpcs3/core-build.json": "96b0dc4980ec68238395b628e8c6051d4e55c5af3e9a7649f830136582a4e410",
+          "build-utils/rpcs3/core948-delta.json": "2b0186aead9aa4e70059364c6490a041b701c6973d338092c7b0bbfbe683a42b",
+          "build-utils/rpcs3/core948-delta.patch": "bf097e2443bb42686c3aac8dccb8b6c6927110f088880bffdaa932c091aeba77",
+          "build-utils/rpcs3/build_rpcs3_core610.py": "75336ac6d0801f3c078428ff619c29049ea0aa7a4580c50f22cdbea2564b7acb",
+          "build-utils/rpcs3/patches/core610-recipe.patch": "7ad2bcf20680d948f22ac89e474b2a600f8bd4c910d82646a84bb5886019525a",
+          "build-utils/rpcs3/build_moltenvk_deferred_cache.py": "40bc8ad3cdd06f5bed1b56faf884714890b69f30ab1204ea689dac8d14cc6e6d",
+          "build-utils/rpcs3/patch_moltenvk_deferred_cache.py": "efb10b1999fd56aedea32d629a6f6a25ba96b3c06bb8a15436fa5c99f8271720",
+          "build-utils/rpcs3/patches/moltenvk-1.4.2-deferred-cache.patch": "ded08afe8f4e72188ced12bf7a7a3f411aa739875563c597453f617d4b781d50",
+          "build-utils/rpcs3/collect_rpcs3_mvk_unverified_core.py": "dd95e2bb80c58599d6dbb57b88403a35759eab85153fc748b121fa05a19ce0ff",
+          "test/rpcs3_mvk_dependency_artifact_test.py": "3a3cac5d105b6d6bfef943304ff15c66c99209870ef14070fc9bf32105c7b622",
+          "test/rpcs3_pipeline_cache_milestones_test.py": "d090e0a63faef76ee20264a2738f5e0a8964e2aca71bf29b2833e6787fa42d27",
+          "test/fixtures/rpcs3_git_version_22f11527.cmake": "ff5ab78fe7e35c78f4fd7efe49d13e4bd5b85b99ff9070a36f74080f913696f0",
+          "test/rpcs3_core610_reuse_audit_test.py": "5d2c864bb5dfe82b1b44c9aee8a6217356736a15c76445a927d53ac24f8b12e7",
+          "test/rpcs3_core610_codegen_test.py": "3e6e53ea8c48c11a59d0d5904ab7ea28c2c552b6afecdb375abc8d6e8c603b1d",
+          "test/rpcs3_retroachievements_test.py": "28cc9129f4e88c508b8ae13bd401a7f5dc5ba9e081a67f537e392a496269fee8",
+          "test/rpcs3_retroachievements_core_test.cpp": "dd60ac64631192dc99883cdfdb0f73f7217f858107ad6d617407a72e454c483f",
+          "test/rpcs3_retroachievements_policy_test.cpp": "36a238ab773baaad68b8d581a82d3e7fed784ba496df0d7b34d326857e47a61f",
+          "docs/evidence/rpcs3-core610-20261101/historical-harnesses/reuse-audit.json": "64defc9dced498da137436d9783023d073aa41777f51ef65b874470feb8cbc14",
+          "test/rpcs3_restore_eof_test.py": "866bb431a21ba7159a8dd3df9cbf556eeab36e482fd95bc4d75c1ecc967c744b",
+          "test/native/rpcs3_savestate_harness.cpp": "16740ecf9009a7c3f6597f7f9e160aeb6ebded8a648c27d760d00abeeb2e25dc",
+          "test/rpcs3_build265_core_test.py": "8b7964f38cabba94ee98b21e3bfa87babbbfbf12ac26a79d689465bb62666658",
+          "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm": "5fd597756150e7c7990a6743b155cd0c422085b769a915b057ac0a35eac13db0",
+          "test/rpcs3_gow3_restore_regression_test.py": "a1cff8eac96fe40f696e715f8d6bcab872df20f32f5fab340d0f34a56a9df30c",
+          "test/fixtures/rpcs3_gow3_restore.diff": "de97e829e1b6b4781a5931ebb8e1e6039d84e47d664e6ea920bef8b0010d1084",
+          ".github/diagnostics/rpcs3gow3_core.py": "2c2c83cd5f594040477e46b48f84f27231f5db15110ae038838323fc38c8d661",
+          "test/rpcs3_gow3_boot_regression_test.py": "23b89e483f93cb9ae4b83f93a5c8d4b22f619455d1b887e6c0a9bb15a064800b",
+          "test/fixtures/rpcs3_memory_audit/JITLLVM.diff": "9f883117157a1ded4a069adc1cae7f6a0751b282f29568e01cf9503a26220714",
+          ".github/workflows/rpcs3-memory-audit.yml": "362b78b2f9c586410162c6f09ed480ef33b73db7e53abdb129b862f7dcadfe91",
+          "test/rpcs3_core_syntax_gate_test.py": "ca3692bd1549f40f07a7ea9d78b6af88dd65f41678d59d222f924e9d4bd8103a",
+          "test/rpcs3_memory_audit_test.py": "ddf8fee13f91f1aab5f1739035d1061610e669c332186bef84308bb6b7ba3cde",
+          "test/native/rpcs3_memory_audit_test.cpp": "b2c2048b09d2a2ce3891fedaeaae40a13d4e24dff57ef432b6a0e5b4c6b15ebc",
+          "packages/neo_swap/ios/Classes/NeoSwapCompilerAPI.h": "7059ae33e69bcce8160946b41e2ff3410e29c3f0a5a403a27c670519669b75d5",
+          "packages/neo_swap/ios/Classes/NeoSwapCompilerBudget.h": "2c2aaf6fad9aaf138145174034a0e8ac7653dffce35fc9624585688b66b25d71",
+          "native/neoswap-storage/StorageABI.h": "561696eecc439a6c55a685b4c456c944411fa689f822a13b709ed652032d7b7c",
+          "native/neoswap-storage/Client.h": "5698f528fe8e8916f2e9d2901234f8d719ab90df67fa724d97d6340ee82a1c79",
+          "native/neoswap-storage/ShaderKey.h": "95c492262f49f3d22791596cef412f446c9ae3a6ec5d2696302863a2a6697bdd",
+          "test/rpcs3_shader_storage_test.py": "67151cdd1b9ec4e6b3d9d1549aa337b6389140ce2d7b6eb80d12777f6409ef64",
+          "test/native/rpcs3_shader_storage_client_test.cpp": "1db819e79809f41dc58915db75a4ca2c0962b243f7f21a291848abf5aa6e106f",
+          "native/neoswap-storage/SourceABI.h": "395955dc389c492bace3584f7818b48676ac977eb43ec117a322e90aade207e9",
+          "native/neoswap-storage/SourceClient.h": "514dfe36544460ce3b5826a1493f1ebd81abc16151efa9126d50d83bd97d8f45",
+          "native/neoswap-storage/SourceClient.cpp": "938f1a0add50445fe03e1eb5d554f60feac9eb9d8d73b1f7269dcd8e3c9994d0",
+          "native/neoswap-storage/FrameClient.h": "8893b1c6f7e4a068895abf4740a6505b3b4b4978eda8807377b0ddd1ebd31f3a",
+          "native/neoswap-storage/VideoBuffer.h": "96969e0c76af6e506815a6cdc9323c523e68bf636445bb511dcb844723ffe140",
+          "test/rpcs3_video_frame_archive_test.py": "63d52127195d7ca6bd4fa6b8209f5396184dd4b5be71d0b4a443115ee1eea34b",
+          "test/native/rpcs3_video_frame_archive_test.cpp": "ffe75a00448fc8af9b85a6f457ee686e5a45357620c8257645c7468554cb9e4d",
+          "build-utils/run_vdec_archive_validation.sh": "727177595d1c0e43e6d86b52b35683b21c951aad44b2f68f22b22a1b6b72c979",
+          "test/rpcs3_source_archive_test.py": "81cf54411611fa51f7a4bffaccb0a7cdf765e90237f9474163c532b5f0a50499",
+          "test/native/rpcs3_source_archive_client_test.cpp": "436972a9549e6e811f24f86a36fa775b6e08adda6e5ec4a658d04f37493ad5dd",
+          "build-utils/build_rpcs3_embedded_core.sh": "ec79fb073908151d8413a201ef61d242078d363eb317395b6c98f01421eb9a5d",
+          "build-utils/materialize_rpcs3_core.py": "0f06b5befb249a398fa6e22d326f57794979bfa01eae971d7f28cbb2f3933889",
+          "build-utils/apply_rpcs3_llvm_patch.py": "a9a06a9c2d3639b980901585af6456f9fc9a561ec82760bebc78be56a1ebacfc",
+          "build-utils/rpcs3/canonical-source.json": "5eaa4722b0afca8adc1e1e9d08a8adaa2a7c269e2f3fa6b79e0ea16aac649414",
+          "build-utils/rpcs3/embedded-core.patch": "9fea315829eb83cc4657b1c6ce28d073c8b72bfee62d9f6f294da5bffdc913bd",
+          "build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch": "8db9dc0e3701069ca3d42c534b2bcd0bba5eea1f21fbd54c466fb454130a9a3f",
+          "build-utils/rpcs3_core_syntax_gate.py": "1843d58c15988f4fe240f5285ae6cedbddb4c06cfb09b0488a6f2b34e5e6e5ff",
+          "build-utils/validate_rpcs3_embedded_core.py": "f0a70357087e099c6dfb7187d8564c724f7b9b5ce8c7cbacb808539f03e0ca89",
+          "build-utils/validate_rpcs3_passive_dlopen.py": "e051ffc47d722e1f53e28a9919ef29502022edb68b34a545e81d2b5f01258b9a",
+          "build-utils/patch_rpcs3_build301_passive_dlopen.py": "bd22b3f77aedab664b64088c7691b1230a88c547a0dff32d6fc7599ddbea998a",
+          "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3CoreABI.h": "b819a02685eb2b74b8e10aee3a2c74b086033540559c712a4815729e998ea99b",
+          "packages/neo_swap/ios/Classes/NeoSwap.h": "88b334240200a68775aef35f1f5d632e04b8fcc43e504d42f65096760c7c292c",
+          "packages/neo_swap/ios/Classes/NeoSwapClientStats.h": "55e745b85142d109075f2b8f220a288e1a5501f69a79eb8d4de15c7b993902fc",
+          "packages/neo_swap/ios/Classes/NeoSwapRelay.h": "11027a70e37efb55a0ca096b9a7c027519d4fdc8a175f98a6bcea38b0b4810dc",
+          "native/neoswap/NeoSwapClient.h": "ed6bf9bc70d4bf106463359aa87158f3352d9d0be46896c084d0c21638b5a9ab",
+          "test/neo_swap_core_pin_test.py": "5fe7412331a384c50376a6881d5c0c692523ed5e1520143751577f029d4b1f6d",
+          "test/neoswap_rpcs3_allocator_test.cpp": "20d262c5bb2a97a348e9b9b1a6aa64e8875e409ba75fb84fc51a95b9ea984d5c",
+          "test/neoswap_cpu_buffers_test.cpp": "78d8cd9dc0de795f0dcd8c6e3e5d9d4b40ec81d1f9b270ca3b1308d5b344bc0b",
+          "test/rpcs3_neoswap_vulkan_buffer_test.py": "6f694f9fc0538087e5e40f6412c627a342af7b816432ffc06ed77976d2032672",
+          "test/native/rpcs3_neoswap_vulkan_buffer_test.cpp": "38aeedc549ce7d34f53c86d50c8e16e846cad9de4cd5b9c423e0edd870ec4dbe",
+          "test/rpcs3_neoswap_relay_test.py": "231b55231573bf2600d807e7e73d5447822643b1039d68817fa9d0c1c9402c08",
+          "test/native/rpcs3_neoswap_relay_test.cpp": "58548d5bab23a36fcf08d728c5640d92cd63bc76503ee4ea768f9735717db646",
+          "test/rpcs3_embedded_core_validator_test.py": "889a07d7b85530f79ad216276ac2a176f776a9d1366d8852f0e791d3ecf37cc1",
+          "test/rpcs3_preprocessor_balance_test.py": "e28414917ba428816afbe83e06d698c272a442264b9d25b7fc3cfba01982d491",
+          "test/rpcs3_build301_passive_dlopen_test.py": "9c51fa9479c13a12be04f0d1e14118548849ec04a7c85e382e222a1f520994c7",
+          "test/rpcs3_atomic_startup_test.py": "a6ae0de05363681d5c82a1ed69ee4c1b137d2dce655eef1a3918c934d5e691c3",
+          "test/rpcs3_failed_startup_test.py": "b35bb9911c63605884d5b5d0ddcdc1e05b4bb86cd1dff535b07db71a0153f853",
+          "test/rpcs3_build264_gow3_core_test.py": "f7abfcece81dca34f85706c3e6e510fc882dc11afd07b21511aba9cad624a8ed",
+          "test/rpcs3_build351_gow3_engine_test.py": "4477bc70d0221a5293901eeeeaf53d8cf9295bc3e3464c8cc63ffa856e139f8c",
+          "test/rpcs3_build352_gow3_memory_test.py": "4f94744c8c905e64cb3cb593b19f24627fda3b643321e2b86e335f6c63b56450",
+          "test/rpcs3_build353_xitrix_v010_test.py": "663aeced15af5cb343fbcfd8c5faea17a188d39e8988e2913bf99f9a7cff8435",
+          "test/rpcs3_armsx3_performance_patch_test.py": "f5ee563929ff520aa0f4385bb54e2ce5628141f4594934a39a3d3bd901257d8e",
+          "test/rpcs3_build435_core_delta_test.py": "648cabf9ff7cfe601c486928f40d3677b0c58991540f319d211b6c4092e8c8a0",
+          "test/native/rpcs3_build435_core_delta_test.cpp": "8aef04558a2522899c5ed0b9d4b9dc7803a7d094d568c25c4c275fb15043e10a",
+          "test/rpcs3_build444_core_delta_test.py": "f3f474628cfbc7d1a20ff40080a51be41ec36f9bd5f8831f4b0e33fe2657ca1a",
+          "test/native/rpcs3_build444_core_delta_test.cpp": "e72d9c167cc9d7055164e93c6eb02217f59769d6b10cb6764f447dd343b516f5",
+          "test/rpcs3_build481_spu_object_cache_test.py": "f784c65d9c8a8842a11cda3e8cd226a7dc1bac043fa4c8e2b315a80cf9fcad25",
+          "test/native/rpcs3_build481_spu_object_cache_test.cpp": "79775e43775ea0eb1595df4a778c1249cfe885e818225297643e09dac3cbc2c7",
+          "test/native/rpcs3_spu_object_relocation_test.cpp": "892308f964f507aa02aadd20b784dac62af1091834e142d78826f9d485cfd378",
+          "test/rpcs3_build483_llvm_pipeline_test.py": "d0fcdf0f14be9fbebf65216f13ce5a8c9934599a91ca0338320ca1e2187eda4d",
+          "test/native/rpcs3_llvm_pipeline_harness.cpp": "6b86bc751a97b56d53aa21b482d0f2b740ea2b52d33c8f211c03c08933e32aa9",
+          "test/rpcs3_build499_spu_audit_test.py": "2738bb4c3de4fe1efacf9c4c19321009dbe3e799b31da54b2b48ad8191d18867",
+          "test/native/rpcs3_build499_spu_audit_test.cpp": "848bda735b932beb91cbf1ced6c67e094c1967a4a0614c06f6e0569f2d5611d3",
+          "test/rpcs3_build487_core_diagnostics_test.py": "1fe3661903dde902d131c37e37155b3a73e0de651b56e1b461d9a59224b052dd",
+          "test/native/rpcs3_build487_profiler_helpers_test.cpp": "a28b0404046cab9cbb194d9d5444855e23cfd922c685feb3934c3452b075b808",
+          "test/native/rpcs3_build487_boot_diagnostics_test.cpp": "3f61bbf86af16481f1466d73a8a8dd2a06a845b3253a1e5259027438319dd78d",
+          "test/native/rpcs3_build487_lever_helpers_test.cpp": "e834f6ec1082a4b8022fbce892f417a03205029da8af63a3b5454c105b263116",
+          "test/native/rpcs3_build487_retention_sequence_test.cpp": "10247800219dc4d2ce755a97c5b26835b68b165800eec3d071cb23bea9a5222f",
+          "test/rpcs3_build487_host_diagnostics_test.py": "dc2aa027e0036cee92591bfb47e8e44958718a444f50e9700a80d8418b1a0a31",
+          "test/rpcs3_build258_core_architecture_test.py": "509fdee858f18a85b5de87f9129b5492d7c4d3d316b10577127ce6305ef746f3",
+          "test/rpcs3_ios_ppu_compile_budget_test.cpp": "b3461cf3032805e77e2f1493e038857dadabe16056a064b7b90a33f3f456d41c",
+          "test/rpcs3_ppu_no_size_split_policy_test.cpp": "85b4938ca30d40379006b07938d0cc22d710a5674768515270b732bd4d1926b6",
+          "test/rpcs3_xitrix_v0101_native_test.py": "292d2a28389cf1b3fcb731d03c11c442d1881b2d5fa569e526cfd639cdbdf340",
+          "test/rpcs3_xitrix_v011_native_test.py": "a6b055c93589a065375a7f336599e2d2ae5e784b06a6cf5a3f6b5dfe6d33b4c0",
+          "test/native/rpcs3_spu_analyzer_support.h": "67e90e91c47a394a71a7bbedbc0986fbe16910bb0a5edf5635ea4d9a68333864",
+          "test/native/rpcs3_spu_branch_analyzer_test.cpp": "69c855b80c49f6d9b4c9fe06211c61e774ef7afdc4ac454d348e072db36ef33e",
+          "test/rpcs3_spu_warmup_test.py": "98f4ba81dd6b5ff8f5bc83f41e2fdf4aec23df946603253f8ae9a86cff326661",
+          "test/native/rpcs3_spu_warmup_test.cpp": "eae4b3c3196ec2c55a8f0ed44ab54cc1cbc2b94c45f805f0a53548fec700cb94",
+          "test/native/rpcs3_vk_memory_pressure_test.cpp": "b7033e5e27d9259591df5b5a62fbacafe98c527df508fec1be84c60aff7d8fab",
+          "test/native/rpcs3_vk_conditional_render_test.cpp": "fb925a69c80a7a07a53ed64f71bbcf35e01d857746476edefcf68eacca1634d1",
+          "test/native/rpcs3_neoswap_stats_getter_test.cpp": "72b4c84a0c06335ed302be1af18057972057a92cde068fc6dca94d57756044b0",
+          ".github/workflows/rpcs3-core.yml": "29f560a12cf0c39a1c16517c1ebd2bf7dad36701a305bfb806a53375d885b68d"
+        },
+        "replaces": {
+          "source": "4d4a2596eaa2feac7063c138e5feecb5e394abd6",
+          "run": 44099378298,
+          "artifact": 14337132612,
+          "payloadFingerprint": "93199df720e342bc31910aa25ab3505196579ada1523ef0760ade0315d10f046"
+        },
+        "coreRecompiledForDelivery": false,
+        "nativeSuitesExecutedByDelivery": 0,
+        "physicalDeviceTested": false,
+        "gameplayMeasured": false,
+        "fpsGainMeasured": false
+      },
+      "melonx": {
+        "result": "passed",
+        "component": "melonx-hogwarts-dma-copy-core",
+        "origin": {
+          "result": "authenticated",
+          "source": "693c9c94103b5ce3dd80f8208c6c4be61b39c4cf",
+          "run": 45494772118,
+          "job": 138802226305,
+          "attempt": 1,
+          "artifact": 14970020761,
+          "archiveSHA256": "9693562db67d1e6ecc9fa3471abf74b02a331045dd42e68b6fec8ccc7d46fa37",
+          "testsExecutedByDelivery": 0
+        },
+        "source": "693c9c94103b5ce3dd80f8208c6c4be61b39c4cf",
+        "binaries": {
+          "ios-arm64": {
+            "sha256": "719d2df54bac902c712c142a17f187ac2a4bb3820a48ef72507b588cb87477ed",
+            "bytes": 39261456
+          },
+          "iossimulator-arm64": {
+            "sha256": "8dc6ccea1e301582c28c621eaa4059bc1acbbc7ad93330152535ff03ff44e200",
+            "bytes": 39584808
+          }
+        },
+        "identities": {
+          "ios-arm64": "218ecc4f1bfb7f5f9b3b3835942dae18fa0975172b421c9dd9a6693afa0ea867",
+          "iossimulator-arm64": "e69cf68d1ae7a8b3a5b6d6b30fda094cc813d8a94fb62d4cc04270a0e732b972"
+        },
+        "payloadFingerprint": "1f344f3cc0e58c01b2ec4d9af93520209bcfd4713e8588288ca7c21ff0905be4",
+        "replacedCoreSource": "b181cbe19164b5c10da4d0412209d2067f97ea3e",
+        "replacedCorePackagedFingerprint": "bf7de0ddaa36aefe29f1ae6cdbc9d2c543c13aedc6ba501a96c54fa53b104e5b",
+        "validationMode": "build-smoke",
+        "fullRegressionSuiteExecuted": false,
+        "deferredAppleGatesInProducer": 129,
+        "freshAppleGatesInProducer": 0,
+        "reusedScopedAppleGatesInProducer": 14,
+        "historicalAppleReceiptsInProducer": 61,
+        "producerSimulatorSessions": 2,
+        "engineRecompiledForDelivery": false,
+        "priorGatesReexecuted": false,
+        "physicalDeviceTested": false,
+        "gameTested": false,
+        "fpsGainProven": false,
+        "deviceAllocationReductionProven": false,
+        "packagedCoreSHA256": "25593d5cc72d927bc4e2ffd0eb8cd260551ba9417bae006f689ea8e5e590ed89"
+      },
+      "dolphin": {
+        "result": "authenticated",
+        "kind": "dolphin",
+        "execution": {
+          "source": "d65376e07d603c61a6d3dbd41761d13984598f31",
+          "tree": "88d7c7b6bcdd1baf12bd10df727c7df8267b6f9e",
+          "run": 46042143656,
+          "attempt": 1
+        },
+        "job": 140652286685,
+        "artifact": 15221387049,
+        "archiveSHA256": "52f8d54d0914ab0d0dc46105df1798460b61dc0c6503cd40f59e5a5ab562a845",
+        "archiveBytes": 11025496,
+        "artifactName": "DolphinCore-AchievementTranslation-d65376e07d603c61a6d3dbd41761d13984598f31",
+        "republished": null,
+        "identity": {
+          "schema_version": 1,
+          "repository": "https://github.com/OatmealDome/dolphin-ios.git",
+          "host_commit": "d65376e07d603c61a6d3dbd41761d13984598f31",
+          "source_revision": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
+          "sha256": "34e322f6bcde3fcd2983189c8a060fb5a8f0abf1e6ec0c41b394bc5b726c8ebb",
+          "architectures": [
+            "arm64"
+          ],
+          "abi": "NeoStation Dolphin internal v3 + cheat manager",
+          "wiimmfi_abi": 5,
+          "cheat_catalogues": [
+            "Gecko/WiiRD",
+            "Action Replay/local INI"
+          ],
+          "device_runtime_tested": false,
+          "achievement_presenter": 1,
+          "use_retro_achievements": true,
+          "source_inputs": {
+            "build-utils/patch_dolphin_internal_core_v2.py": "45b58968977c07375613f99118a86f0a23512860ff0c7fca0aa9ede894e23c03",
+            "build-utils/dolphin_wiimmfi.py": "d9981a47f505dc4bb0cb122e28f573ae144088cea6b51ef3b99ae821dcf70629",
+            "packages/dolphin_internal_bridge/core/NeoStationAchievementPresentation.inc": "8402b3b8600a6b95ac71582023257eca506f223933ff4ca8994ace7560228980",
+            "packages/dolphin_internal_bridge/core/NeoStationAchievementSession.inc": "8daa7fb8fe786a654fb7ebb5ae997628397ebb3afec7dc31fe55918e020fa1b5",
+            "packages/dolphin_internal_bridge/core/NeoStationPerformance.inc": "b4947587e2f45c1047c0467be6f8d9df677e7259aff4f5b7b34a130bd71ea1ff",
+            "packages/dolphin_internal_bridge/core/NeoStationSavestates.inc": "69117c5733537908036917c213c4cf009e87fb61be88bc976dab5dfa4d4e84ac",
+            "packages/dolphin_internal_bridge/core/NeoStationSession.inc": "d55e46324fa5502870cb2db5eb4a1c14ab2cdfd6681759c80c70da42f7639616",
+            "packages/dolphin_internal_bridge/core/NeoStationStateCompression.inc": "fa197967e0adcf490631559d525952cb5b926e9c154d2e519c27067216ffa757",
+            "packages/dolphin_internal_bridge/core/NeoStationWiimmfi.inc": "f93e871315d6e32abb76b829cd8dd9228cde99e6d53089eac67b6ad45473b277"
+          }
+        },
+        "payloadFingerprint": "d37c014b7e2e55ec2e5da1ee17e027800b733072e5601833bbba6b87fcddb943",
+        "sourceInputs": {
+          "build-utils/patch_dolphin_internal_core_v2.py": "45b58968977c07375613f99118a86f0a23512860ff0c7fca0aa9ede894e23c03",
+          "build-utils/dolphin_wiimmfi.py": "d9981a47f505dc4bb0cb122e28f573ae144088cea6b51ef3b99ae821dcf70629",
+          "packages/dolphin_internal_bridge/core/NeoStationAchievementPresentation.inc": "8402b3b8600a6b95ac71582023257eca506f223933ff4ca8994ace7560228980",
+          "packages/dolphin_internal_bridge/core/NeoStationAchievementSession.inc": "8daa7fb8fe786a654fb7ebb5ae997628397ebb3afec7dc31fe55918e020fa1b5",
+          "packages/dolphin_internal_bridge/core/NeoStationPerformance.inc": "b4947587e2f45c1047c0467be6f8d9df677e7259aff4f5b7b34a130bd71ea1ff",
+          "packages/dolphin_internal_bridge/core/NeoStationSavestates.inc": "69117c5733537908036917c213c4cf009e87fb61be88bc976dab5dfa4d4e84ac",
+          "packages/dolphin_internal_bridge/core/NeoStationSession.inc": "d55e46324fa5502870cb2db5eb4a1c14ab2cdfd6681759c80c70da42f7639616",
+          "packages/dolphin_internal_bridge/core/NeoStationStateCompression.inc": "fa197967e0adcf490631559d525952cb5b926e9c154d2e519c27067216ffa757",
+          "packages/dolphin_internal_bridge/core/NeoStationWiimmfi.inc": "f93e871315d6e32abb76b829cd8dd9228cde99e6d53089eac67b6ad45473b277"
+        },
+        "compiledSourcePostimages": {
+          "AchievementManager.cpp": "9e9425b0c5ab73828ef5061e0cc89951a01526ce0ad153baef42c6d192692757",
+          "NeoStationBridge.mm": "75bed3215bb0a9152f9c3354facb123d3f2073048b77796ccb09b1f2f4ac0433"
+        },
+        "compiledHostInputs": {
+          "build-utils/patch_dolphin_internal_core_v2.py": "45b58968977c07375613f99118a86f0a23512860ff0c7fca0aa9ede894e23c03",
+          "build-utils/dolphin_wiimmfi.py": "d9981a47f505dc4bb0cb122e28f573ae144088cea6b51ef3b99ae821dcf70629",
+          "packages/dolphin_internal_bridge/core/NeoStationAchievementPresentation.inc": "8402b3b8600a6b95ac71582023257eca506f223933ff4ca8994ace7560228980",
+          "packages/dolphin_internal_bridge/core/NeoStationAchievementSession.inc": "8daa7fb8fe786a654fb7ebb5ae997628397ebb3afec7dc31fe55918e020fa1b5",
+          "packages/dolphin_internal_bridge/core/NeoStationPerformance.inc": "b4947587e2f45c1047c0467be6f8d9df677e7259aff4f5b7b34a130bd71ea1ff",
+          "packages/dolphin_internal_bridge/core/NeoStationSavestates.inc": "69117c5733537908036917c213c4cf009e87fb61be88bc976dab5dfa4d4e84ac",
+          "packages/dolphin_internal_bridge/core/NeoStationSession.inc": "d55e46324fa5502870cb2db5eb4a1c14ab2cdfd6681759c80c70da42f7639616",
+          "packages/dolphin_internal_bridge/core/NeoStationStateCompression.inc": "fa197967e0adcf490631559d525952cb5b926e9c154d2e519c27067216ffa757",
+          "packages/dolphin_internal_bridge/core/NeoStationWiimmfi.inc": "f93e871315d6e32abb76b829cd8dd9228cde99e6d53089eac67b6ad45473b277"
+        },
+        "physicalDeviceTested": false,
+        "installed": true,
+        "coreRecompiled": true
+      },
+      "armsx2": {
+        "result": "authenticated",
+        "kind": "armsx2",
+        "execution": {
+          "source": "7fbe993f9abb5a59c62374574363f52486f0195d",
+          "tree": "5464ca346ca8c4968cf9b33a99960315c4893115",
+          "run": 45799354122,
+          "attempt": 1
+        },
+        "job": 139838201141,
+        "artifact": 15107977606,
+        "archiveSHA256": "eaaca6870d9498adfb7131d8861f6d0bbfe8e4fdb1739dd685b59061ea8c146f",
+        "archiveBytes": 16541608,
+        "artifactName": "ARMSX2Core-7fbe993f9abb5a59c62374574363f52486f0195d",
+        "republished": {
+          "build": 845,
+          "source": "acc45935b3b5ceaddf684ea7b2d017c1c6369596",
+          "run": 45804211327,
+          "attempt": 1,
+          "job": 139867215085,
+          "artifact": 15109518360,
+          "name": "RewindBox-Build845-acc45935b3b5ceaddf684ea7b2d017c1c6369596-attempt1-component-armsx2",
+          "bytes": 16542800,
+          "sha256": "a73cf8c184b383fd644c5005b7a63f94cb6582de16563bac608b6633a855c103"
+        },
+        "identity": {
+          "schema_version": 1,
+          "repository": "https://github.com/ARMSX2/ARMSX2.git",
+          "revision": "8bf12a1a42e5181a04e7e653ac94a95a47008e16",
+          "release": "iOSv2.6.1",
+          "baseline": "9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe",
+          "abi_version": 9,
+          "host_commit": "7fbe993f9abb5a59c62374574363f52486f0195d",
+          "sha256": "d0c053e9fedf07146107f76625b8163aadbc79cd1c215cecb8d23203abb83f64",
+          "architectures": [
+            "arm64"
+          ],
+          "signature": "ad-hoc; sideloading must re-sign",
+          "shader_chains": true,
+          "bundled_shader_presets": 12,
+          "bundled_shader_files": 28,
+          "bundled_shader_sha256": {
+            "ATTRIBUTION.md": "b19d6ac810da2d9167796fbc4ab98d188dd1cd89095d58b12024c59a435fae0d",
+            "armsx2-tracer/armsx2-scanline.slang": "e7e8300dc165d6520653337cc1734ef4ee04540407c63ab0251786460c8e0737",
+            "armsx2-tracer/armsx2-scanline.slangp": "f5a3be45776adf907e09027c9a67272725287212947f6b0bf4c5a91bc986bdb6",
+            "presets/.gitattributes": "209b77ca21b2faff6b7b0fce90dfd863d0598655c77890f0d86bf6f94d59845d",
+            "presets/crt/crt-aperture.slangp": "71ea5ae6ca681ac45e74bb1af694d72a5bebf80a272b0766a2e7f1f62d78cc06",
+            "presets/crt/crt-easymode.slangp": "3e624916ca4e3bc8660c0b00b3abcb262b03b2699137a03d8171d936054a1fd5",
+            "presets/crt/crt-geom.slangp": "094d5133a3b6fbb4c2e6cba65141e5b850517aa3201bea7bdb41e4899087b60b",
+            "presets/crt/crt-hyllian-fast.slangp": "7fda3944ba33c65e9ff8fff440628ba7a0113312d420d06f69c666136e1ae201",
+            "presets/crt/shaders/crt-aperture.slang": "c4089fefc87e968c91d55d31c0f54f4bfb573b7a458cdde7f76c3e3e4c877958",
+            "presets/crt/shaders/crt-easymode.slang": "cacb1595c7988619c29b46cc283e2140f25cf14a9d104fcf6c28f197ee4b29a3",
+            "presets/crt/shaders/crt-geom.slang": "6533ad97601445f35a1b4f25ad54974ee9983fef0337ffec11c9c372226dbb58",
+            "presets/crt/shaders/hyllian/crt-hyllian-fast.slang": "4b8dc17d092440d6e1edd31aaea41165bc491e82e112ddb974f1db2d450be11e",
+            "presets/crt/shaders/zfast_crt/zfast_crt_finemask.slang": "0214419beed4c08d991288e90f8a73700fd7da567a454ad2ffe725b3b6eea366",
+            "presets/crt/shaders/zfast_crt/zfast_crt_impl.inc": "e1006274577b85f18ed793856b46f92d5cd6f6207a98af398004644006907bf1",
+            "presets/crt/zfast-crt.slangp": "fa3a7f37344f351572e692bc317a21f89f30628c08c09adc1091e4900f1f8e11",
+            "presets/handheld/lcd3x.slangp": "73aad2f4b1b548d9ea566cd3c72dbad433594235aed00115013b1ec46bf4c2d9",
+            "presets/handheld/sameboy-lcd.slangp": "77e23ca1b427e99fcd2cc0821d8b6370a51339e63f613bcbbbae31b1b5b370a6",
+            "presets/handheld/shaders/lcd3x.slang": "58cb684d42d3ab336aefedb7f961bf551428d21d7371d2fa9eae64cbdaafcdec",
+            "presets/handheld/shaders/sameboy-lcd.slang": "9cb12c233a13b2a6ca4d87c7e828859c5737577409844dc95c4ea8cc63826142",
+            "presets/include/subpixel_masks.h": "540385326e9f4bb0aedd4e669f59dd7ce947b1232ea3fc6b9ca6b685aac6c22c",
+            "presets/pixel-art-scaling/shaders/sharp-bilinear-simple.slang": "d97d47b9f7b399d5bdb9c6d67d11393b80e3e2f4fbec7db4e364f0ccbb5907ae",
+            "presets/pixel-art-scaling/shaders/sharp-bilinear.slang": "c4f6fe011e5e735bd79d7005e57e94798fcd351cc9094a0625f1ffd86c4e423e",
+            "presets/pixel-art-scaling/sharp-bilinear-simple.slangp": "310b6193f770baef6a7485fbc7115b5bdf9e237203aaa1ebe39e154b6895a50d",
+            "presets/pixel-art-scaling/sharp-bilinear.slangp": "059a79b17fe4635420f032cb8c1c42072bf7e9104052f3a6cce564cca17f9b5d",
+            "presets/scanlines/res-independent-scanlines.slangp": "c3ff08a03aa0c44c3ea91920a4cb53f21e681c49f85dbed37ea64e4c0d78d306",
+            "presets/scanlines/scanlines-sine-abs.slangp": "97d1bd369bb9e4a6771b8e0dd5e00e8a2690f936467f5849d27fec1c0d26c376",
+            "presets/scanlines/shaders/res-independent-scanlines.slang": "9f29c110cc191ed599a5fa8f99d393004b7f232a4cd37c12346a60cb32cd6dc8",
+            "presets/scanlines/shaders/scanlines-sine-abs.slang": "8b9aba47622b3e75e9f5475990bee32a513bd3c67e53e0c05516b65fadc681c5"
+          },
+          "performance_overlays": true,
+          "device_runtime_tested": false
+        },
+        "payloadFingerprint": "e94131ab3e246a6f6162747a7cd0dd5c985b13121ef33bfaf61e8249d22a5998",
+        "sourceInputs": {
+          ".github/diagnostics/armsx2_core_component.py": "3eb2f4453d1145ecc043b595a046cffd46382bcd9139167a55af761ee1ebdef5",
+          ".github/workflows/armsx2-core.yml": "6529a9ec6976dc6c057008e32c057ca017f09d1f67fcf22fa61f58e86ce34ae9",
+          "build-utils/armsx2/build_core.sh": "26527b8ce6064ac8e3ec25c42c502b7d6b20ec579af08d58befa282bfe920c7a",
+          "build-utils/armsx2/neostation-core.patch": "3949eedac5915b5a95bcc1835dcaf497743247a3e3943ebda3599b9957639201",
+          "build-utils/armsx2/prepare_source.py": "820e5228b89e089855b9aef0870b913f477dee81c87028390a9891c2c891765c",
+          "build-utils/armsx2/source.json": "f8e797dc180d4d3ad98c9ff5d903d5efbe6969e800f35b8d777ec9625c0cd5eb",
+          "build-utils/armsx2/upstream-files.json": "6ca036a948a23144bcc958f5dd0ddcdd6f274622265ff8774f3dcc3dc16f27a6",
+          "build-utils/armsx2/verify_core.py": "e317ed29e84941f63e089c4d622a28b701342d1e53839db25fe4dff4016db0e8",
+          "packages/armsx2_internal_bridge/core/ARMSX2BlendingAccuracy.h": "d1ea3a2c8de4d8f5fd8bcf5b84cb095bf17df7d5591b7b3e7c5a87fece31fd25",
+          "packages/armsx2_internal_bridge/core/ARMSX2BlendingAccuracy.inc": "5a3938a7be7545e64c157832d9dcd0564a172545fd69d0641710fc3b95e7d18a",
+          "packages/armsx2_internal_bridge/core/ARMSX2Core.mm": "b95224761e5cb4d434bc5d4ae484a36eeaa8feecc00aba7c3bdebd99f8faf828",
+          "packages/armsx2_internal_bridge/core/ARMSX2GraphicsAssets.inc": "f05422abd017b0b9fd2230ac2e002ab131459c7381dec71d149a3fad666b8b87",
+          "packages/armsx2_internal_bridge/core/ARMSX2Patches.inc": "d8c3b357e74f9947b752316d9d4ae494eef580c3ef977d4f028c428a333bde40",
+          "packages/armsx2_internal_bridge/core/ARMSX2RALaunchSettings.h": "8c1d5ff315f5118c25a87ce0ae4cae88f2f18fdac3f687b7ea2a47d8f2c23ab8",
+          "packages/armsx2_internal_bridge/core/ARMSX2ShaderLibrary.h": "40fe839454ddad11820a28405abafbbae0aa82359231c8526c3d29f02e6052b8",
+          "packages/armsx2_internal_bridge/core/ARMSX2TextureReplacements.inc": "a747bbd973b15910f4993550653e59e3efc68397eb0c54269ae38c961942b8d3",
+          "packages/armsx2_internal_bridge/core/RETROACHIEVEMENTS_SESSION.md": "b007786a3586e61de7eab338cfffc4a9e7d70069c61bd9965c85f4f38e0484c9",
+          "packages/armsx2_internal_bridge/core/exports.txt": "6d645df4e4df141cc5b35ad83d469e0c167f897e92e6c8a46dff8704d108be83",
+          "packages/armsx2_internal_bridge/core/target.cmake": "e1174bfce085604402ccc9b38f92c8ff733e6ada7dfd8ab7ffe684a2b98fde24",
+          "packages/armsx2_internal_bridge/ios/Classes/ARMSX2CoreABI.h": "0de572092ef219f0b2a00b489851b0cde696267f9ba71f878d4d09451cf89fe7",
+          "packages/armsx2_internal_bridge/ios/Classes/ARMSX2GraphicsHacks.h": "fa1e193bc9f63f1a8177bfe3a49f6820233fb8108ff071d9c771fe10b30c0cb1",
+          "test/armsx2_core_build_test.py": "e88a380248125ae5afb22cc82cf27606eac45bb8d4c3a0ac0f6d0526a3e25e78"
+        },
+        "compiledSourcePostimages": {
+          "common/Darwin/DarwinMisc.cpp": "098e4ab16520386e400d167274abdec356f8e82b10477c2935dc465baa2aefaa",
+          "pcsx2/CDVD/CDVD.cpp": "4cbe5fa3f21540d2b3ff19becaa08c4cd1baf07ea64c2bda807cd31504d60eee",
+          "pcsx2/GS/Renderers/HW/GSTextureReplacements.cpp": "f49266607411c1f7966308b83e4172d8b6504e0ce3e8e52a0185948b854a05e6",
+          "pcsx2/GS/Renderers/HW/GSTextureReplacements.h": "a075c5d039c6c516f4796035d15b5bfba014059e0b6d158e45433798cae0c4cf",
+          "pcsx2/GS/Renderers/Metal/GSMTLDeviceInfo.mm": "5d5ed26233d1e518a30f598d8d371a7dde44bc926a75c73ec683e408fcf755bc",
+          "pcsx2/Host.cpp": "b0c1ea62ce466acd88059c69690f0710cb46090116ac7e326cbe7444c98e7e11",
+          "platforms/ios/3rdparty/librashader/CMakeLists.txt": "c40d36edbc44c81732bfb3be102c4d8e1fe0ea88271bd98d2431f0ef7a6da642",
+          "platforms/ios/Bridge/ARMSX2Bridge+Input.mm": "f58c623aa214f296b3d6401cec8d4f4b2c1e0b44db50e839141312315fdcd935",
+          "platforms/ios/CMakeLists.txt": "cafa69e64d0423c17df080777a3a5221ebfc8874d48e9b56e2c7bd692c357882",
+          "platforms/ios/Runtime/HostImpls.mm": "9f34773aa996883e7d152aa3e74c92111c5e74b008c3f43adbdd9bd1fb01cb14",
+          "platforms/ios/Runtime/IOSRuntime.mm": "803d534d371053f1375a9852bc01b6c7918261d307f2f2482fd975e8f441058e"
+        },
+        "physicalDeviceTested": false,
+        "installed": true,
+        "coreRecompiled": false
+      },
+      "libretro": {
+        "result": "authenticated",
+        "kind": "libretro",
+        "artifact": 15216436265,
+        "run": 46032835264,
+        "source": "d2838526a76a4a9770e36e7558002d768dae0ae4",
+        "name": "LibretroCores-d2838526a76a4a9770e36e7558002d768dae0ae4",
+        "bytes": 56456825,
+        "sha256": "2ba5b65e3432d4e31a93230bf01927af33ac21807739ec0a59fa866550ab218f",
+        "destination": "dist/libretro",
+        "workflow": ".github/workflows/libretro-cores.yml",
+        "expiresAt": "2026-12-11T16:34:51Z",
+        "republished": null
+      },
+      "melonx-dependencies": {
+        "result": "authenticated",
+        "kind": "melonx-dependencies",
+        "artifact": 12458409441,
+        "run": 39854858591,
+        "source": "66737aa9c959eb5915264bf178f179bda8643314",
+        "name": "MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314",
+        "bytes": 49178074,
+        "sha256": "12a1e4c7bf1c970c218ebddead965a51c3aa57af4d0e1fb5c0523ca8b1340261",
+        "destination": "dist/melonx-native",
+        "workflow": ".github/workflows/melonx-native-dependencies.yml",
+        "expiresAt": "2026-11-05T21:09:37Z",
+        "republished": {
+          "build": 801,
+          "source": "f1d0df55a93680a4bd9b43922af1375cf0d66715",
+          "run": 44733205671,
+          "attempt": 1,
+          "job": 136278997506,
+          "artifact": 14626614561,
+          "name": "RewindBox-Build801-f1d0df55a93680a4bd9b43922af1375cf0d66715-attempt1-component-melonx-dependencies",
+          "bytes": 49179302,
+          "sha256": "e05d6cd58e43cd00d32869e509dd5dddb9043037dc975553b05a3c1740dc1460"
+        },
+        "originPurged": true
+      },
+      "xenia": {
+        "component": "xenia",
+        "pin": "build-utils/xenia/core-pin.json",
+        "pinSha256": "efe5d6e1a0afa5a6b7346725de20e534c4247caa892f58583df5d1d0e7479300",
+        "payloadFingerprint": "5adfe13dde3c681773d4f1be915f8a7d03fad5db2d6db23fd8ac040d3b23b613",
+        "packagedFingerprint": "5adfe13dde3c681773d4f1be915f8a7d03fad5db2d6db23fd8ac040d3b23b613",
+        "binaries": {
+          "ios-arm64": "e21881c7880d7e50fbc8e41e8145d7a8ba561983df76d5ed024ad02a35783577"
+        },
+        "sideImages": [
+          {
+            "path": "Frameworks/libmetalirconverter.dylib",
+            "sha256": "bd6b729dcbde133a511d95130eb4d287a1e18b4170453f8b350e78a20bfc37aa",
+            "signatureFreeSha256": "b52636527c1e3f68876d9ffc079e19c298350d8631eb2f284632aff4b879fa1e"
+          }
+        ]
+      },
+      "s2arm": {
+        "component": "s2arm",
+        "pin": "build-utils/s2arm/engine-pin.json",
+        "pinSha256": "b65db18456ea8777353c6317692945576f5752176bb69518efffb29d6f99758d",
+        "payloadFingerprint": "7798f065487c9977891a9dc6317800a4d7e54d5726b2610deb991f3479ac98b9",
+        "packagedFingerprint": "7798f065487c9977891a9dc6317800a4d7e54d5726b2610deb991f3479ac98b9",
+        "binaries": {
+          "NS2Pro.framework/Info.plist": "44dac793ca3bc49870f56c528aefebb7cb2b7b9b44cb0c8d7f27472e0020856f",
+          "NS2Pro.framework/LICENSE": "fabdc0b5765c50ec6cd12f2c64900946fd2bc990a5a9d1575400400086175c24",
+          "NS2Pro.framework/NS2Pro": "08a4abe87c8f4c940f9a81c30b85d86ac1b1c923a54c2b0622f632973629e4a4",
+          "S2ArmEngine.framework/Headers/rb_guest.h": "8405853c1d2db2e74c4ea905015112b382f532b79a9f5dc2ba14b5f9d4a6cc0e",
+          "S2ArmEngine.framework/Info.plist": "fff7a6d26519626cd7ef3d92e1bc3b3c53bfc22cd6002559a3c2673914f0028e",
+          "S2ArmEngine.framework/RBIndirect/expand.metallib": "393599e1d509b016579b36922e44ad8a976d38cf4e4920bb0f09c67e8fa593b8",
+          "S2ArmEngine.framework/RBIndirect/mask-check.metallib": "cb815a03224602197fd8f330343987c6881b60eff7a136436bc652c14aa40b86",
+          "S2ArmEngine.framework/RBIndirect/mask.metallib": "e39c8b7958d8f4f8b2ebdefbf835e97dfe1ab961e56bbb3ed0f3b74d60d2c15c",
+          "S2ArmEngine.framework/RBIndirect/widen.metallib": "6ec2f2140a580d68fae4408a74ddb0cd72712ddade32220326eebf6a70f408be",
+          "S2ArmEngine.framework/S2ArmDirectChain.txt": "f7d62a4cfac858ef5ec9a66a0c3fde00ac282d07e647bc7bd9e7b894e13c1c65",
+          "S2ArmEngine.framework/S2ArmEngine": "d757f24062831252bfae96be893de113078f144738620c0a8333590c115c7fe2",
+          "S2ArmEngine.framework/S2ArmShaderXfp.txt": "4a267500efb1e22c5a514925e6418c252c6cd1a1c4744f5c667727ed09b6c1e4",
+          "S2ArmEngine.framework/en.lproj/InfoPlist.strings": "a0d7779fc0fd3092ff2eb5a3d6e548a7d0f173a3b67427d8233bc0141d6b166d",
+          "S2ArmEngine.framework/en.lproj/S2ArmHost.strings": "ab2176ab6120625ed26fec53bfb35c7019221f53e37da4d8f405cff9e558fb8a",
+          "S2ArmEngine.framework/fr.lproj/S2ArmHost.strings": "c31c3a84bdb5c6c7b3bff0fec462cac55997658d09fd43e4894e4207dc9317a7",
+          "S2ArmEngine.framework/zh-Hans.lproj/InfoPlist.strings": "78c7f16614b9144af93c0ea52a182587046abd4fcade2d941e16f26c983d1b1d",
+          "S2ArmEngine.framework/zh-Hans.lproj/S2ArmHost.strings": "1d6cf8c6915c23f42083a76ae4accfe50b61f5c435af9a8c14ef4081f3c2e15c",
+          "prepare/S2ArmPrepare.xcframework.zip": "80ed6cd43bdc67fa1936f5ec130f29ffb309c1ad41d39ab068dfc16f76f53b4c",
+          "sysdata/SHA256SUMS": "d69cee225120276ede73c2a7710a2f40df0fc85443f498254538b24f557ace29"
+        },
+        "sideImages": []
+      }
+    },
+    "physicalDeviceTested": false,
+    "gameTested": false,
+    "fpsGainProven": false
+  },
+  "legalNotices": {
+    "dolphin": "Legal/Dolphin-Wiimmfi",
+    "armsx2": "Legal/ARMSX2"
+  },
+  "engines": {
+    "armsx2": {
+      "name": "ARMSX2",
+      "version": "2.6.1 \u00b7 git 7fbe993f"
+    },
+    "dolphin": {
+      "name": "DolphiniOS",
+      "version": "git 7cac5416 \u00b7 RewindBox d65376e0"
+    },
+    "rpcs3": {
+      "name": "RPCS3",
+      "version": "Build 948 \u00b7 git 5da69bbd"
+    },
+    "melonx": {
+      "name": "RSwitch (MeloNX)",
+      "version": "2.7 \u00b7 RewindBox 693c9c94"
+    },
+    "xenia": {
+      "name": "XeniOS",
+      "version": "2.3.2 \u00b7 SHA-256 e21881c7"
+    },
+    "s2arm": {
+      "name": "S2Arm",
+      "version": "git 6b6a5715 \u00b7 RewindBox 491008cf"
+    }
+  }
+}
