@@ -12,36 +12,59 @@
 #include <string.h>
 
 enum { PAIRS = 12, DISPATCHES = 20 };
+static id<MTLComputePipelineState> ps[2]; static id<MTLBuffer> dst[2], args[2], rb[2], src, offs; static id<MTLCommandQueue> q; static uint32_t inWords, outWords, n;
+static double sample(int v);
 static int cmpd(const void *a, const void *b) { double x = *(const double *)a, y = *(const double *)b; return (x > y) - (x < y); }
+
+static double sample(int v) {
+    id<MTLCommandBuffer> cb = [q commandBuffer];
+    id<MTLBlitCommandEncoder> f = [cb blitCommandEncoder]; [f fillBuffer:dst[v] range:NSMakeRange(0, dst[v].length) value:0xA5]; [f endEncoding];
+    id<MTLCommandBuffer> run = [q commandBuffer];
+    id<MTLComputeCommandEncoder> e = [run computeCommandEncoder];
+    [e setComputePipelineState:ps[v]];
+    [e setBuffer:args[v] offset:0 atIndex:0];
+    [e setBytes:&inWords length:4 atIndex:1];
+    [e setBytes:&outWords length:4 atIndex:2];
+    [e setBuffer:offs offset:0 atIndex:3];
+    [e useResource:src usage:MTLResourceUsageRead];
+    [e useResource:dst[v] usage:MTLResourceUsageRead | MTLResourceUsageWrite];
+    NSUInteger tg = MIN((NSUInteger)256, ps[v].maxTotalThreadsPerThreadgroup);
+    for (int d = 0; d < DISPATCHES; d++) [e dispatchThreads:MTLSizeMake(n, 1, 1) threadsPerThreadgroup:MTLSizeMake(tg, 1, 1)];
+    [e endEncoding];
+    id<MTLCommandBuffer> back = [q commandBuffer];
+    id<MTLBlitCommandEncoder> c = [back blitCommandEncoder]; [c copyFromBuffer:dst[v] sourceOffset:0 toBuffer:rb[v] destinationOffset:0 size:rb[v].length]; [c endEncoding];
+    [cb commit]; [run commit]; [back commit]; [back waitUntilCompleted]; [run waitUntilCompleted];
+    if (run.status == MTLCommandBufferStatusError) { fprintf(stderr, "command buffer error: %s\n", run.error.localizedDescription.UTF8String); exit(1); }
+    return (run.GPUEndTime - run.GPUStartTime) * 1e3;   // the dispatches alone: the fill and the read-back are separate command buffers
+}
 
 int main(int argc, char **argv) { @autoreleasepool {
     if (argc < 8) { fprintf(stderr, "usage: %s A.metallib B.metallib case n in_words bind_off scatter\n", argv[0]); return 2; }
     id<MTLDevice> dev = MTLCreateSystemDefaultDevice();
     if (!dev) { fprintf(stderr, "SKIP: no Metal device\n"); return 77; }
     const char *name = argv[3];
-    uint32_t n = (uint32_t)strtoul(argv[4], NULL, 0), inWords = (uint32_t)strtoul(argv[5], NULL, 0), bindOff = (uint32_t)strtoul(argv[6], NULL, 0);
+    n = (uint32_t)strtoul(argv[4], NULL, 0); inWords = (uint32_t)strtoul(argv[5], NULL, 0); uint32_t bindOff = (uint32_t)strtoul(argv[6], NULL, 0);
     int scatter = atoi(argv[7]);
-    NSError *err = nil; id<MTLComputePipelineState> ps[2];
+    NSError *err = nil;
     for (int v = 0; v < 2; v++) {
         id<MTLLibrary> lib = [dev newLibraryWithURL:[NSURL fileURLWithPath:@(argv[1 + v])] error:&err];
         id<MTLFunction> fn = [lib newFunctionWithName:@"k_ab"];
         ps[v] = fn ? [dev newComputePipelineStateWithFunction:fn error:&err] : nil;
         if (!ps[v]) { fprintf(stderr, "pipeline %c: %s\n", 'A' + v, err.localizedDescription.UTF8String); return 1; }
     }
-    id<MTLCommandQueue> q = [dev newCommandQueue];
-    const uint32_t outWords = n * 4;
-    id<MTLBuffer> src = [dev newBufferWithLength:((size_t)inWords + bindOff + 4) * 4 options:MTLResourceStorageModePrivate];
+    q = [dev newCommandQueue];
+    outWords = n * 4;
+    src = [dev newBufferWithLength:((size_t)inWords + bindOff + 4) * 4 options:MTLResourceStorageModePrivate];
     id<MTLBuffer> srcUp = [dev newBufferWithLength:((size_t)inWords + bindOff + 4) * 4 options:MTLResourceStorageModeShared];
     uint32_t *sp = (uint32_t *)srcUp.contents;
     for (size_t i = 0; i < (size_t)inWords + bindOff + 4; i++) sp[i] = (uint32_t)(i * 2654435761u) ^ 0x5bd1e995u;
-    id<MTLBuffer> offs = [dev newBufferWithLength:(size_t)n * 4 options:MTLResourceStorageModeShared];
+    offs = [dev newBufferWithLength:(size_t)n * 4 options:MTLResourceStorageModeShared];
     int32_t *op = (int32_t *)offs.contents;
     for (uint32_t i = 0; i < n; i++) {
         uint32_t w = scatter ? (uint32_t)(((uint64_t)i * 2654435761u) % (inWords / 4)) * 4 : (i * 4) % inWords;
         op[i] = (int32_t)(w * 4);   // byte offset of a 16-byte group inside the bound range
     }
-    id<MTLBuffer> dst[2], args[2], rb[2];
-    for (int v = 0; v < 2; v++) {
+        for (int v = 0; v < 2; v++) {
         dst[v] = [dev newBufferWithLength:((size_t)outWords + bindOff + 4) * 4 options:MTLResourceStorageModePrivate];
         rb[v] = [dev newBufferWithLength:((size_t)outWords + bindOff + 4) * 4 options:MTLResourceStorageModeShared];
         args[v] = [dev newBufferWithLength:16 options:MTLResourceStorageModeShared];
@@ -51,26 +74,6 @@ int main(int argc, char **argv) { @autoreleasepool {
     {   id<MTLCommandBuffer> cb = [q commandBuffer]; id<MTLBlitCommandEncoder> b = [cb blitCommandEncoder];
         [b copyFromBuffer:srcUp sourceOffset:0 toBuffer:src destinationOffset:0 size:srcUp.length]; [b endEncoding]; [cb commit]; [cb waitUntilCompleted]; }
     double t[2][PAIRS], pct[PAIRS]; int fails = 0;
-    double (^sample)(int) = ^double(int v) {
-        id<MTLCommandBuffer> cb = [q commandBuffer];
-        id<MTLBlitCommandEncoder> f = [cb blitCommandEncoder]; [f fillBuffer:dst[v] range:NSMakeRange(0, dst[v].length) value:0xA5]; [f endEncoding];
-        id<MTLCommandBuffer> run = [q commandBuffer];
-        id<MTLComputeCommandEncoder> e = [run computeCommandEncoder];
-        [e setComputePipelineState:ps[v]];
-        [e setBuffer:args[v] offset:0 atIndex:0];
-        [e setBytes:&inWords length:4 atIndex:1];
-        [e setBytes:&outWords length:4 atIndex:2];
-        [e setBuffer:offs offset:0 atIndex:3];
-        [e useResource:src usage:MTLResourceUsageRead];
-        [e useResource:dst[v] usage:MTLResourceUsageRead | MTLResourceUsageWrite];
-        NSUInteger tg = MIN((NSUInteger)256, ps[v].maxTotalThreadsPerThreadgroup);
-        for (int d = 0; d < DISPATCHES; d++) [e dispatchThreads:MTLSizeMake(n, 1, 1) threadsPerThreadgroup:MTLSizeMake(tg, 1, 1)];
-        [e endEncoding];
-        id<MTLBlitCommandEncoder> c = [run blitCommandEncoder]; [c copyFromBuffer:dst[v] sourceOffset:0 toBuffer:rb[v] destinationOffset:0 size:rb[v].length]; [c endEncoding];
-        [cb commit]; [run commit]; [run waitUntilCompleted];
-        if (run.status == MTLCommandBufferStatusError) { fprintf(stderr, "command buffer error: %s\n", run.error.localizedDescription.UTF8String); exit(1); }
-        return (run.GPUEndTime - run.GPUStartTime) * 1e3;   // includes the read-back copy, the same for A and B
-    };
     sample(0); sample(1);   // warm-up
     printf("case,pair,variant,gpu_ms\n");
     for (int p = 0; p < PAIRS; p++) {
