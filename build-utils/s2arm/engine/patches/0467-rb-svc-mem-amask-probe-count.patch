@@ -1,0 +1,33 @@
+diff --git a/runtime/src/svc_mem.c b/runtime/src/svc_mem.c
+index 67fe087e4..0cb53c0eb 100644
+--- a/runtime/src/svc_mem.c
++++ b/runtime/src/svc_mem.c
+@@ -267,8 +267,10 @@ static uint8_t *g_amask;   // 每宿主页一字节，低 4 位 = 哪几个 4 KB
+ #ifdef S2A_UNIT_TEST
+ static uint64_t g_amask_probes;
+ #define AMASK_PROBE() (++g_amask_probes)
++#define AMASK_PROBE_N(n) (g_amask_probes += (uint64_t)(n))
+ #else
+ #define AMASK_PROBE() ((void)0)
++#define AMASK_PROBE_N(n) ((void)0)
+ #endif
+ static uint8_t *amask_at(uint64_t a) { AMASK_PROBE(); if (!g_amask) g_amask = calloc(L.alias_size / HPG, 1); return g_amask + (a - L.alias_base) / HPG; }
+ 
+@@ -611,7 +613,7 @@ static void query(uint64_t addr, s2a_meminfo *o) {   // 持 g_mu
+         while (lo > L.alias_base) {
+             if (!(lo & (HPG - 1))) {
+                 while (lo - L.alias_base >= step8) {
+-                    uint64_t w; memcpy(&w, amask_at(lo - step8), sizeof w);
++                    uint64_t w; memcpy(&w, amask_at(lo - step8), sizeof w); AMASK_PROBE_N(7);
+                     if (w != want64) break;
+                     lo -= step8;
+                 }
+@@ -624,7 +626,7 @@ static void query(uint64_t addr, s2a_meminfo *o) {   // 持 g_mu
+         while (hi < aend) {
+             if (!(hi & (HPG - 1))) {
+                 while (aend - hi >= step8) {
+-                    uint64_t w; memcpy(&w, amask_at(hi), sizeof w);
++                    uint64_t w; memcpy(&w, amask_at(hi), sizeof w); AMASK_PROBE_N(7);
+                     if (w != want64) break;
+                     hi += step8;
+                 }
