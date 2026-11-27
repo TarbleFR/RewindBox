@@ -27,6 +27,8 @@ Le diagnostic exporte `networkProfiles`, le nombre de lectures ayant reçu ce pr
 
 Les écritures et réinitialisations réseau du jeu restent aussi en mémoire pendant Wiimmfi. Elles reprennent leur comportement Dolphin habituel hors ligne. Le banc compile le vrai header Dolphin et les corps de lecture, d’écriture et de réinitialisation du profil. Cent cycles vérifient le profil automatique, l’absence de proxy et de paramètres Wi-Fi dans sa copie, la conservation des métadonnées, puis l’égalité intégrale du profil d’origine après retour hors ligne. Il échouait avant correction et réussit après. Les 27 requêtes réseau répétées cent fois continuent de ne faire aucun appel hôte hors ligne.
 
+Core ABI 5 pour iPhoneOS arm64 compilé au commit `e18f9e559`. Le contrôle du banc C++ et du bridge contre le SDK iPhoneOS passe dans le [run 46039681495](https://github.com/TarbleFR/RewindBox/actions/runs/46039681495). Archive `15218953877` et neuf entrées source vérifiées. SHA-256 du Core `68f49ab2444ceb801f34875a4b5c2acd9222ec0e5e5e7b34f8f9167a515d11ab`.
+
 ## Préparation guidée
 
 Pour `RMCP01` (Europe), `RMCE01` (Amérique du Nord), `RMCJ01` (Japon) et `RMCK01` (Corée), DiscIO lit la région et la révision de l’image déclarée. L’application vérifie à nouveau ces éléments et l’empreinte complète avant de lancer cette copie. Aucun patchage ou réencodage du jeu n’est effectué sur iPhone.
