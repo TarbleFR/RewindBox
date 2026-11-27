@@ -6891,6 +6891,41 @@
       },
       "reading": "Hardware-independent counts only; no timing. The corpus does not exercise either translator switch, so it cannot measure them. The state digest needs a repeat of the baseline before it can serve as an equivalence check: replay_compare.py now runs each variant 5 times in rotating order and compares the state digest only when the baseline's own runs agree.",
       "physical_device_status": "not measured"
+    },
+    {
+      "schema_version": "2.0",
+      "timestamp": "2026-11-27T11:45:00+00:00",
+      "label": "0469_guards_engine_compile_and_replay_equivalence",
+      "host": {
+        "gpu": "Apple Paravirtual device (macOS 26 runner)",
+        "runs": {
+          "engine": 45982852470,
+          "trace": 45985592718,
+          "digest_fixed": 45986463824
+        },
+        "commits": [
+          "33d653f67",
+          "f4a545bc6",
+          "0dbe4056d"
+        ]
+      },
+      "runs_per_variant": 5,
+      "results": {
+        "engine": "macos-15 and macos-26 green, make ios 442 s, 153 exports, S2ArmDirectChain 0be3f28548fd unchanged, patch 0469 sha256 af87f50e..., t_far 111/111, t_tdump_stress 300/300, guest QoS A/B and D32F/S8 pixel checks pass",
+        "homebrew_fidelity": "metal_readback 3 programs x 6/6 exact against the Vulkan oracle (256, 16384, 16384 bytes)",
+        "pipeline_driver_12_pairs_median_ms": {
+          "fresh": 3.4735,
+          "one_fresh": 1.727,
+          "vertex_fresh": 1.8995,
+          "crossed": 0.0516,
+          "repeated": 0.0611
+        },
+        "homebrew_pacing_limit1_12_pairs": "gpu_work_p50 0.401-0.592 ms (median about 0.53), encode_commit_thread_cpu_p95 0.026-0.068 ms, 0 intervals over 16.67 ms",
+        "replay_equivalence": "After the digest fix (only record slots each call reads), the baseline state digest and per-draw traces are identical over 5 runs; rec_imp_off, producer_cover_on and noload_off: state identical and pixels identical in 5/5 runs; tbdr_store_lookahead: pixels identical, state different (pass merge, expected).",
+        "timing_dependent_in_pass_cut": "tab_cache_off run 0 and draw_barriers_full run 4 (2 of 30 variant runs, 0 of 10 baseline runs): the 3-target MRT pass is ended after 220 of its draws and reopened with Load in one of 3 frames (commits 3 -> 3.3, load_bytes +262144 and store_bytes +262144 per frame on average, i.e. +786432 bytes each way in that frame). Cause read in the engine: upstream sub_cut_pass cuts an open pass every 64 draws when no segment is in flight (GPU idle). Pixels identical."
+      },
+      "reading": "Engine compiled with 0469's guards; fidelity and synthetic pipeline compilation checked on the new engine (runner-to-runner variance forbids comparing these times with run 45958486174). The replay digest is now a valid equivalence check. The in-pass cut is a submission cost on tile GPUs (a full store and reload of every attachment) taken in exchange for GPU idle time; its balance on A18 Pro is not measured.",
+      "physical_device_status": "not measured"
     }
   ],
   "accepted_optimizations": [
@@ -6978,9 +7013,10 @@
     "Metal encode-thread command recording: dispatch share reduced by 0468 (per-class IMP); the Metal work inside each call and DmRecEnc stand-in allocation (~35 ns per encoder) remain, unmeasured on device",
     "Submission lookahead and render-pass/copy analysis CPU cost (sdx_walk, udc/fb/defer lookaheads) and GPU frametime pacing",
     "First-use pipeline compilation and residency measured separately from CPU key construction",
-    "Presentation queue scheduling, native frame pacing and physical iPhone 16 Pro Max 1x 60 FPS / thermal validation (unmeasured)"
+    "Presentation queue scheduling, native frame pacing and physical iPhone 16 Pro Max 1x 60 FPS / thermal validation (unmeasured)",
+    "Timing-dependent in-pass cut (upstream sub_cut_pass, every 64 draws when the GPU is idle): on a tile GPU each cut stores and reloads every attachment of the open pass; seen on the synthetic frame in 2 of 30 runs (+786 KB each way at 3 x 256x256 RGBA8). Its count per frame and its GPU balance on A18 Pro are unmeasured"
   ],
-  "next_axis": "Compile the full engine with 0469's two guards ([s2arm-engine], macOS 15 and 26) with pipeline_driver (12 pairs), homebrew metal_readback (3 programs x 6) and homebrew pacing; rerun the replay metrics 5x per variant to validate the state digest. Then, if the digest is stable: use it to test submit-side CPU candidates (record counts per draw, arena allocations per draw: 677 for 372 draws) on the synthetic frame. GPU timing search stays closed on the runner (no Metal 4).",
+  "next_axis": "Submission GPU cost of the in-pass cut: add replay variants forcing it (DM_NVN_CUT=0 to forbid, small DM_NVN_CUT to provoke) and count attachment bytes per cut on the synthetic frame; then time a forced-cut vs no-cut frame on the Mac GPU in one process (GPU time, paired, 12 pairs) to bound the bandwidth cost against the idle time it removes. A change of the cut rule needs that bound and pixel/state equivalence; A18 Pro frame time stays unmeasured.",
   "legacy_note": "First 21 entries are original host summaries. Their draft patch numbers describe historical experiments; numbers may differ from integrated engine patches. Cachegrind counters are on x86. The uncalibrated projections were withdrawn. No legacy entry establishes fidelity, A18 Pro frametime, GPU time, energy, RAM or FPS.",
   "initial_reference": "0426",
   "intermediate_reference": "0436 (8be902ac0)",
@@ -6997,7 +7033,7 @@
     "consecutive_rejections_after_0463_before_0464": 0,
     "rejected_during_0464_0466_cycle": 1,
     "consecutive_rejections_at_0466": 0,
-    "last_updated": "2026-11-27T10:40:00Z",
+    "last_updated": "2026-11-27T11:45:00Z",
     "consecutive_rejections_at_0467": 0,
     "consecutive_rejections_after_0468_lock_merge": 1,
     "consecutive_rejections_at_0468": 0,
@@ -7005,7 +7041,7 @@
     "consecutive_rejections_after_0469_submit_direct": 2,
     "consecutive_rejections_at_0470": 0,
     "consecutive_rejections_after_0469_metrics": 0,
-    "counter_note_0469_metrics": "The two dismissals of 2026-11-27 (TBDR default, constant-index WideLoads) were not implemented and are not counted, as for the earlier dismissals by analysis."
+    "counter_note_0469_metrics": "The two dismissals of 2026-11-27 (TBDR default, constant-index WideLoads) were not implemented and are not counted, as for the earlier dismissals by analysis. The 0469 compile and harness fixes are measurement-only and do not reset or add to the count."
   },
   "device_metrics": {
     "native_fps": null,
@@ -7038,6 +7074,11 @@
       "normal_comparisons": 220,
       "normal_callback_machine_code_identical_on_linux": true,
       "physical_generated_and_native_fps": null
+    },
+    {
+      "patch": "0469",
+      "evidence": "build-utils/s2arm/engine/tests/t_rb_replay_metrics.m, replay_compare.py",
+      "note": "Replay metrics: 5 runs per variant in rotating order, per-draw trace (RBM_TRACE), state digest over the record slots each call reads; engine compile of the two 0469 guards in run 45982852470."
     }
   ],
   "layer_rotation_review": "iOS front adapter creates one layer and reuses it even across a display switch. No evidence of layer-object rotation as a steady-state iPhone performance bottleneck. Mac replacement and device mutation differ; do not assume an old residencySet can be recovered from the layer after a device change.",
@@ -7275,6 +7316,10 @@
     {
       "date": "2026-11-27",
       "note": "Runs 45969449378, 45971054149 and 45972678814 (0469 replay lab) failed on the paravirtual GPU: no MTLResidencySet, then supportsPlacementSparse throwing through valueForKey. 0469 now routes the missing set through S2A_NO_RESIDENCY_SET (MDIE by default) and reads the property under @try. These two guards change shipped code: an [s2arm-engine] compile follows (0470 run 45958486174 predates them)."
+    },
+    {
+      "date": "2026-11-27",
+      "note": "Replay state digest was unstable in runs 45974878139 and 45982852470 because it mixed record slots the call does not read (RO_R_DRAW a[3..7], high words of float slots) left over from reused record blocks: a harness bug, not an engine effect. Fixed in 0dbe4056d (run 45986463824)."
     }
   ]
 }
