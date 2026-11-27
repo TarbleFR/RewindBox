@@ -905,3 +905,7 @@ Un mot de 64 bits par fichier réunit la position et la longueur du chemin. La l
 - **0505** déclenche le relevé à partir des notifications système en profil strict. Témoin `S2A_RB_SPEC_EVENT_WAKE=0`.
 
 [Paires et protocole physique](../../../docs/evidence/s2arm-thermal-0502-0505.md).
+
+### 0506–0512 — préparation NVN2, présentation et mesure CPU/GPU
+
+0506 publie sur option le premier bloc prêt de l’encodeur. 0507 permet sept calculs scalaires indépendants pendant le rejeu asynchrone. 0508 corrige le remboursement d’une réservation de présentation refusée en Metal 3. 0509 observe ou utilise un slot libre sur le délégué NVN2. 0510 relie les commandes Metal et les tickets d’affichage dans une fenêtre bornée. 0511 termine les lectures diagnostiques avant de rendre le slot au producteur. 0512 relève la cadence des présentations demandées aux minutes 1, 5, 10, 20 et 30. [Interrupteurs et protocole](../../../tools/s2arm_a18pro/NEXT_PARALLELISM.md).

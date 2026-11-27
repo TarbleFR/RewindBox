@@ -21,7 +21,13 @@ static uint64_t rbm_arena_calls, rbm_arena_bytes, rbm_res_adds;
 // A GPU without residency sets (the Mac runner's paravirtual device): every allocation the engine makes resident is declared on each encoder instead (rbm_track)
 static int rbm_tracked;
 #define S2A_NO_RESIDENCY_SET() (rbm_tracked = 1, fprintf(stderr, "replay metrics: no residency set on this GPU, resources declared per encoder\n"))
+// Keep the Metal backend's real device scope for its own calls. In the opt-in
+// host fixture only, the HLE's separate TU can exercise its real replay worker.
+static int rbm_candidate;
+#define nvn_rb_thermal_scope rbm_native_thermal_scope
 #include "nvn_mtl.m"
+#undef nvn_rb_thermal_scope
+int nvn_rb_thermal_scope(void) { return rbm_candidate || rbm_native_thermal_scope(); }
 #include "nvn_protos.h"
 
 extern void *h_nvnBootstrapLoader(const char *name);
@@ -37,7 +43,16 @@ static uint64_t rbm_exec_n[RBM_OPS];
 static uint64_t rbm_work_h = 0xcbf29ce484222325ull;
 static uint64_t rbm_h = 0xcbf29ce484222325ull, rbm_draws, rbm_dispatches, rbm_load_bytes, rbm_store_bytes, rbm_clear_atts, rbm_dontcare_atts, rbm_copy_bytes, rbm_fill_bytes;
 static inline uint64_t rbm_mix(uint64_t h, uint64_t v) { for (int i = 0; i < 8; i++) { h ^= (v >> (8 * i)) & 0xff; h *= 0x100000001b3ull; } return h; }
-static void rbm_put(unsigned op) { if (op < RBM_OPS) atomic_fetch_add_explicit(&rbm_put_n[op], 1, memory_order_relaxed); }
+static _Atomic int rbm_worker_seen;
+static __thread int rbm_thread_checked;
+static void rbm_put(unsigned op) {
+    if (rbm_candidate && !rbm_thread_checked) {
+        rbm_thread_checked = 1;
+        char name[64] = {0};
+        if (!pthread_getname_np(pthread_self(), name, sizeof name) && !strcmp(name, "rb-nvn-replay"))
+            atomic_store(&rbm_worker_seen, 1);
+    }
+    if (op < RBM_OPS) atomic_fetch_add_explicit(&rbm_put_n[op], 1, memory_order_relaxed); }
 // Canonical object numbers by first sight (pointers differ from one process to the next; the order of first use does not when the work is the same)
 static nvn_hmap rbm_ids = {.klen = 8}; static uint64_t rbm_next_id;
 static uint64_t rbm_id(uint64_t p) { if (!p) return 0; void *v = nvn_hm_get(&rbm_ids, &p); if (v) return (uint64_t)(uintptr_t)v; nvn_hm_put(&rbm_ids, &p, (void *)(uintptr_t)++rbm_next_id); return rbm_next_id; }
@@ -140,6 +155,21 @@ static void rbm_track(void) {
 //   so that two runs can be compared line by line (replay_compare.py names the first line where the baseline's own runs part)
 static void rbm_trace(const rec_t *r) {
     if (!rbm_tf) return;
+    if (rbm_candidate) {
+        // Exactly the scalar operands consumed by rec_exec; unused record slots may be stale.
+        int count = 0;
+        switch (r->op) {
+        case RO_BAR_QUEUE: case RO_BAR_AFTER_STAGES: case RO_BAR_ENCODER: count = 3; break;
+        case RO_M3_WAIT: case RO_M3_UPD: count = r->a[0] ? 2 : 1; break;
+        case RO_M3_MB: count = 1; break;
+        default: break;
+        }
+        if (count) {
+            fprintf(rbm_tf, "S %u", r->op);
+            for (int i = 0; i < count; ++i) fprintf(rbm_tf, " %llu", (unsigned long long)r->a[i]);
+            fputc('\n', rbm_tf);
+        }
+    }
     switch (r->op) {
     case RO_RE_BEGIN: fprintf(rbm_tf, "P"); for (int k = 0; k < rbm_pass.n; k++) fprintf(rbm_tf, " %llu:%d", (unsigned long long)rbm_id((uint64_t)(uintptr_t)(__bridge void *)rbm_pass.tex[k]), rbm_pass.load[k]); fprintf(rbm_tf, "\n"); break;
     case RO_END: fprintf(rbm_tf, "E\n"); break;
@@ -587,6 +617,8 @@ int main(int argc, char **argv) { @autoreleasepool {
     setenv("DM_NVN_SHMAP", map, 1); setenv("DM_PSO_USER", user, 1); setenv("DM_PSO_ARCHIVE", "0", 1); setenv("DM_PRESENT_LINK", "0", 1);
     BOOL gob_array = argc == 2 && !strcmp(argv[1], "--gob-array");
     if (gob_array) REQUIRE(setenv("S2A_RB_GOB_RECTS", "1", 1) == 0);
+    rbm_candidate = getenv("RBM_PARALLEL_REPLAY") && !strcmp(getenv("RBM_PARALLEL_REPLAY"), "1");
+    if (rbm_candidate) nvn_be_begin_session();
     NVNdeviceBuilder db; API(nvnDeviceBuilderSetDefaults)(&db); REQUIRE(API(nvnDeviceInitialize)(&dev, &db));
     NVNqueueBuilder qb; API(nvnQueueBuilderSetDefaults)(&qb); API(nvnQueueBuilderSetDevice)(&qb, &dev); REQUIRE(API(nvnQueueInitialize)(&queue, &qb)); mtl_init();
     if (gob_array) { rbm_gob_array(); unlink(map); unlink(user); return 0; }
@@ -633,6 +665,7 @@ int main(int argc, char **argv) { @autoreleasepool {
     uint64_t base_put[RBM_OPS] = {0}, base_exec[RBM_OPS] = {0}, pass0 = 0, draw0 = 0, bwl0 = 0, bws0 = 0, ar0 = 0, arb0 = 0, rs0 = 0, d0 = 0, k0 = 0, ld0 = 0, st0 = 0, cl0 = 0, dc0 = 0, cp0 = 0, fl0 = 0, cut0 = 0, pcut0 = 0, mh0 = 0, bk0 = 0;
     uint64_t empty_ds_base = 0;
     double *frame_ms = calloc((size_t)frames, sizeof *frame_ms); REQUIRE(frame_ms);   // wall time of each measured frame, submit to queue finish (Mac runner: CPU encode + GPU + idle, not an iPhone frame time)
+    NVNT_nvnDeviceGetTextureHandle scalar_query = rbm_candidate ? API(nvnDeviceGetTextureHandle) : NULL;
     for (int f = 0; f <= frames; f++) {
         rbm_ptrace_n = 0; rbm_ptrace[0] = 0;   // the queue is idle here: the trace holds the last frame only
         if (f == 1) { for (int i = 0; i < RBM_OPS; i++) { base_put[i] = atomic_load(&rbm_put_n[i]); base_exec[i] = rbm_exec_n[i]; }
@@ -646,7 +679,12 @@ int main(int argc, char **argv) { @autoreleasepool {
         record_frame();
         NVNcommandHandle h = API(nvnCommandBufferEndRecording)(&cmd); REQUIRE(h);
         struct timespec t0, t1; clock_gettime(CLOCK_MONOTONIC, &t0);
-        API(nvnQueueSubmitCommands)(&queue, 1, &h); API(nvnQueueFinish)(&queue); REQUIRE(!mtl_last_commit_error());
+        API(nvnQueueSubmitCommands)(&queue, 1, &h);
+        if (scalar_query) {
+            uint32_t id = 7u + (uint32_t)f;
+            REQUIRE((uint64_t)scalar_query(&dev, (int)id, 3) == (id | (UINT64_C(3) << 20)));
+        }
+        API(nvnQueueFinish)(&queue); REQUIRE(!mtl_last_commit_error());
         clock_gettime(CLOCK_MONOTONIC, &t1);
         if (f >= 1) frame_ms[f - 1] = (t1.tv_sec - t0.tv_sec) * 1e3 + (t1.tv_nsec - t0.tv_nsec) / 1e6;
     }
@@ -675,6 +713,11 @@ int main(int argc, char **argv) { @autoreleasepool {
            PF(rbm_load_bytes - ld0), PF(rbm_store_bytes - st0), PF(rbm_clear_atts - cl0), PF(rbm_dontcare_atts - dc0), PF(rbm_copy_bytes - cp0), PF(rbm_fill_bytes - fl0),
            PF(rbm_arena_calls - ar0), PF(rbm_arena_bytes - arb0), PF(rbm_res_adds - rs0), PF(g_stat_pass - pass0), PF(g_stat_draw - draw0), PF(g_bw_load - bwl0), PF(g_bw_store - bws0), PF(g_cuts - cut0), PF(g_pass_cuts - pcut0), PF(g_rb_m3_hint_hits - mh0), PF(pr[RO_M3_BOFF]), PF(g_rb_m3_bind_skip - bk0),
            (unsigned long long)rbm_h, (unsigned long long)rbm_work_h, (unsigned long long)px, !memcmp(pr, ex, sizeof pr));
+    if (rbm_candidate) {
+        int worker = getenv("S2A_RB_REPLAY_WORKER") && !strcmp(getenv("S2A_RB_REPLAY_WORKER"), "1");
+        REQUIRE(atomic_load(&rbm_worker_seen) == worker);
+        printf("CANDIDATE worker_seen=%d scalar_checks=%d\n", atomic_load(&rbm_worker_seen), frames+1);
+    }
     printf("TIMES"); for (int i = 0; i < frames; i++) printf(" %.4f", frame_ms[i]); printf("\n"); free(frame_ms);
     printf("PASSES%s\n", rbm_ptrace);
     printf("OPS");

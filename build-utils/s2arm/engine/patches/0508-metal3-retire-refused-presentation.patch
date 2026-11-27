@@ -1,0 +1,85 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 419c5ca..fb6e5f7 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -524,11 +524,16 @@ static inline void fb_add(id o, fb_fn h) { if (g_m3) [(NSMutableArray *)o addObj
+ // A Metal 3 command buffer on g_q3. Unretained references as on Metal 4, where command buffers retain nothing: the replay already keeps what a command buffer uses alive until its fence
+ // has completed (defer_obj_release, g_done is advanced by the completion handler)
+ static id<MTLCommandBuffer> m3_cb(void) { return [g_q3 commandBufferWithUnretainedReferences]; }
+-static void m3_commit(id<MTLCommandBuffer> cb, NSArray *fb, id<MTLSharedEvent> ev, uint64_t v) {
+-    if (!gpu_go()) return;   // GPU 安全停后不交（反馈处理也不挂：不会再有回调）
++static int m3_commit_with_setup(id<MTLCommandBuffer> cb, NSArray *fb, id<MTLSharedEvent> ev, uint64_t v, void (^setup)(void)) {
++    if (!gpu_go() || !cb) return 0;
++    if (setup) setup();   // Only accepted work can register a drawable or benchmark sample.
+     for (fb_fn h in fb) [cb addCompletedHandler:^(id<MTLCommandBuffer> c) { h((id)c); }];
+     if (ev) [cb encodeSignalEvent:ev value:v];
+     [cb commit];
++    return 1;
++}
++static void m3_commit(id<MTLCommandBuffer> cb, NSArray *fb, id<MTLSharedEvent> ev, uint64_t v) {
++    m3_commit_with_setup(cb, fb, ev, v, nil);
+ }
+ // 旧队列上「交了就等完」的几处（回读 / 截图 / 帧录放）：安全停后不交也不等（没交的命令缓冲 waitUntilCompleted 永远不返回），返回 0，调用方按没拿到结果处理
+ // RewindBox (patch 0072): the residency set committed once before a command buffer, not at each place that adds to it. res_commit ran where pools became resident (pool_res), where
+@@ -29741,6 +29746,7 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+     size_t dark_texels = 0; int dark_layout = 0;   // RewindBox (patch 0331): the dark-frame probe's rows of this present (rb_dark_encode); 0 texels: not read. S2A_RB_DARK_PROBE=0: as before
+     if (g_m3) {
+         cb3 = [g_q3 commandBuffer];   // retained references: keeps the drawable and the source until it is done
++        if (!cb3) return 0;
+         ext_wait3(cb3);
+         if (!present_encode_slot(cb3, src, dr.texture, crop, alloc_i)) return 0;
+     } else if (@available(macOS 26.0, iOS 26.0, *)) {
+@@ -29793,9 +29799,28 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+         if (f.error && !mtl_gpu_cb_error(f.error, "present", ticket)) MLOG("【红】 display command buffer error: %s", f.error.description.UTF8String);
+         pthread_mutex_lock(&g_pq_mu); g_present_slot_done[alloc_i] = ticket; if (aa) aa->busy = NO; if (fxs) fxs->busy = NO; rb_present_complete(ticket); g_pq_inflight--; RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu);
+     });
+-    pthread_mutex_lock(&g_pq_mu); if (aa) aa->busy = YES; if (fxs) fxs->busy = YES; g_pq_inflight++; pthread_mutex_unlock(&g_pq_mu);
+-    if (g_m3) { present_m3(cb3, dr, ticket, period, target_ts); m3_commit(cb3, o, nil, 0); }
+-    else {
++    // Publish the owner before submission, including callbacks that run before commit returns.
++    pthread_mutex_lock(&g_pq_mu);
++    g_present_alloc_fence[alloc_i] = ticket;
++    if (aa) aa->busy = YES;
++    if (fxs) fxs->busy = YES;
++    g_pq_inflight++;
++    pthread_mutex_unlock(&g_pq_mu);
++    if (g_m3) {
++        int accepted = m3_commit_with_setup(cb3, o, nil, 0, ^{ present_m3(cb3, dr, ticket, period, target_ts); });
++        if (!accepted) {
++            // No work was submitted and no feedback can arrive. Undo only our reservation.
++            // Both callers retire a refused logical ticket and wake their waiters.
++            pthread_mutex_lock(&g_pq_mu);
++            g_present_alloc_fence[alloc_i] = g_present_slot_done[alloc_i];
++            if (aa) aa->busy = NO;
++            if (fxs) fxs->busy = NO;
++            g_pq_inflight--;
++            pthread_mutex_unlock(&g_pq_mu);
++            present_store(ticket, -1);
++            return 0;
++        }
++    } else {
+         // Publish residency before every Metal 4 present submit, including resources added during encoding (#298).
+         res_commit();
+         id<MTL4CommandBuffer> buffers[] = {cb}; [rb_present_queue() commit:buffers count:1 options:o];
+@@ -29822,7 +29847,6 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+         }
+     }
+     if (!g_m3) [rb_present_queue() signalDrawable:dr];
+-    g_present_alloc_fence[alloc_i] = ticket;
+     if (g_m3) { (void)frame; return 1; }   // presented by its command buffer (present_m3)
+ #if TARGET_OS_SIMULATOR   // The iOS simulator SDK has no presentation-time callback and no minimum display duration (used only for picture acceptance, display-link ticks are not counted)
+     (void)period; [dr present];
+diff --git a/graphics/nvn/tests/t_nvn_gpu_halt.m b/graphics/nvn/tests/t_nvn_gpu_halt.m
+index bb23f63..4d64edf 100644
+--- a/graphics/nvn/tests/t_nvn_gpu_halt.m
++++ b/graphics/nvn/tests/t_nvn_gpu_halt.m
+@@ -74,6 +74,9 @@ int main(void) {
+         VERIFY(!pa && a.status == MTLCommandBufferStatusNotEnqueued, "cb_put 不交（状态 %ld，0 = 未入队）", (long)a.status);
+         VERIFY(!rb && b.status == MTLCommandBufferStatusNotEnqueued && ms < 50, "cb_run 不交也不等（%.2f ms）", ms);
+         id<MTLCommandBuffer> c = [g_q3 ?: g_q commandBuffer]; m3_commit(c, nil, nil, 0);
++        __block int registered = 0;
++        int accepted = m3_commit_with_setup(c, nil, nil, 0, ^{ registered++; });
++        VERIFY(!accepted && !registered, "refused present does not register a drawable");
+         VERIFY(c.status == MTLCommandBufferStatusNotEnqueued, "m3_commit 不交");
+         if (!g_m3 && g_q4) { id cb4 = [g_dev newCommandBuffer]; rec_commit_upload(cb4, nil); VERIFY(1, "Metal 4 rec_commit_upload 安全停后返回（没交未开始的命令缓冲，交了会抛异常）"); }
+         uint64_t pn = g_present_n;

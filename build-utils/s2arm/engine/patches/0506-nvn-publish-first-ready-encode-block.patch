@@ -1,0 +1,111 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_rec.h b/graphics/nvn/gfx/nvn/nvn_rec.h
+index 58ed8ab..3d08807 100644
+--- a/graphics/nvn/gfx/nvn/nvn_rec.h
++++ b/graphics/nvn/gfx/nvn/nvn_rec.h
+@@ -152,7 +152,7 @@ enum {
+ #define S2A_REC_EXEC_HOOK(r) ((void)0)
+ #endif
+ typedef struct { uint32_t op, nobj; uint64_t a[15]; } rec_t;   // the first nobj slots hold retained objects (0 for nil), released once the call is made
+-enum { REC_BLK = 256 };
++enum { REC_BLK = 256, REC_FIRST_BLK = 64 };
+ typedef struct rec_blk { struct rec_blk *next; int n; rec_t r[REC_BLK]; } rec_blk;
+
+ // On by default on iOS: Breath of the Wild on an iPhone 17 Pro Max (handheld, the Great Plateau) took about 8 ms of submit thread per frame without it and 3.3–4.5 ms with it
+@@ -178,6 +178,9 @@ static pthread_cond_t g_rb_work = PTHREAD_COND_INITIALIZER, g_rb_idle = PTHREAD_
+ static rec_blk *g_rb_cur, *g_rb_head, *g_rb_tail, *g_rb_free;   // the submit thread's open block; blocks waiting for the encode thread; empty blocks
+ static int g_rb_busy, g_rb_started, g_rb_sleeping, g_rb_idle_waiters;   // the encode thread is working through a block; the thread exists; it waits for work; threads waiting on g_rb_idle
+
++// Submit-thread state. Only the first main block after a drain may be shorter.
++static int g_rb_early = -1, g_rb_first = 1, g_rb_limit = REC_BLK;
++
+ static inline uint64_t rec_obj(id o) { return o ? (uint64_t)(uintptr_t)CFBridgingRetain(o) : 0; }
+ static inline id rec_id(uint64_t v) { return (__bridge id)(void *)(uintptr_t)v; }
+ static inline uint64_t rec_f(float f) { uint32_t u; memcpy(&u, &f, 4); return u; }
+@@ -436,11 +439,19 @@ static rec_t *rec_put(uint32_t op, uint32_t nobj) {
+     if (g_rlane) { int k = g_rlane; rec_blk *b = g_lane_tail[k];
+         if (!b || b->n == REC_BLK) { rec_blk *nb = rec_blk_get(); if (b) b->next = nb; else g_lane_head[k] = nb; g_lane_tail[k] = b = nb; }
+         rec_t *r = &b->r[b->n++]; r->op = op; r->nobj = nobj; return r; }
+-    if (g_rb_cur && g_rb_cur->n == REC_BLK) rec_publish();
++    // rec_put returns a slot for its caller to fill. At the NEXT reservation all
++    // slots in the preceding main block are complete, including object retains.
++    if (g_rb_cur && g_rb_cur->n == g_rb_limit) rec_publish();
+     if (!g_rb_cur) {
+         pthread_mutex_lock(&g_rb_mu);
+         if (!g_rb_started) { pthread_t th; pthread_attr_t at; pthread_attr_init(&at); pthread_attr_setstacksize(&at, 1 << 20);
+             if (pthread_create(&th, &at, rec_thread, NULL)) MDIE("deferred encoding: cannot start the encode thread"); pthread_attr_destroy(&at); g_rb_started = 1; }
++        if (g_rb_early < 0) {
++            const char *e = getenv("S2A_RB_REC_EARLY");
++            g_rb_early = e && !strcmp(e, "1");
++        }
++        g_rb_limit = g_rb_early && g_rb_first && !g_rb_head && !g_rb_busy ? REC_FIRST_BLK : REC_BLK;
++        g_rb_first = 0;
+         g_rb_cur = g_rb_free; if (g_rb_cur) g_rb_free = g_rb_cur->next;
+         pthread_mutex_unlock(&g_rb_mu);
+         if (!g_rb_cur) { g_rb_cur = malloc(sizeof *g_rb_cur); if (!g_rb_cur) MDIE("deferred encoding: out of memory"); }
+@@ -457,6 +468,7 @@ static void rec_drain(void) {
+     rec_publish();
+     pthread_mutex_lock(&g_rb_mu);
+     if (g_rb_head || g_rb_busy) { uint64_t w0 = now_ns(); g_rb_idle_waiters++; while (g_rb_head || g_rb_busy) RB_WAKE_CALL("encode.wait", -1, pthread_cond_wait(&g_rb_idle, &g_rb_mu)); g_rb_idle_waiters--; t_rb_blk[1] += now_ns() - w0; }   // RewindBox (patch 0068): timed (nvn_mtl.m t_rb_blk)
++    g_rb_first = 1;
+     pthread_mutex_unlock(&g_rb_mu);
+     g_rlane = lane;
+ }
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index 79d8dca..ddfae5a 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -310,6 +310,7 @@ int nvn_be_shutdown_session(void) {
+     pthread_mutex_lock(&g_rb_mu);
+     while (g_rb_free) { rec_blk *b = g_rb_free; g_rb_free = b->next; free(b); }
+     if (g_rb_cur) { free(g_rb_cur); g_rb_cur = NULL; }
++    g_rb_early = -1; g_rb_first = 1;
+     g_rx_cb = g_rx_enc = nil;
+     pthread_mutex_unlock(&g_rb_mu);
+     // Native widening holds copied uniform buffers and per-shader core ids.
+diff --git a/graphics/nvn/tests/t_nvn_wait_event.m b/graphics/nvn/tests/t_nvn_wait_event.m
+index 7022807..890a1f4 100644
+--- a/graphics/nvn/tests/t_nvn_wait_event.m
++++ b/graphics/nvn/tests/t_nvn_wait_event.m
+@@ -135,6 +135,42 @@ static int rb_worker_sync_checks(void) {
+            "real encode worker consumes prior operation, native wait record and later operation in order");
+     VERIFY(rb_order_on_worker, "event wait API executes on dm-encode rather than submit");
+     VERIFY(!kept, "real encode worker releases the retained event before reporting idle");
++
++    // Hold the 64th reservation before its caller has assigned the retained
++    // block. The queue must still be idle with every record private to submit.
++    static _Atomic unsigned seen;
++    dispatch_semaphore_t prefix = dispatch_semaphore_create(0);
++    __weak NSObject *weak_token = nil;
++    for (unsigned i = 0; i < 63; i++)
++        rec_queue_block(^{ REQUIRE(atomic_fetch_add(&seen, 1) == i); });
++    rec_t *boundary = rec_put(RO_Q_BLOCK, 1);
++    pthread_mutex_lock(&g_rb_mu);
++    int private_prefix = !g_rb_head && !g_rb_busy && g_rb_cur && g_rb_cur->n == 64;
++    pthread_mutex_unlock(&g_rb_mu);
++    REQUIRE(private_prefix && atomic_load(&seen) == 0);
++    @autoreleasepool {
++        NSObject *token = [NSObject new];
++        weak_token = token;
++        boundary->a[0] = rec_obj([^{
++            REQUIRE(token && atomic_fetch_add(&seen, 1) == 63);
++            dispatch_semaphore_signal(prefix);
++        } copy]);
++    }
++    @autoreleasepool { VERIFY(weak_token != nil, "record 64 owns its captured token while the block is private"); }
++    rec_queue_block(^{ REQUIRE(atomic_fetch_add(&seen, 1) == 64); });
++    const char *early_env = getenv("S2A_RB_REC_EARLY");
++    int early = early_env && !strcmp(early_env, "1");
++    if (early) {
++        REQUIRE(dispatch_semaphore_wait(prefix, dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC)) == 0);
++        VERIFY(g_rb_cur && g_rb_cur->n == 1 && atomic_load(&seen) == 64,
++               "the worker consumes exactly the 64 complete records before submit drains");
++    } else {
++        VERIFY(g_rb_cur && g_rb_cur->n == 65 && atomic_load(&seen) == 0,
++               "the control keeps all 65 records private until drain");
++    }
++    rec_drain();
++    VERIFY(atomic_load(&seen) == 65 && weak_token == nil,
++           "all records execute in order and the worker releases the token before acknowledging drain");
+     g_cb = nil;
+     printf("Encode worker checks: %u/%u; real dm-encode, simulated queue API\n", checks - failures, checks);
+     return failures != 0;

@@ -59,11 +59,19 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path)
     parser.add_argument("--summarize",action="store_true")
-    parser.add_argument("--host-report", action="store_true",
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument("--parallel-depths", action="store_true",
+                       help="compare four warmed, order-balanced offscreen admission policies")
+    modes.add_argument("--host-report", action="store_true",
                         help="report host data and omit all GPU metrics for batches with unresolved timestamps")
     args=parser.parse_args()
+    if args.parallel_depths:
+        from parallel_summary import summarize_depths
+        report = lambda: summarize_depths(args.output)
+    else:
+        report = lambda: summarize(args.output, args.host_report)
     if args.summarize:
-        summarize(args.output, args.host_report)
+        report()
         return 0
     here=Path(__file__).resolve().parent
     ref=next(r for r in json.loads((here.parent/"reference-output.json").read_text()) if r["id"]=="switchbrew/deko_basic")
@@ -77,10 +85,11 @@ def main():
         exe=Path(d)/"measure"
         subprocess.run(["xcrun","--sdk","macosx","clang","-O2","-Wall","-Wextra","-Werror","-fobjc-arc",
                         here/"measure.m","-framework","Metal","-framework","Foundation","-o",exe],check=True)
-        rc=subprocess.run([exe,msl,"vk_"+key,args.output,*(["--host-report"] if args.host_report else [])]).returncode
+        flags = ["--parallel-depths"] if args.parallel_depths else ["--host-report"] if args.host_report else []
+        rc=subprocess.run([exe,msl,"vk_"+key,args.output,*flags]).returncode
         if rc:
             return rc
-    summarize(args.output, args.host_report)
+    report()
     return 0
 
 

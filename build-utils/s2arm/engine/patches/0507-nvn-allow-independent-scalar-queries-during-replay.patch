@@ -1,0 +1,114 @@
+--- a/graphics/nvn/gfx/nvn/hle_nvn.c
++++ b/graphics/nvn/gfx/nvn/hle_nvn.c
+@@ -112,11 +112,13 @@
+ static __thread int rb_replay_worker_thread;
+ typedef struct { int held; } rb_replay_guard;
+ static rb_replay_guard rb_replay_enter(int hold);
++static rb_replay_guard rb_replay_scalar_enter(void);
+ static void rb_replay_leave(rb_replay_guard *guard);
+ static void rb_replay_join(void);
+ static void rb_replay_stop(void);
+ static void rb_replay_begin(void);
+ #define RB_REPLAY_GUARD(hold) rb_replay_guard rb_guard_ __attribute__((cleanup(rb_replay_leave))) = rb_replay_enter(hold)
++#define RB_REPLAY_SCALAR_GUARD() rb_replay_guard rb_guard_ __attribute__((cleanup(rb_replay_leave))) = rb_replay_scalar_enter()
+ #define NVN(name, ret, ...)                                                                       \
+     static ret h_##name(__VA_ARGS__);                                                             \
+     static const NVNT_##name chk_##name __attribute__((unused)) = h_##name;                       \
+@@ -273,10 +275,10 @@
+     if (w <= 1) { static int api[2] = {-1, -1}; if (api[0] < 0) { nvn_api(api); const char *e = getenv("DM_NVN_API"); if (e) sscanf(e, "%d.%d", &api[0], &api[1]); } *out = api[w]; }
+     OLOG("DeviceGetInteger %#x -> %d", w, *out);
+ }
+-NVN(nvnDeviceGetImageHandle, NVNimageHandle, const NVNdevice *d, int id) { RB_REPLAY_GUARD(1); (void)d; return (NVNimageHandle)id; }
++NVN(nvnDeviceGetImageHandle, NVNimageHandle, const NVNdevice *d, int id) { RB_REPLAY_SCALAR_GUARD(); (void)d; return (NVNimageHandle)id; }
+ // Separate texture / sampler handles: value = descriptor index (the sampler index goes in bit 20 and above, consistent with the bit layout of combined handles)
+-NVN(nvnDeviceGetSeparateTextureHandle, NVNseparateTextureHandle, const NVNdevice *d, int id) { RB_REPLAY_GUARD(1); (void)d; return (NVNseparateTextureHandle){(uint64_t)id}; }
+-NVN(nvnDeviceGetSeparateSamplerHandle, NVNseparateSamplerHandle, const NVNdevice *d, int id) { RB_REPLAY_GUARD(1); (void)d; return (NVNseparateSamplerHandle){(uint64_t)id << 20}; }
++NVN(nvnDeviceGetSeparateTextureHandle, NVNseparateTextureHandle, const NVNdevice *d, int id) { RB_REPLAY_SCALAR_GUARD(); (void)d; return (NVNseparateTextureHandle){(uint64_t)id}; }
++NVN(nvnDeviceGetSeparateSamplerHandle, NVNseparateSamplerHandle, const NVNdevice *d, int id) { RB_REPLAY_SCALAR_GUARD(); (void)d; return (NVNseparateSamplerHandle){(uint64_t)id << 20}; }
+ NVN(nvnDeviceInstallDebugCallback, void, NVNdevice *d, const PFNNVNDEBUGCALLBACKPROC cb, void *data, uint32_t enable) { RB_REPLAY_GUARD(1);
+     dev_t_ *o = (dev_t_ *)d; o->dbg_cb = B(enable) ? (void *)cb : NULL; o->dbg_data = data;
+ }
+@@ -5873,9 +5875,9 @@
+ NVN(nvnCommandBufferDrawTransformFeedback, void, NVNcommandBuffer *c, NVNdrawPrimitive m, NVNbufferAddress a) { rec_draw(c, (p_draw){.prim = m, .count = 1, .instances = 1, .tfc = a ? GA(a) : 1}); }   // as many vertices as were captured (replay: nvn_geometry.inc tfd_args)
+
+ // Device: combined texture handle = texture id | sampler id << 20 (same encoding as the separate handles)
+-NVN(nvnDeviceGetTextureHandle, NVNtextureHandle, const NVNdevice *d, int tex, int samp) { RB_REPLAY_GUARD(1); (void)d; return (NVNtextureHandle)((uint64_t)(uint32_t)tex | (uint64_t)(uint32_t)samp << 20); }
++NVN(nvnDeviceGetTextureHandle, NVNtextureHandle, const NVNdevice *d, int tex, int samp) { RB_REPLAY_SCALAR_GUARD(); (void)d; return (NVNtextureHandle)((uint64_t)(uint32_t)tex | (uint64_t)(uint32_t)samp << 20); }
+ // Handle for texel fetches only (Monster Hunter Rise): a fetch reads the texture descriptor and no sampler, so the handle is the texture ID with sampler ID 0
+-NVN(nvnDeviceGetTexelFetchHandle, NVNtextureHandle, const NVNdevice *d, int tex) { RB_REPLAY_GUARD(1); (void)d; return (NVNtextureHandle)(uint64_t)(uint32_t)tex; }
++NVN(nvnDeviceGetTexelFetchHandle, NVNtextureHandle, const NVNdevice *d, int tex) { RB_REPLAY_SCALAR_GUARD(); (void)d; return (NVNtextureHandle)(uint64_t)(uint32_t)tex; }
+ // Counter timestamps are 19.2 MHz GPU ticks (nvn_mtl.m gpu_ticks: ns × 12 / 625); convert back to ns. They used to be returned as is, about 52 times smaller than GetCurrentTimestampInNanoseconds, so subtracting one from the other gave garbage
+ // RewindBox (patch 0328): the call is noted for the interval-2 episode trace (rb_itv_converted: which report the game reads, and how far its time lies ahead of the guest clock now); the value is as before
+ NVN(nvnDeviceGetTimestampInNanoseconds, uint64_t, const NVNdevice *d, const NVNcounterData *c) { RB_REPLAY_GUARD(1); (void)d; rb_itv_converted(c->timestamp); return c->timestamp * 625 / 12; }
+@@ -6107,10 +6109,10 @@
+     const pool_t *p = (const pool_t *)nvn2_getp(b, DCB_POOL); int64_t off; memcpy(&off, (const uint8_t *)b + DCB_OFF, 8);
+     return p ? pool_ga(p) + (uint64_t)off : 0; }
+ // 设备命令句柄的内存大小（0x6570b0）：句柄低 2 位 = 2 的才是设备命令句柄，大小在第 40 位起（按 4 字节对齐）；宿主的命令句柄是记录段地址（低位 0）→ 回 0，同驱动对普通句柄
+-NVN_NOPROTO(nvnDeviceGetCommandHandleMemorySize, uint64_t, const NVNdevice *d, uint64_t h) { RB_REPLAY_GUARD(1); (void)d; return (h & 3) == 2 ? (h >> 38) & 0x3fffffc : 0; }
++NVN_NOPROTO(nvnDeviceGetCommandHandleMemorySize, uint64_t, const NVNdevice *d, uint64_t h) { RB_REPLAY_SCALAR_GUARD(); (void)d; return (h & 3) == 2 ? (h >> 38) & 0x3fffffc : 0; }
+ // 统一缓冲区句柄（无绑定 UBO：着色器从内存读到它当地址用）：照驱动公式（0x673630：高位 0x1e0000000000 + 参数 2 << 41，取第 45 位以上，低位 = 地址 / 16）。
+ //   怎么解这个句柄是着色器翻译的事（不归本层）
+-NVN_NOPROTO(nvnDeviceGetUniformBufferHandle, uint64_t, const NVNdevice *d, uint64_t addr, uint64_t n) { RB_REPLAY_GUARD(1);
++NVN_NOPROTO(nvnDeviceGetUniformBufferHandle, uint64_t, const NVNdevice *d, uint64_t addr, uint64_t n) { RB_REPLAY_SCALAR_GUARD();
+     (void)d; return ((0x1e0000000000ull + (n << 41)) & 0xffffe00000000000ull) | (addr >> 4); }
+ NVN_NOPROTO(nvnDeviceGetFlags, int, const NVNdevice *d) { RB_REPLAY_GUARD(1); return (int)((const dev_t_ *)d)->flags; }   // 驱动 ldr w0, [x0, #8]：设备构建器给的标志
+
+--- a/graphics/nvn/gfx/nvn/rb_replay_worker.inc
++++ b/graphics/nvn/gfx/nvn/rb_replay_worker.inc
+@@ -16,6 +16,8 @@
+ static int rb_replay_running, rb_replay_closed, rb_replay_failed;
+ static uint64_t rb_replay_sent, rb_replay_done, rb_replay_wait_ns;
+ static _Atomic int rb_replay_mode=-1;
++// Publish the guard policy together with worker activation so rollback is exact.
++enum { RB_REPLAY_INACTIVE, RB_REPLAY_GUARD_ALL, RB_REPLAY_INDEPENDENT_SCALARS };
+ static _Atomic int rb_replay_active;
+ static int rb_replay_enabled(void) {
+     int m=atomic_load_explicit(&rb_replay_mode,memory_order_relaxed);
+@@ -50,6 +52,13 @@
+     rb_replay_join();
+     if (!hold) pthread_mutex_unlock(&rb_replay_admission);
+     return (rb_replay_guard){hold};
++}
++// Only NVN entry points whose complete result is computed from register
++// arguments may use this path. They never read guest, queue or device memory.
++static rb_replay_guard rb_replay_scalar_enter(void) {
++    if (atomic_load_explicit(&rb_replay_active,memory_order_relaxed) != RB_REPLAY_GUARD_ALL)
++        return (rb_replay_guard){0};
++    return rb_replay_enter(1);
+ }
+ static void rb_replay_leave(rb_replay_guard *g) {
+     if (g->held) pthread_mutex_unlock(&rb_replay_admission);
+@@ -86,12 +95,14 @@
+     pthread_mutex_lock(&rb_replay_mu);
+     if (rb_replay_closed || rb_replay_failed || dm_gfx_session_stopping()) { pthread_mutex_unlock(&rb_replay_mu); return 0; }
+     if (!rb_replay_running) {
+-        atomic_store_explicit(&rb_replay_active,1,memory_order_release);
++        const char *scalar=getenv("S2A_RB_REPLAY_SCALAR_QUERIES");
++        int policy=scalar && !strcmp(scalar,"1") ? RB_REPLAY_INDEPENDENT_SCALARS : RB_REPLAY_GUARD_ALL;
++        atomic_store_explicit(&rb_replay_active,policy,memory_order_release);
+         pthread_attr_t attr; pthread_attr_init(&attr);
+         int e=pthread_attr_setstacksize(&attr,8u<<20);
+         if (!e) e=pthread_create(&rb_replay_thread,&attr,rb_replay_main,NULL);
+         pthread_attr_destroy(&attr);
+-        if (e) { atomic_store_explicit(&rb_replay_active,0,memory_order_release); rb_replay_failed=1; pthread_mutex_unlock(&rb_replay_mu); LOG("[rb-replay] worker unavailable: %d; synchronous replay retained",e); return 0; }
++        if (e) { atomic_store_explicit(&rb_replay_active,RB_REPLAY_INACTIVE,memory_order_release); rb_replay_failed=1; pthread_mutex_unlock(&rb_replay_mu); LOG("[rb-replay] worker unavailable: %d; synchronous replay retained",e); return 0; }
+         rb_replay_running=1;
+         LOG("[rb-replay] ordered CPU worker active; capacity=%d, immutable streams retained",RB_REPLAY_JOBS);
+     }
+@@ -136,7 +147,7 @@
+     pthread_cond_broadcast(&rb_replay_cv); pthread_mutex_unlock(&rb_replay_mu);
+     if (running) pthread_join(rb_replay_thread,NULL);
+     rb_replay_running=0;
+-    atomic_store_explicit(&rb_replay_active,0,memory_order_release);
++    atomic_store_explicit(&rb_replay_active,RB_REPLAY_INACTIVE,memory_order_release);
+     LOG("[rb-replay] stopped: submitted=%llu completed=%llu admission_wait_ms=%.3f",
+         (unsigned long long)rb_replay_sent,(unsigned long long)rb_replay_done,rb_replay_wait_ns/1e6);
+     pthread_mutex_unlock(&rb_replay_admission);
+@@ -146,6 +157,6 @@
+     rb_replay_head=rb_replay_count=0; rb_replay_closed=rb_replay_failed=0;
+     rb_replay_sent=rb_replay_done=rb_replay_wait_ns=0;
+     atomic_store_explicit(&rb_replay_mode,-1,memory_order_relaxed);
+-    atomic_store_explicit(&rb_replay_active,0,memory_order_release);
++    atomic_store_explicit(&rb_replay_active,RB_REPLAY_INACTIVE,memory_order_release);
+     atomic_store(&rb_replay_pending,0); atomic_store(&rb_replay_shadow_pressure,0);
+ }

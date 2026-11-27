@@ -430,3 +430,8 @@ index in `services/S2A.Services/RomFsIndex.cs` (S2Arm, Apache-2.0).
 Patches 0502–0505 modify the S2Arm optional-work governor in
 `graphics/nvn/gfx/nvn/{nvn_mtl.m,nvn_session.inc,rb_spec_gate.h,rb_energy_guard.h}`
 (Apache-2.0), including its publication, admission and notification paths.
+
+Patches 0506–0512 extend the Apache-2.0 S2Arm NVN implementation in
+`graphics/nvn/gfx/nvn` and its host checks in `graphics/nvn/tests`, and add an iOS benchmark companion in `ios`.
+They modify encode handoff, scalar replay admission, display-slot retirement
+and timestamp correlation. [Change details](evidence/s2arm-parallelism/README.md).

@@ -1,0 +1,236 @@
+diff --git a/ios/rb_benchmark.m b/ios/rb_benchmark.m
+--- a/ios/rb_benchmark.m
++++ b/ios/rb_benchmark.m
+@@ -131,6 +131,8 @@
+         !s2a_rb_guest_session_over() && !s2a_session_stop_requested() &&
+         s2a_session_generation() == generation && atomic_load(&g_rb_stopped_engine) != generation;
+ }
++#include "rb_long_cadence.inc"
++
+ static void rb_add_reason_locked(NSString *reason) {
+     if (reason.length && ![g_rb_reasons containsObject:reason]) [g_rb_reasons addObject:reason];
+ }
+@@ -171,6 +173,7 @@
+ }
+ uint64_t s2a_rb_bench_generation(void) { return atomic_load_explicit(&g_rb_active, memory_order_relaxed); }
+ void s2a_rb_bench_longframe(uint64_t t, int game_interval, uint64_t sent_period_ns,const struct rb_lf_sample *sample) {
++    rb30_frame();
+     uint64_t generation = s2a_rb_bench_generation();
+     if (!generation) return;
+     pthread_mutex_lock(&g_rb_lock);
+@@ -235,6 +238,7 @@
+ static _Atomic bool rb_long_busy;
+ static _Atomic uint64_t rb_long_interrupt;
+ void s2a_rb_bench_invalidate(const char *reason) {
++    rb30_interrupt(reason);
+     if (atomic_load(&rb_long_busy)) atomic_fetch_add(&rb_long_interrupt,1);
+     if (!s2a_rb_bench_generation()) return;
+     @autoreleasepool {
+@@ -579,6 +583,7 @@
+     pthread_mutex_unlock(&g_rb_lock);
+ }
+ void s2a_rb_bench_end(const char *reason) {
++    rb30_interrupt(reason);
+     if (atomic_load(&rb_long_busy)) atomic_fetch_add(&rb_long_interrupt,1);
+     if (reason && (!strcmp(reason,"stop_requested") || !strcmp(reason,"session_ended") || !strcmp(reason,"session_parked")))
+         atomic_store(&g_rb_stopped_engine,s2a_session_generation());
+@@ -935,6 +940,7 @@
+         @"duration_target_s":@(RB_SECONDS),@"start_ns":@(start),@"metadata":g_rb_metadata,@"initial_conditions":conditions,
+         @"comparable":rb_bool(!reasons.count),@"reasons":reasons};
+     rb_log(begin);
++    if (!reasons.count) rb30_start(identifier,engine_generation,generation,end_serial);
+     if (rb_pso_cap_on() && !reasons.count) rb_long_start(identifier,engine_generation,start);
+     return 0;
+ }
+diff --git a/ios/rb_long_cadence.h b/ios/rb_long_cadence.h
+new file mode 100644
+--- /dev/null
++++ b/ios/rb_long_cadence.h
+@@ -0,0 +1,56 @@
++// SPDX-License-Identifier: Apache-2.0
++#pragma once
++#include <stdint.h>
++#include <string.h>
++
++enum { RB30_MINUTES=30, RB30_REGULAR=512 };
++#define RB30_MINUTE_NS UINT64_C(60000000000)
++#define RB30_BIN_NS UINT64_C(250000)
++
++typedef struct {
++    uint64_t count, first, last, max_inside, max_interval, intervals;
++    uint64_t hist[RB30_REGULAR+1];
++} rb30_bucket;
++typedef struct {
++    uint64_t start, previous, clock_errors;
++    int have_previous;
++    rb30_bucket minute[RB30_MINUTES];
++} rb30_data;
++
++// Each interval belongs to the minute of its right endpoint. No interval is
++// synthesized before the first observation. Repeated or regressing clocks are rejected.
++static inline void rb30_observe(rb30_data *d, uint64_t t) {
++    if (t < d->start || (d->have_previous && t <= d->previous)) { ++d->clock_errors; return; }
++    uint64_t index=(t-d->start)/RB30_MINUTE_NS;
++    if (index>=RB30_MINUTES) return;
++    rb30_bucket *b=&d->minute[index];
++    if (!b->count) b->first=t;
++    else if (t-b->last>b->max_inside) b->max_inside=t-b->last;
++    if (d->have_previous) {
++        uint64_t interval=t-d->previous, bin=(interval-1)/RB30_BIN_NS;
++        ++b->hist[bin<RB30_REGULAR ? bin : RB30_REGULAR]; ++b->intervals;
++        if (interval>b->max_interval) b->max_interval=interval;
++    }
++    ++b->count; b->last=t; d->previous=t; d->have_previous=1;
++}
++static inline uint64_t rb30_larger(uint64_t x, uint64_t y) { return x>y ? x : y; }
++static inline void rb30_merge(rb30_bucket *total, const rb30_bucket *b) {
++    if (!b->count) return;
++    if (total->count) total->max_inside=rb30_larger(total->max_inside,b->first-total->last);
++    else total->first=b->first;
++    total->count+=b->count; total->intervals+=b->intervals; total->last=b->last;
++    total->max_inside=rb30_larger(total->max_inside,b->max_inside);
++    total->max_interval=rb30_larger(total->max_interval,b->max_interval);
++    for (unsigned k=0;k<=RB30_REGULAR;++k) total->hist[k]+=b->hist[k];
++}
++// Zero means undefined (no sample or rank in the open-ended overflow bin).
++static inline uint64_t rb30_quantile(const rb30_bucket *b, unsigned pc) {
++    if (!b->intervals || !pc || pc>100) return 0;
++    uint64_t rank=(b->intervals*pc+99)/100, count=0;
++    for (unsigned k=0;k<RB30_REGULAR;++k) if ((count+=b->hist[k])>=rank) return (k+1)*RB30_BIN_NS;
++    return 0;
++}
++static inline uint64_t rb30_silence(const rb30_bucket *b, uint64_t start, uint64_t end) {
++    if (!b->count) return end-start;
++    return rb30_larger(b->max_inside,rb30_larger(b->first-start,end-b->last));
++}
+diff --git a/ios/rb_long_cadence.inc b/ios/rb_long_cadence.inc
+new file mode 100644
+--- /dev/null
++++ b/ios/rb_long_cadence.inc
+@@ -0,0 +1,126 @@
++// SPDX-License-Identifier: Apache-2.0
++// Native queue-present notifications observed at the benchmark hook, indexed by
++// host observation time. No display, GPU, simulation-speed or energy inference.
++#include "rb_long_cadence.h"
++static pthread_mutex_t rb30_lock=PTHREAD_MUTEX_INITIALIZER;
++static _Atomic uint64_t rb30_active;
++static rb30_data *rb30_live;
++static dispatch_source_t rb30_timer;
++static NSString *rb30_name, *rb30_reason;
++static unsigned rb30_engine;
++static uint64_t rb30_stopped, rb30_owner;
++static const unsigned rb30_points[]={1,5,10,20,30};
++
++static void rb30_frame(void) {
++    uint64_t owner=atomic_load_explicit(&rb30_active,memory_order_relaxed);
++    if (!owner) return;
++    pthread_mutex_lock(&rb30_lock);
++    if (rb30_owner==owner && !rb30_stopped) rb30_observe(rb30_live,rb_now());
++    pthread_mutex_unlock(&rb30_lock);
++}
++static id rb30_p(const rb30_bucket *b,unsigned rank) {
++    uint64_t ns=rb30_quantile(b,rank);
++    return ns ? @(ns/1e6) : NSNull.null;
++}
++static NSDictionary *rb30_row(const rb30_bucket *b,uint64_t from,uint64_t to) {
++    return @{@"duration_ns":@(to-from),@"queue_presents":@(b->count),
++        @"queue_present_hz":to>from ? @(b->count*1e9/(to-from)) : NSNull.null,
++        @"intervals":@(b->intervals),@"p50_upper_ms":rb30_p(b,50),@"p95_upper_ms":rb30_p(b,95),
++        @"p99_upper_ms":rb30_p(b,99),@"overflow_above_128_ms":@(b->hist[RB30_REGULAR]),
++        @"max_interval_ms":b->intervals ? @(b->max_interval/1e6) : NSNull.null,
++        @"longest_without_observation_ms":@(rb30_silence(b,from,to)/1e6)};
++}
++static void rb30_save(NSString *identifier, NSDictionary *report) {
++    char docs[4096]; int n=s2a_container_docs(docs,sizeof docs);
++    if (n<=0 || (size_t)n>=sizeof docs) { LOG("[rb-long-cadence] documents unavailable"); return; }
++    NSString *dir=[@(docs) stringByAppendingPathComponent:@"Diagnostics/S2Arm/benchmarks"];
++    NSString *path=[dir stringByAppendingPathComponent:[identifier stringByAppendingString:@"-native-1800s.json"]];
++    NSError *error=nil;
++    NSData *data=[NSJSONSerialization dataWithJSONObject:report options:0 error:&error];
++    if (!data || ![NSFileManager.defaultManager createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:&error] ||
++        ![data writeToFile:path options:NSDataWritingAtomic error:&error]) NSLog(@"[rb-long-cadence] write failed %@",error);
++}
++// All checkpoints, including explicitly interrupted runs, write on the serial
++// benchmark queue. The source fires at absolute elapsed checkpoints, independent of FPS.
++static void rb30_checkpoint(uint64_t owner) {
++    pthread_mutex_lock(&rb30_lock);
++    if (rb30_owner!=owner) { pthread_mutex_unlock(&rb30_lock); return; }
++    uint64_t now=rb_now(), start=rb30_live->start, end=start+RB30_MINUTES*RB30_MINUTE_NS;
++    if (!rb30_stopped && !rb_engine_running(rb30_engine)) { rb30_stopped=now; rb30_reason=@"session_changed"; }
++    uint64_t stop=rb30_stopped ? rb30_stopped : now;
++    if (stop<start || (rb30_live->have_previous && stop<rb30_live->previous)) {
++        stop=rb30_live->have_previous ? rb30_live->previous+1 : start;
++        rb30_stopped=stop; rb30_reason=@"clock_reversed";
++    }
++    BOOL finished=rb30_stopped || stop>=end;
++    if (stop>end) stop=end;
++    rb30_data *view=malloc(sizeof *view);
++    if (view) memcpy(view,rb30_live,sizeof *view);
++    NSString *identifier=rb30_name, *reason=rb30_reason;
++    unsigned engine=rb30_engine;
++    if (finished) {
++        atomic_store_explicit(&rb30_active,0,memory_order_release); rb30_owner=0;
++        free(rb30_live); rb30_live=NULL; dispatch_source_cancel(rb30_timer); rb30_timer=nil;
++        rb30_name=nil; rb30_reason=nil;
++    } else {
++        for (unsigned k=0;k<sizeof rb30_points/sizeof *rb30_points;++k) {
++            uint64_t target=start+rb30_points[k]*RB30_MINUTE_NS;
++            if (target>now) { dispatch_source_set_timer(rb30_timer,dispatch_time(DISPATCH_TIME_NOW,(int64_t)(target-now)),DISPATCH_TIME_FOREVER,100*NSEC_PER_MSEC); break; }
++        }
++    }
++    pthread_mutex_unlock(&rb30_lock);
++    if (!view) { LOG("[rb-long-cadence] checkpoint allocation failed"); return; }
++    unsigned elapsed=(unsigned)((stop-start)/RB30_MINUTE_NS);
++    NSMutableArray *points=[NSMutableArray array]; rb30_bucket total={0};
++    for (unsigned i=0;i<elapsed;++i) {
++        uint64_t from=start+i*RB30_MINUTE_NS, to=from+RB30_MINUTE_NS;
++        rb30_merge(&total,&view->minute[i]);
++        for (unsigned k=0;k<sizeof rb30_points/sizeof *rb30_points;++k) if (i+1==rb30_points[k])
++            [points addObject:@{@"elapsed_min":@(i+1),@"last_minute":rb30_row(&view->minute[i],from,to),@"cumulative":rb30_row(&total,start,to)}];
++    }
++    // A delayed callback may advance past several milestones. Bins still come
++    // from their wall-clock minutes, including entirely empty ones.
++    if (finished && elapsed<RB30_MINUTES && stop>start+elapsed*RB30_MINUTE_NS) {
++        uint64_t from=start+elapsed*RB30_MINUTE_NS;
++        rb30_merge(&total,&view->minute[elapsed]);
++        [points addObject:@{@"partial_minute":@(elapsed+1),@"from_start_ns":@(stop-start),
++            @"partial":rb30_row(&view->minute[elapsed],from,stop),@"cumulative":rb30_row(&total,start,stop)}];
++    }
++    rb30_save(identifier,@{@"schema":@1,@"benchmark_id":identifier,@"engine_generation":@(engine),@"clock":@"CLOCK_UPTIME_RAW",
++        @"metric":@"host notification of guest QueuePresentTexture with valid swapchain index",@"bin_width_ms":@0.25,
++        @"start_ns":@(start),@"through_ns":@(stop),@"written_at_ns":@(now),@"terminal":@(finished),
++        @"complete":@(elapsed==RB30_MINUTES && !reason),@"clock_errors":@(view->clock_errors),
++        @"cadence_valid":@(elapsed==RB30_MINUTES && !reason && !view->clock_errors),@"reason":reason ?: NSNull.null,@"checkpoints":points});
++    free(view);
++}
++static void rb30_interrupt(const char *reason) {
++    uint64_t owner=atomic_load_explicit(&rb30_active,memory_order_relaxed);
++    if (!owner) return;
++    pthread_mutex_lock(&rb30_lock);
++    if (rb30_owner!=owner || rb30_stopped) { pthread_mutex_unlock(&rb30_lock); return; }
++    rb30_stopped=rb_now();
++    if (rb30_stopped<rb30_live->start+RB30_MINUTES*RB30_MINUTE_NS)
++        rb30_reason=reason ? [[NSString alloc] initWithBytes:reason length:strnlen(reason,256) encoding:NSUTF8StringEncoding] : nil;
++    if (rb30_stopped<rb30_live->start+RB30_MINUTES*RB30_MINUTE_NS && !rb30_reason) rb30_reason=@"interrupted";
++    atomic_store_explicit(&rb30_active,0,memory_order_release);
++    pthread_mutex_unlock(&rb30_lock);
++    dispatch_async(g_rb_queue,^{ rb30_checkpoint(owner); });
++}
++static void rb30_start(NSString *identifier,unsigned engine,uint64_t owner,uint64_t end_serial) {
++    const char *e=getenv("S2A_RB_PARALLEL_LONG");
++    if (!e || strcmp(e,"1")) return;
++    pthread_mutex_lock(&rb30_lock);
++    if (rb30_owner || end_serial!=atomic_load(&g_rb_end_serial) || !rb_engine_running(engine)) {
++        pthread_mutex_unlock(&rb30_lock); LOG("[rb-long-cadence] prior capture active or session changed"); return;
++    }
++    rb30_live=calloc(1,sizeof *rb30_live);
++    rb30_timer=rb30_live ? dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER,0,0,g_rb_queue) : nil;
++    if (!rb30_timer) { free(rb30_live); rb30_live=NULL; pthread_mutex_unlock(&rb30_lock); LOG("[rb-long-cadence] unable to start capture"); return; }
++    rb30_name=[identifier copy]; rb30_engine=engine; rb30_stopped=0; rb30_reason=nil;
++    rb30_live->start=rb_now(); rb30_owner=owner;
++    dispatch_source_set_event_handler(rb30_timer,^{ rb30_checkpoint(owner); });
++    dispatch_source_set_timer(rb30_timer,dispatch_time(DISPATCH_TIME_NOW,(int64_t)RB30_MINUTE_NS),DISPATCH_TIME_FOREVER,100*NSEC_PER_MSEC);
++    atomic_store_explicit(&rb30_active,owner,memory_order_release);
++    dispatch_resume(rb30_timer); pthread_mutex_unlock(&rb30_lock);
++    LOG("[rb-long-cadence] native queue-present observation started");
++}

@@ -1,0 +1,125 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index fb6e5f7..63ef027 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -288,6 +288,10 @@ static uint64_t g_vbuf_resolve, g_vbuf_reuse, g_vbuf_set, g_vbuf_skip;
+ static uint64_t g_rb_ft_addr[31], g_rb_ct_addr[31]; static uint32_t g_rb_ft_valid, g_rb_ct_valid; static uint64_t g_rb_tab_set, g_rb_tab_skip;
+ static id g_present_args;   // tab_new
+ static id<MTLBuffer> g_present_uv[3];
++// Configured once at device creation; check nvn2_on() at use after guest detection.
++enum { RB_SLOT_FIXED, RB_SLOT_OBSERVE, RB_SLOT_FREE };
++static int g_rb_present_slots;
++static _Atomic uint64_t g_rb_slot_attempts, g_rb_slot_opportunities, g_rb_slot_saturated;
+ static uint64_t g_present_alloc_fence[3], g_present_slot_done[3];   // Actual GPU completion per slot. The queue watermark can also advance when tickets are merged.
+ static pthread_mutex_t g_pq_mu = PTHREAD_MUTEX_INITIALIZER;
+ static pthread_cond_t g_pq_cv = PTHREAD_COND_INITIALIZER;
+@@ -1032,6 +1036,9 @@ void mtl_init(void) {
+     const char *vbc = getenv("DM_NVN_VBUF_CACHE"); g_vbuf_cache = !(vbc && !strcmp(vbc, "0"));
+     const char *link = getenv("DM_PRESENT_LINK");
+     g_dm_present_link = link ? atoi(link) : 1; if (g_dm_present_link < 0 || g_dm_present_link > 2) g_dm_present_link = 1;   // Default 1 (real-device same-process alternation: when load exceeds one display-link period, long frames 15% → 0 and frame intervals even out; no difference from 0 at a steady 60); DM_PRESENT_LINK=0 turns it off   // 1 = present on every tick of a 60 Hz display link; 2 = 120 Hz display link, the game presents a frame every other display-link tick (when behind, it can present on the next 8.33 ms display-link tick)
++    const char *slots = getenv("S2A_RB_PRESENT_FREE_SLOT");
++    if (slots && !strcmp(slots, "observe")) g_rb_present_slots = RB_SLOT_OBSERVE;
++    else if (slots && !strcmp(slots, "1")) g_rb_present_slots = RB_SLOT_FREE;
+     const char *latency = getenv("DM_PRESENT_LATENCY");
+     if (latency && !strcmp(latency, "2")) g_present_latency = 2; // Core Animation accepts one or two frames only.
+     g_res_check_on = getenv("DM_RES_CHECK") != NULL;
+@@ -28515,6 +28522,13 @@ static void nvn_mem_detail(unsigned long long frame) {
+ void mtl_res_counts(uint32_t tick, const char *why) {
+     mtl_res_count c;
+     mtl_res_snapshot(&c);
++    if (g_rb_present_slots && nvn2_on()) {
++        LOG("[rb-present-slot] tick=%u mode=%s attempts=%llu alternatives=%llu all_busy=%llu",
++            tick, g_rb_present_slots == RB_SLOT_FREE ? "free" : "observe",
++            (unsigned long long)atomic_load_explicit(&g_rb_slot_attempts, memory_order_relaxed),
++            (unsigned long long)atomic_load_explicit(&g_rb_slot_opportunities, memory_order_relaxed),
++            (unsigned long long)atomic_load_explicit(&g_rb_slot_saturated, memory_order_relaxed));
++    }
+     int dl, du; uint64_t da; nvn_dirty_slot_stats(&dl, &du, &da);
+     LOG("[nvn] resource counts tick %u %s: render_pipelines %u compute_pipelines %u shaders %u depth_stencil_states %u views_nonnull %u view_slots %u live_textures %u pools_live %u pools_total %llu sampler_views_nonnull %u dirty_ranges_live %d dirty_ranges_total %llu c1_buffers %u c1_bytes %llu c1_used %llu gmem_draws %llu/%llu gmem_dispatches %llu/%llu",
+         tick, why, c.pso, c.cps, c.shaders, c.dss, c.view_nonnull, c.view_slots, c.live_tex,
+@@ -29616,7 +29630,7 @@ __attribute__((weak)) int nvn_rb_fb30_holding(void) { return 0; }   // RewindBox
+ // RewindBox (patch 0351): for hle_nvn.c's [rb-speed] line: frame interpolation on (1) or not, and the interpolated and real frames it has shown (presentedTime > 0)
+ int nvn_rb_fi_shown(uint64_t *mid, uint64_t *real);
+ int nvn_rb_fi_shown(uint64_t *mid, uint64_t *real) { *mid = atomic_load(&g_fi_on_mid); *real = atomic_load(&g_fi_on_real); return g_fi_state == 1; }
+-static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t ticket, const int crop[4], id<CAMetalDrawable> supplied, double target_ts) {
++static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t ticket, const int crop[4], id<CAMetalDrawable> supplied, double target_ts, int alloc_i) {
+     if (mtl_gpu_halted()) { atomic_fetch_add_explicit(&g_gpu_refused, 1, memory_order_relaxed); return 0; }   // GPU 安全停：不取画布、不交上屏（调用方按「没交」把票记完成）
+     if (g_present_stall_ns) { struct timespec ts = {0, (long)g_present_stall_ns}; nanosleep(&ts, NULL); }
+     g_present_n++;
+@@ -29730,7 +29744,6 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+     id<CAMetalDrawable> dr = supplied ? supplied : [layer nextDrawable];
+     if (!supplied) g_drawable_ns += now_ns() - dt0;
+     if (!dr) return 0;
+-    int alloc_i = (int)(ticket % 3);
+     present_options();
+     if (g_present_aa || g_present_fx) {
+         pthread_mutex_lock(&g_pq_mu);
+@@ -29877,7 +29890,15 @@ static void ext_wait(uint64_t v) { g_ext_cur = v; if (g_m3) { if (v) g_ext_pend3
+ static void ext_wait3(id<MTLCommandBuffer> cb) { if (g_ext_pend3 && g_ext_ev) [cb encodeWaitForEvent:g_ext_ev value:g_ext_pend3]; g_ext_pend3 = 0; }
+ static pq_item g_pq[PQ];
+ static uint64_t g_pq_in;
+-static int present_now(const tex_t *, double, uint64_t, uint64_t, const int[4], id<CAMetalDrawable>, double);
++// Only the serial display-link delegate or the exclusive classic presenter can encode.
++static int rb_pick_present_slot(int preferred, const uint64_t owner[3], const uint64_t finished[3]) {
++    for (int offset = 0; offset < 3; offset++) {
++        int slot = (preferred + offset) % 3;
++        if (finished[slot] == owner[slot]) return slot;
++    }
++    return -1;
++}
++static int present_now(const tex_t *, double, uint64_t, uint64_t, const int[4], id<CAMetalDrawable>, double, int);
+ static double g_link_vperiod, g_link_vhalf;   // virtual ticks (link_range): seconds per counted tick (0 = every callback is a tick) and half a refresh of the screen
+ // Protected by g_pq_mu. Measure delegate arrivals, before virtual-tick filtering;
+ // a requested range is not proof that Core Animation granted that callback rate.
+@@ -30027,7 +30048,19 @@ static void rb_release_link_rt(uint64_t now) {
+         pthread_mutex_unlock(&g_pq_mu);
+         return;
+     }
+-    unsigned slot = (unsigned)(ticket % 3);
++    int slot = (int)(ticket % 3);
++    if (g_rb_present_slots && nvn2_on()) {
++        // Dropped tickets advance the logical sequence without occupying a physical slot.
++        // This lock and presenter handoff keep slots stable: feedback can only free more.
++        int available = rb_pick_present_slot(slot, g_present_alloc_fence, g_present_slot_done);
++        atomic_fetch_add_explicit(&g_rb_slot_attempts, 1, memory_order_relaxed);
++        if (available < 0) {
++            atomic_fetch_add_explicit(&g_rb_slot_saturated, 1, memory_order_relaxed);
++        } else if (available != slot) {
++            atomic_fetch_add_explicit(&g_rb_slot_opportunities, 1, memory_order_relaxed);
++            if (g_rb_present_slots == RB_SLOT_FREE) slot = available;
++        }
++    }
+     if (exact_hz && g_present_slot_done[slot] < g_present_alloc_fence[slot]) {
+         _window.busy++;
+         pthread_mutex_unlock(&g_pq_mu);
+@@ -30047,7 +30080,7 @@ static void rb_release_link_rt(uint64_t now) {
+     ext_wait(it.ev_val);
+     t_rb_present_hold = it.display_hold;   // RewindBox (patch 0345 review)
+     t_rb_fb30_frame = it.fb30;   // RewindBox (patch 0349)
+-    @autoreleasepool { submitted = present_now(&it.t, it.period, it.frame, ticket, it.crop, drawable, update.targetPresentationTimestamp); }
++    @autoreleasepool { submitted = present_now(&it.t, it.period, it.frame, ticket, it.crop, drawable, update.targetPresentationTimestamp, slot); }
+     pthread_mutex_lock(&g_pq_mu); g_rb_present_encoding--; pthread_cond_broadcast(&g_pq_cv); pthread_mutex_unlock(&g_pq_mu);
+     if (exact_hz) {
+         if (submitted) {
+@@ -30337,7 +30370,7 @@ static void *present_main(void *arg) {
+         uint64_t lv0[2][4], lv1[2][4]; thr_lv_take(lv0);
+         t_rb_present_hold = it.display_hold;   // RewindBox (patch 0345 review)
+         t_rb_fb30_frame = it.fb30;   // RewindBox (patch 0349)
+-        @autoreleasepool { submitted = present_now(&it.t, it.period, it.frame, ticket, it.crop, nil, 0); }
++        @autoreleasepool { submitted = present_now(&it.t, it.period, it.frame, ticket, it.crop, nil, 0, (int)(ticket % 3)); }
+         thr_lv_take(lv1); thr_lv_add(1, lv0, lv1);
+         pthread_mutex_lock(&g_pq_mu); g_classic_busy = 0; g_rb_present_encoding--; RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu);
+         if (!submitted) {
+diff --git a/graphics/nvn/tests/t_nvn_gpu_halt.m b/graphics/nvn/tests/t_nvn_gpu_halt.m
+index 4d64edf..2b9d9e5 100644
+--- a/graphics/nvn/tests/t_nvn_gpu_halt.m
++++ b/graphics/nvn/tests/t_nvn_gpu_halt.m
+@@ -80,7 +80,7 @@ int main(void) {
+         VERIFY(c.status == MTLCommandBufferStatusNotEnqueued, "m3_commit 不交");
+         if (!g_m3 && g_q4) { id cb4 = [g_dev newCommandBuffer]; rec_commit_upload(cb4, nil); VERIFY(1, "Metal 4 rec_commit_upload 安全停后返回（没交未开始的命令缓冲，交了会抛异常）"); }
+         uint64_t pn = g_present_n;
+-        VERIFY(present_now(NULL, 1 / 60.0, 1, 1, NULL, nil, 0) == 0 && g_present_n == pn, "上屏 present_now 不交（上屏计数 %llu 不涨）", (unsigned long long)g_present_n);
++        VERIFY(present_now(NULL, 1 / 60.0, 1, 1, NULL, nil, 0, 1) == 0 && g_present_n == pn, "上屏 present_now 不交（上屏计数 %llu 不涨）", (unsigned long long)g_present_n);
+         tex_t tx; memset(&tx, 0, sizeof tx);
+         VERIFY(present_enqueue(&tx, 1 / 60.0, NULL, 0, 1 / 60.0) == 0, "present_enqueue 回票号 0（游戏不等这一帧）");
+         t0 = now_ns(); nvn_be_drain(); ms = (now_ns() - t0) / 1e6;

@@ -1,0 +1,35 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 63ef027..1b96047 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -29799,17 +29799,23 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+                  (unsigned long)dh, (unsigned long)df, valid, valid ? (end - start) * 1e6 : -1.);
+         });
+     }
+-    if (rl_m4) { id<MTLBuffer> b = g_rl_buf[alloc_i]; NSUInteger w = rw, h = rh; unsigned long long n = rn, tns = rtns;   // added before the slot-release handler below: the slot (and this buffer) is reused only after that one ran
+-        fb_add(o, ^(id<MTL4CommitFeedback> f) { if (!f.error) rl_row(b.contents, w, h, n, tns); }); }
+-    // RewindBox (patch 0331): the dark-frame probe's rows of this image, judged with its frame and ticket once the GPU has run the present (rb_dark_sampled: a dip is a run of at
+-    //   most 8 dark images that starts from and comes back to the level). Added before the slot-release handler below, as DM_NVN_REGLUM's: the slot's buffer is encoded into
+-    //   again only after that one ran. S2A_RB_DARK_PROBE=0: as before, no handler
+-    if (dark_texels) { id<MTLBuffer> b = g_rb_dark_buf[alloc_i]; size_t texels = dark_texels; int layout = dark_layout;
+-        fb_add(o, ^(id<MTL4CommitFeedback> f) { if (!f.error) rb_dark_sampled(b, texels, layout, frame, ticket, f.GPUStartTime, f.GPUEndTime); }); }
++    // A diagnostic readback and release must be ordered even if Metal dispatches
++    // separate feedback handlers concurrently. Keep CPU reads outside g_pq_mu.
++    fb_fn readback = nil;
++    if (rl_m4 || dark_texels) {
++        id<MTLBuffer> region = rl_m4 ? g_rl_buf[alloc_i] : nil;
++        id<MTLBuffer> dark = dark_texels ? g_rb_dark_buf[alloc_i] : nil;
++        readback = ^(id<MTL4CommitFeedback> f) {
++            if (f.error) return;
++            if (region) rl_row(region.contents, rw, rh, rn, rtns);
++            if (dark) rb_dark_sampled(dark, dark_texels, dark_layout, frame, ticket, f.GPUStartTime, f.GPUEndTime);
++        };
++    }
+     NvPresentAA *aa = g_present_aa ? g_present_aa_slots[alloc_i] : nil;
+     NvPresentFX *fxs = g_present_fx ? g_present_fx_slots[alloc_i] : nil;   // 这一帧没用 MetalFX 时也标：槽里的图只要在途就不能被下一次重建换掉
+     fb_add(o, ^(id<MTL4CommitFeedback> f) {
+         if (f.error && !mtl_gpu_cb_error(f.error, "present", ticket)) MLOG("【红】 display command buffer error: %s", f.error.description.UTF8String);
++        if (readback) readback(f);
+         pthread_mutex_lock(&g_pq_mu); g_present_slot_done[alloc_i] = ticket; if (aa) aa->busy = NO; if (fxs) fxs->busy = NO; rb_present_complete(ticket); g_pq_inflight--; RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu);
+     });
+     // Publish the owner before submission, including callbacks that run before commit returns.

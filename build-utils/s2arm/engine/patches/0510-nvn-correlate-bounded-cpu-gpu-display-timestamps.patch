@@ -1,0 +1,355 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 63ef027..601e479 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -520,7 +520,8 @@ void nvn_be_blocked_ns(uint64_t out[4]) { memcpy(out, t_rb_blk, sizeof t_rb_blk)
+ #include "nvn_be.h"
+ // Commit feedback on both backends: fb_new makes the MTL4CommitOptions on Metal 4 and a list on Metal 3, fb_add adds a handler to either. On Metal 3 m3_commit makes each handler a
+ // completed handler and passes it the command buffer, which answers error / GPUStartTime / GPUEndTime as the commit feedback does (the only things the handlers read)
+-typedef void (^fb_fn)(id<MTL4CommitFeedback> f);
++typedef id<MTL4CommitFeedback> rb_metal_feedback;
++typedef void (^fb_fn)(rb_metal_feedback f);
+ static inline id fb_new(void) { return g_m3 ? [NSMutableArray array] : [MTL4CommitOptions new]; }
+ static inline void fb_add(id o, fb_fn h) { if (g_m3) [(NSMutableArray *)o addObject:h]; else [(MTL4CommitOptions *)o addFeedbackHandler:h]; }
+ // Metal 3 commit: the feedback handlers become completed handlers and a fence signal is encoded at its end (Metal 4 signals on the queue after the commit, rec_signal).
+@@ -1812,10 +1813,83 @@ enum { PUSH_SLOT = 13 };   // = dmsh_build.py PUSH_SLOT; the geometry capture pa
+ static float g_wd_push[4];
+ static int g_wd_inst, g_wd_vc;   // S2Arm widen: the current draw's instance / vertex (index) count for wd_draw (draw sets them; 0 = unknown, an indirect draw)
+ // A logical timestamp boundary may share the same physical command buffer (sub_cut).
++#include "rb_parallel_trace.h"
++static rb_pt_gate g_rb_pt;
++typedef struct {
++    uint64_t session, frame, resource;
++    double enqueue;
++} rb_pt_ticket;
++static struct {
++    uint64_t session, frame, cpu_ns;
++    double start;
++    pthread_t thread;
++} g_rb_pt_cb;   // Owned by the serialized NVN replay producer, like g_cb.
++
++static void rb_pt_session_begin(void) {
++    static uint64_t serial;
++    const char *flag = getenv("S2A_RB_PARALLEL_TRACE");
++    const char *from = getenv("S2A_RB_PARALLEL_FROM");
++    uint64_t first = 0;
++    if (from && *from) {
++        char *end = NULL;
++        errno = 0;
++        unsigned long long value = strtoull(from, &end, 10);
++        if (*from >= '0' && *from <= '9' && !errno && !*end &&
++            value <= UINT64_MAX - RB_PT_FRAMES) first = value;
++    }
++    ++serial;
++    uint64_t session = flag && !strcmp(flag, "1") ? serial : 0;
++    rb_pt_configure(&g_rb_pt, session, first);
++    g_rb_pt_cb.session = 0;
++    if (session)
++        MLOG("[rb-parallel] v=1 session=%llu event=begin from=%llu frames=%u cb_cap=%u present_cap=%u",
++             (unsigned long long)session, (unsigned long long)first,
++             RB_PT_FRAMES, RB_PT_CB_CAP, RB_PT_PRESENT_CAP);
++}
++static void rb_pt_frame(uint64_t frame) {
++    uint64_t session = atomic_load_explicit(&g_rb_pt.session, memory_order_acquire);
++    if (!session) return;
++    uint64_t first = atomic_load_explicit(&g_rb_pt.first, memory_order_relaxed);
++    if (frame < first) return;
++    int closing = frame - first >= RB_PT_FRAMES;
++    if (closing && !atomic_compare_exchange_strong(&g_rb_pt.session, &session, 0)) return;
++    unsigned cb, present;
++    if (closing) {
++        cb = rb_pt_close(&g_rb_pt.cb);
++        present = rb_pt_close(&g_rb_pt.present);
++    } else {
++        cb = atomic_load_explicit(&g_rb_pt.cb, memory_order_relaxed) & UINT16_MAX;
++        present = atomic_load_explicit(&g_rb_pt.present, memory_order_relaxed) & UINT16_MAX;
++    }
++    if (cb > RB_PT_CB_CAP && !(atomic_fetch_or(&g_rb_pt.notified, 1u) & 1u))
++        MLOG("[rb-parallel] v=1 session=%llu event=limit stream=cb cap=%u",
++             (unsigned long long)session, RB_PT_CB_CAP);
++    if (present > RB_PT_PRESENT_CAP && !(atomic_fetch_or(&g_rb_pt.notified, 2u) & 2u))
++        MLOG("[rb-parallel] v=1 session=%llu event=limit stream=present cap=%u",
++             (unsigned long long)session, RB_PT_PRESENT_CAP);
++    if (closing)
++        MLOG("[rb-parallel] v=1 session=%llu event=window_end cb_reserved=%u present_reserved=%u cb_limited=%d present_limited=%d",
++             (unsigned long long)session, cb > RB_PT_CB_CAP ? RB_PT_CB_CAP : cb,
++             present > RB_PT_PRESENT_CAP ? RB_PT_PRESENT_CAP : present,
++             cb > RB_PT_CB_CAP, present > RB_PT_PRESENT_CAP);
++}
++static void rb_pt_cb_open(void) {
++    uint64_t session = atomic_load_explicit(&g_rb_pt.session, memory_order_acquire);
++    g_rb_pt_cb.session = 0;
++    if (!session) return;
++    uint64_t frame = atomic_load_explicit(&g_cur_frame, memory_order_relaxed);
++    if (!rb_pt_claim(&g_rb_pt, session, frame, &g_rb_pt.cb, RB_PT_CB_CAP)) return;
++    g_rb_pt_cb.session = session;
++    g_rb_pt_cb.frame = frame;
++    g_rb_pt_cb.thread = pthread_self();
++    g_rb_pt_cb.cpu_ns = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID);
++    g_rb_pt_cb.start = CACurrentMediaTime();
++}
+ static uint64_t g_rb_main_cb_serial;
+ static void rb_draw_barriers_cb_begun(void);   // RewindBox (patch 0353): with the barrier state below (barrier_game)
+ static id rb_new_main_cb(void) {
+     ++g_rb_main_cb_serial;
++    rb_pt_cb_open();
+     rb_draw_barriers_cb_begun();
+     return rec_cb_new();
+ }
+@@ -2397,6 +2471,33 @@ static void gp_begin(id e, char kind, MTL4RenderPassDescriptor *d) {   // right
+     ts_write(e, kind, MTLRenderStageVertex, g_gp_heap, 2 * g_gp_n);
+     g_gp_n++;
+ }
++// The endpoint precedes the replay handoff, which can dispatch actual Metal
++// encoding later. Capture everything by value before returning to the producer.
++static void rb_pt_feedback(id options, uint32_t seg, const char *reason) {
++    unsigned long long session = g_rb_pt_cb.session;
++    if (!session) return;
++    g_rb_pt_cb.session = 0;
++    double end = CACurrentMediaTime(), start = g_rb_pt_cb.start;
++    uint64_t cpu = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID);
++    uint64_t first_cpu = g_rb_pt_cb.cpu_ns;
++    int same = pthread_equal(g_rb_pt_cb.thread, pthread_self()) && first_cpu && cpu >= first_cpu;
++    unsigned long long cpu_ns = same ? cpu - first_cpu : 0;
++    unsigned long long frame = g_rb_pt_cb.frame, serial = g_rb_main_cb_serial, sub = g_sub_serial;
++    int metal = g_m3 ? 3 : 4;
++    fb_add(options, ^(rb_metal_feedback f) {
++        char extra[160] = "";
++        size_t used = 0;
++        if (same) used = (size_t)snprintf(extra, sizeof extra, " prep_thread_ns=%llu", cpu_ns);
++        double gpu_start = f.GPUStartTime, gpu_end = f.GPUEndTime;
++        int error = f.error != nil;
++        int valid = !error && rb_pt_has_gpu(end, gpu_start, gpu_end);
++        const char *status = error ? "error" : valid ? "ok" : "missing";
++        if (valid)
++            snprintf(extra + used, sizeof extra - used, " gpu_start_s=%.9f gpu_end_s=%.9f", gpu_start, gpu_end);
++        MLOG("[rb-parallel] v=1 session=%llu frame=%llu event=cb sub=%llu cb=%llu seg=%u metal=%d reason=%s prep_start_s=%.9f prep_end_s=%.9f status=%s%s",
++             session, frame, sub, serial, seg, metal, reason, start, end, status, extra);
++    });
++}
+ static int rb_fx_trace(void) {
+     static _Atomic int mode;
+     return !g_m3 && rb_direct_option(&mode, "S2A_RB_GPU_FX_TRACE");
+@@ -3925,6 +4026,7 @@ static void rb_pso_user_checkpoint(void);
+ static void rb_gpu_probe_frame(uint64_t frame);
+ void nvn_be_set_frame(uint64_t f) {
+     atomic_store(&g_cur_frame, f);
++    rb_pt_frame(f);
+     rb_gpu_probe_frame(f);
+     atomic_store_explicit(&g_rb_frame_t0, bp_now(), memory_order_relaxed);
+     if (g_ub_n) ub_frame(f);
+@@ -5140,6 +5242,7 @@ uint64_t nvn_be_sub_commit(void) {
+     res_commit();
+     if ((g_gp_state == 1 && !gp_active()) || g_gp_state == 3) { int gn = g_gp_n, gd = g_gp_drop; gp_lab *gl = malloc(sizeof(gp_lab) * (gn ? gn : 1)); memcpy(gl, g_gp_lab, sizeof(gp_lab) * gn); uint64_t gf = g_gp_frame; int fx_pairs = g_m3 ? 0 : g_gp_fx_pairs; g_gp_state = 2;
+         fb_add(o, ^(id<MTL4CommitFeedback> f) { (void)f; gp_report(gn, gd, gl, gf, fx_pairs); }); }
++    rb_pt_feedback(o, g_seg, "submission");
+     if (g_m3) { rec_commit_m3(g_cb, o, g_ev, fence, 1); rec_drain(); }   // the handlers and the signal go with the commit record; the encode thread makes them on the real buffer
+     else {
+         [g_cb endCommandBuffer];
+@@ -24626,6 +24729,10 @@ static void mdi_wait(void) {
+         if (!mo) mo = fb_new();
+         rb_fx_commit_feedback(mo, atomic_load(&g_cur_frame), g_seg, "indirect-read");
+     }
++    if (g_rb_pt_cb.session) {
++        if (!mo) mo = fb_new();
++        rb_pt_feedback(mo, g_seg, "indirect-read");
++    }
+     if (g_m3) { rec_commit_m3(g_cb, mo, g_mdi_ev, ++g_mdi_v, 1); rec_drain(); }   // the CPU waits on the event: the signal must be on the queue first  RewindBox (patch 0068): mo
+     else {
+         [g_cb endCommandBuffer];
+@@ -27691,6 +27798,7 @@ static void sub_cut(void) {
+     });
+     res_commit();
+     main_barrier_reset();
++    rb_pt_feedback(o, k, cut_reason);
+     if (g_m3) { rec_commit_m3(g_cb, o, nil, 0, 1); g_cb = rb_new_main_cb(); }
+     else {
+         [g_cb endCommandBuffer];
+@@ -29586,6 +29694,21 @@ static int present_encode_m4(id<MTL4CommandBuffer> cb, id<MTLTexture> src, id<MT
+ }
+ static double g_link_it_tin;   // Enqueue time of the frame the display-link callback is presenting (read and written only on the display-link thread)
+ #if !TARGET_OS_SIMULATOR
++static void rb_pt_presented(rb_pt_ticket trace, uint64_t pn, double shown) {
++    char timestamp[64] = "";
++    int valid = isfinite(shown) && shown > 0 && shown >= trace.enqueue;
++    if (valid) snprintf(timestamp, sizeof timestamp, " present_s=%.9f", shown);
++    const char *status = valid ? "shown" : shown == 0 ? "unshown" : "missing";
++    MLOG("[rb-parallel] v=1 session=%llu frame=%llu event=present ticket=%llu resource=%llu enqueue_s=%.9f status=%s%s",
++         (unsigned long long)trace.session, (unsigned long long)trace.frame, (unsigned long long)pn,
++         (unsigned long long)trace.resource, trace.enqueue, status, timestamp);
++}
++static void rb_pt_note(id<CAMetalDrawable> dr, uint64_t pn, rb_pt_ticket trace) {
++    if (!trace.session) return;
++    [dr addPresentedHandler:^(id<MTLDrawable> drawable) {
++        rb_pt_presented(trace, pn, drawable.presentedTime);
++    }];
++}
+ static void present_note(id<CAMetalDrawable> dr, uint64_t pn) {   // pn: the game's present sequence number (ticket number)
+     uint64_t rb_generation = s2a_rb_bench_present_begin ? s2a_rb_bench_present_begin() : 0;
+     [dr addPresentedHandler:^(id<MTLDrawable> d) {   // Actual presentation time (the time this frame is really put on screen, CACurrentMediaTime base)
+@@ -29598,11 +29721,12 @@ static void present_note(id<CAMetalDrawable> dr, uint64_t pn) {   // pn: the gam
+ // Metal 3 present (#277 D3-1): the present command buffer presents the drawable (presentDrawable, in place of Metal 4's waitForDrawable / signalDrawable), with the timing Metal 4 gives
+ // [dr present] below: as soon as possible on the display link or without a period, else after the minimum duration
+ static void ext_wait3(id<MTLCommandBuffer> cb);
+-static void present_m3(id<MTLCommandBuffer> cb, id<CAMetalDrawable> dr, uint64_t ticket, double period, double target_ts) {
++static void present_m3(id<MTLCommandBuffer> cb, id<CAMetalDrawable> dr, uint64_t ticket, double period, double target_ts, rb_pt_ticket trace) {
+ #if TARGET_OS_SIMULATOR
+-    (void)ticket; (void)period; (void)target_ts; [cb presentDrawable:dr];
++    (void)ticket; (void)period; (void)target_ts; (void)trace; [cb presentDrawable:dr];
+ #else
+     present_note(dr, ticket);
++    rb_pt_note(dr, ticket, trace);
+     if (target_ts > 0 || period <= 0) [cb presentDrawable:dr]; else [cb presentDrawable:dr afterMinimumDuration:period];
+ #endif
+ }
+@@ -29630,7 +29754,7 @@ __attribute__((weak)) int nvn_rb_fb30_holding(void) { return 0; }   // RewindBox
+ // RewindBox (patch 0351): for hle_nvn.c's [rb-speed] line: frame interpolation on (1) or not, and the interpolated and real frames it has shown (presentedTime > 0)
+ int nvn_rb_fi_shown(uint64_t *mid, uint64_t *real);
+ int nvn_rb_fi_shown(uint64_t *mid, uint64_t *real) { *mid = atomic_load(&g_fi_on_mid); *real = atomic_load(&g_fi_on_real); return g_fi_state == 1; }
+-static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t ticket, const int crop[4], id<CAMetalDrawable> supplied, double target_ts, int alloc_i) {
++static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t ticket, const int crop[4], id<CAMetalDrawable> supplied, double target_ts, int alloc_i, rb_pt_ticket trace) {
+     if (mtl_gpu_halted()) { atomic_fetch_add_explicit(&g_gpu_refused, 1, memory_order_relaxed); return 0; }   // GPU 安全停：不取画布、不交上屏（调用方按「没交」把票记完成）
+     if (g_present_stall_ns) { struct timespec ts = {0, (long)g_present_stall_ns}; nanosleep(&ts, NULL); }
+     g_present_n++;
+@@ -29820,7 +29944,7 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+     g_pq_inflight++;
+     pthread_mutex_unlock(&g_pq_mu);
+     if (g_m3) {
+-        int accepted = m3_commit_with_setup(cb3, o, nil, 0, ^{ present_m3(cb3, dr, ticket, period, target_ts); });
++        int accepted = m3_commit_with_setup(cb3, o, nil, 0, ^{ present_m3(cb3, dr, ticket, period, target_ts, trace); });
+         if (!accepted) {
+             // No work was submitted and no feedback can arrive. Undo only our reservation.
+             // Both callers retire a refused logical ticket and wake their waiters.
+@@ -29866,6 +29990,7 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+ #else
+     // Record the present time by the game's present sequence number (ticket number): hle's present statistics are taken by "the game's nth present"; in the display link path the actual present count != the game's present count (old frames get merged and dropped)
+     present_note(dr, ticket);
++    rb_pt_note(dr, ticket, trace);
+     // Each frame is displayed for at least one present period: when the GPU completion time jitters around a 120 Hz refresh boundary, the paired "25 ms + 8.33 ms" stutter no longer appears
+     // A CAMetalDisplayLink supplies its own deadline and drawable. Apple
+     // requires present here. Timed presentation asserts for a link drawable.
+@@ -29883,11 +30008,14 @@ static int present_now(const tex_t *t, double period, uint64_t frame, uint64_t t
+ // are necessarily ordered after that blit on the GPU queue.
+ #define PQ RB_PRESENT_CAP
+ #include "rb_present_hold.h"
+-typedef struct { tex_t t; double period; uint64_t frame; int crop[4]; double t_in; uint64_t ev_val; double display_hold; int fb30; uint64_t render_fence; } pq_item;   // fb30 (RewindBox, patch 0349): sent while hle_nvn.c's fallback held the game at 30; t_in: the time the game handed this frame into the present queue (CACurrentMediaTime); ev_val: see g_ext_ev
++typedef struct { tex_t t; double period; uint64_t frame; int crop[4]; double t_in; uint64_t ev_val; double display_hold; int fb30; uint64_t render_fence, trace_session; } pq_item;   // fb30 (RewindBox, patch 0349): sent while hle_nvn.c's fallback held the game at 30; t_in: the time the game handed this frame into the present queue (CACurrentMediaTime); ev_val: see g_ext_ev
+ // External producer (the Vulkan layer, dm/gfx/vk) renders on its own queue and signals this event when a frame's rendering is done: the present of that frame waits for the value on g_q4
+ static uint64_t g_ext_pend3;   // Metal 3: the value ext_wait asked for, encoded into the next present command buffer (an old queue waits only inside a command buffer)
+ static void ext_wait(uint64_t v) { g_ext_cur = v; if (g_m3) { if (v) g_ext_pend3 = v; return; } if (v && g_ext_ev) [rb_present_queue() waitForEvent:g_ext_ev value:v]; }
+ static void ext_wait3(id<MTLCommandBuffer> cb) { if (g_ext_pend3 && g_ext_ev) [cb encodeWaitForEvent:g_ext_ev value:g_ext_pend3]; g_ext_pend3 = 0; }
++static rb_pt_ticket rb_pt_from_ticket(const pq_item *it) {
++    return (rb_pt_ticket){it->trace_session, it->frame, it->t.serial, it->t_in};
++}
+ static pq_item g_pq[PQ];
+ static uint64_t g_pq_in;
+ // Only the serial display-link delegate or the exclusive classic presenter can encode.
+@@ -29898,7 +30026,7 @@ static int rb_pick_present_slot(int preferred, const uint64_t owner[3], const ui
+     }
+     return -1;
+ }
+-static int present_now(const tex_t *, double, uint64_t, uint64_t, const int[4], id<CAMetalDrawable>, double, int);
++static int present_now(const tex_t *, double, uint64_t, uint64_t, const int[4], id<CAMetalDrawable>, double, int, rb_pt_ticket);
+ static double g_link_vperiod, g_link_vhalf;   // virtual ticks (link_range): seconds per counted tick (0 = every callback is a tick) and half a refresh of the screen
+ // Protected by g_pq_mu. Measure delegate arrivals, before virtual-tick filtering;
+ // a requested range is not proof that Core Animation granted that callback rate.
+@@ -30080,7 +30208,7 @@ static void rb_release_link_rt(uint64_t now) {
+     ext_wait(it.ev_val);
+     t_rb_present_hold = it.display_hold;   // RewindBox (patch 0345 review)
+     t_rb_fb30_frame = it.fb30;   // RewindBox (patch 0349)
+-    @autoreleasepool { submitted = present_now(&it.t, it.period, it.frame, ticket, it.crop, drawable, update.targetPresentationTimestamp, slot); }
++    @autoreleasepool { submitted = present_now(&it.t, it.period, it.frame, ticket, it.crop, drawable, update.targetPresentationTimestamp, slot, rb_pt_from_ticket(&it)); }
+     pthread_mutex_lock(&g_pq_mu); g_rb_present_encoding--; pthread_cond_broadcast(&g_pq_cv); pthread_mutex_unlock(&g_pq_mu);
+     if (exact_hz) {
+         if (submitted) {
+@@ -30370,7 +30498,7 @@ static void *present_main(void *arg) {
+         uint64_t lv0[2][4], lv1[2][4]; thr_lv_take(lv0);
+         t_rb_present_hold = it.display_hold;   // RewindBox (patch 0345 review)
+         t_rb_fb30_frame = it.fb30;   // RewindBox (patch 0349)
+-        @autoreleasepool { submitted = present_now(&it.t, it.period, it.frame, ticket, it.crop, nil, 0, (int)(ticket % 3)); }
++        @autoreleasepool { submitted = present_now(&it.t, it.period, it.frame, ticket, it.crop, nil, 0, (int)(ticket % 3), rb_pt_from_ticket(&it)); }
+         thr_lv_take(lv1); thr_lv_add(1, lv0, lv1);
+         pthread_mutex_lock(&g_pq_mu); g_classic_busy = 0; g_rb_present_encoding--; RB_WAKE_CALL("present.broadcast", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu);
+         if (!submitted) {
+@@ -30442,6 +30570,8 @@ static uint64_t present_enqueue(const tex_t *t, double period, const int crop[4]
+     }
+     if (atomic_load(&g_present_discard)) { pthread_mutex_unlock(&g_pq_mu); return 0; }
+     pq_item *it = &g_pq[g_pq_in % PQ]; *it = (pq_item){*t, period, atomic_load(&g_cur_frame), {0}, CACurrentMediaTime(), ev_val, display_hold};
++    uint64_t session = atomic_load_explicit(&g_rb_pt.session, memory_order_acquire);
++    if (session) it->trace_session = rb_pt_claim(&g_rb_pt, session, it->frame, &g_rb_pt.present, RB_PT_PRESENT_CAP);
+     it->render_fence = ev_val ? 0 : nvn_be_last_fence();
+     it->fb30 = t_rb_fb30_enqueue;   // RewindBox (patch 0349)
+     if (crop) memcpy(it->crop, crop, sizeof it->crop);   // The current frame's state is enqueued with the ticket number, rather than reading the mutable window late on the present thread
+diff --git a/graphics/nvn/gfx/nvn/nvn_session.inc b/graphics/nvn/gfx/nvn/nvn_session.inc
+index ddfae5a..039558d 100644
+--- a/graphics/nvn/gfx/nvn/nvn_session.inc
++++ b/graphics/nvn/gfx/nvn/nvn_session.inc
+@@ -416,6 +416,7 @@ int nvn_be_shutdown_session(void) {
+     return 0;
+ }
+ void nvn_be_begin_session(void) {
++    rb_pt_session_begin();
+ #if S2A_RB_COMPILE_FI_STATS == 1
+     rb_fi_stats_begin_session();
+ #endif
+diff --git a/graphics/nvn/gfx/nvn/rb_parallel_trace.h b/graphics/nvn/gfx/nvn/rb_parallel_trace.h
+new file mode 100644
+index 0000000..a2c0996
+--- /dev/null
++++ b/graphics/nvn/gfx/nvn/rb_parallel_trace.h
+@@ -0,0 +1,42 @@
++// SPDX-License-Identifier: Apache-2.0
++#pragma once
++#include <math.h>
++#include <stdatomic.h>
++#include <stdint.h>
++
++// A producer reserves one record at command-buffer creation or ticket enqueue.
++// The generation in each counter prevents an old reservation using a new budget.
++enum { RB_PT_FRAMES = 600, RB_PT_CB_CAP = 16384, RB_PT_PRESENT_CAP = 4096 };
++typedef struct {
++    _Atomic uint64_t session, first, cb, present;
++    _Atomic unsigned notified;
++} rb_pt_gate;
++static inline void rb_pt_configure(rb_pt_gate *g, uint64_t session, uint64_t first) {
++    atomic_store(&g->session, 0);
++    atomic_store(&g->first, first);
++    atomic_store(&g->cb, session << 16);
++    atomic_store(&g->present, session << 16);
++    atomic_store(&g->notified, 0);
++    atomic_store_explicit(&g->session, session, memory_order_release);
++}
++static inline uint64_t rb_pt_claim(rb_pt_gate *g, uint64_t session, uint64_t frame,
++                                   _Atomic uint64_t *counter, unsigned cap) {
++    uint64_t first = atomic_load_explicit(&g->first, memory_order_relaxed);
++    if (frame < first || frame - first >= RB_PT_FRAMES) return 0;
++    uint64_t word = atomic_load_explicit(counter, memory_order_relaxed);
++    while ((word >> 16) == session && (word & UINT16_MAX) <= cap) {
++        if (atomic_compare_exchange_weak_explicit(counter, &word, word + 1,
++                                                  memory_order_relaxed, memory_order_relaxed))
++            return (word & UINT16_MAX) < cap ? session : 0;
++    }
++    return 0;
++}
++static inline unsigned rb_pt_close(_Atomic uint64_t *counter) {
++    // Close reservations before taking the summary. Completion callbacks retain
++    // their original session and may emit rows after this point.
++    return atomic_fetch_or(counter, UINT64_C(1) << 63) & UINT16_MAX;
++}
++static inline int rb_pt_has_gpu(double prepared, double start, double end) {
++    return isfinite(prepared) && prepared > 0 && isfinite(start) && start >= prepared &&
++           isfinite(end) && end > start;
++}
+diff --git a/graphics/nvn/tests/t_nvn_gpu_halt.m b/graphics/nvn/tests/t_nvn_gpu_halt.m
+index 2b9d9e5..4f10326 100644
+--- a/graphics/nvn/tests/t_nvn_gpu_halt.m
++++ b/graphics/nvn/tests/t_nvn_gpu_halt.m
+@@ -80,7 +80,7 @@ int main(void) {
+         VERIFY(c.status == MTLCommandBufferStatusNotEnqueued, "m3_commit 不交");
+         if (!g_m3 && g_q4) { id cb4 = [g_dev newCommandBuffer]; rec_commit_upload(cb4, nil); VERIFY(1, "Metal 4 rec_commit_upload 安全停后返回（没交未开始的命令缓冲，交了会抛异常）"); }
+         uint64_t pn = g_present_n;
+-        VERIFY(present_now(NULL, 1 / 60.0, 1, 1, NULL, nil, 0, 1) == 0 && g_present_n == pn, "上屏 present_now 不交（上屏计数 %llu 不涨）", (unsigned long long)g_present_n);
++        VERIFY(present_now(NULL, 1 / 60.0, 1, 1, NULL, nil, 0, 1, (rb_pt_ticket){0}) == 0 && g_present_n == pn, "上屏 present_now 不交（上屏计数 %llu 不涨）", (unsigned long long)g_present_n);
+         tex_t tx; memset(&tx, 0, sizeof tx);
+         VERIFY(present_enqueue(&tx, 1 / 60.0, NULL, 0, 1 / 60.0) == 0, "present_enqueue 回票号 0（游戏不等这一帧）");
+         t0 = now_ns(); nvn_be_drain(); ms = (now_ns() - t0) / 1e6;
