@@ -181,3 +181,14 @@ Temps d’image, FPS et chauffe sur iPhone : non mesurés. Échecs consécutifs 
 - **Mesure à ne pas comparer.** Le banc de rythme homebrew, indépendant du moteur, donne un temps GPU médian de `0,78 ms` dans le run `45945441918` et de `0,38 ms` dans le run `45953045391`. C’est la variance entre runners : seules les paires mesurées dans un même run comptent.
 
 Échecs consécutifs : 1. Prochain axe : coût de reliaison après la pré-analyse des pipelines, mesuré par un test Metal A/B dans un même run, puis compilation des pipelines au premier usage en A/B.
+
+### Fil de soumission : enregistrements écrits sans message (`0469`, rejeté)
+
+- **Idée.** Quand l’encodeur est un remplaçant `DmRecEnc`, les enveloppes `enc_r_*` / `enc_c_*` écriraient l’enregistrement elles-mêmes, sans passer par la méthode du remplaçant.
+- **Mesure sur le runtime Apple** ([`rec_bench.m`](../../../build-utils/s2arm/engine/benchmarks/rec_bench.m), côté soumission, 12 paires, enregistrements identiques) :
+  - test de classe à chaque appel : `+30,00 %` (run [`45956794549`](https://github.com/TarbleFR/RewindBox/actions/runs/45956794549), [CSV](dispatch/rec-dispatch-45956794549.csv)) ;
+  - test mis en cache par destinataire : `+11,26 %` (run [`45957340416`](https://github.com/TarbleFR/RewindBox/actions/runs/45957340416), [CSV](dispatch/rec-dispatch-45957340416.csv)).
+- **Verdict.** Le message au remplaçant n’est pas plus lent. Patch retiré, compilation `45956522519` annulée.
+- **0468 confirmé.** Les mêmes runs redonnent `−42,77 %`, `−39,76 %` et `−46,84 %` sur la répartition côté encodage.
+
+Échecs consécutifs : 2.

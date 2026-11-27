@@ -6753,6 +6753,30 @@
         "verdict": "rejected"
       },
       "physical_device_status": "not measured"
+    },
+    {
+      "schema_version": "2.0",
+      "timestamp": "2026-11-27T09:30:00+00:00",
+      "label": "0469_submit_side_direct_records",
+      "host": {
+        "os": "macOS 26 arm64 GitHub runner"
+      },
+      "runs_per_variant": 12,
+      "results": {
+        "45956794549": {
+          "message_ns": 13.828,
+          "direct_ns": 17.2585,
+          "paired_pct": 30.0
+        },
+        "45957340416": {
+          "message_ns": 10.7846,
+          "direct_cached_ns": 11.4636,
+          "paired_pct": 11.26
+        }
+      },
+      "parity": "record hash identical",
+      "verdict": "rejected",
+      "physical_device_status": "not measured"
     }
   ],
   "accepted_optimizations": [
@@ -6807,7 +6831,8 @@
     {
       "patches": "0468",
       "basis": "Encode-thread rec_exec calls the frequent encoder and argument-table records through an IMP cached per record kind and receiver class (as RO_T_ADDR since 0073); nil receiver stays a no-op; S2A_RB_REC_IMP=0 restores objc_msgSend. Real Apple runtime probe (macOS 26 arm64 runner, run 45952496588, rec_bench.m, trivial bodies, 12 alternated pairs, hash parity): 7.735 -> 4.653 ns per record median (paired -34.73%, p25 -48.42%, p75 -29.02%). Metal work inside each call not measured; frame time and iPhone not measured. Stand-in reuse ([DmRecEnc new] per pass, 34.97 vs 0.38 ns) left out: ~35 ns per encoder, not worth changing ownership.",
-      "status": "compiled: engine CI run 45953045391 (commit 6f5bb0772), macos-15 and macos-26 green, patch 0468 applied (sha256 221a745e...); iOS frame time not measured"
+      "status": "compiled: engine CI run 45953045391 (commit 6f5bb0772), macos-15 and macos-26 green, patch 0468 applied (sha256 221a745e...); iOS frame time not measured",
+      "repeats": "0468 dispatch probe repeated in runs 45956516278 (-42.77%), 45956794549 (-39.76%), 45957340416 (-46.84%), all with p75 below -29%"
     }
   ],
   "rejected_optimizations": [
@@ -6826,7 +6851,8 @@
     "Bulk copy across virtually disjoint intervals changed results for two views of the same backing storage in three public texture functions. Keep the row-order semantics.",
     "pc_get() MRU-first (2-slot linear probe) + 64 KiB page hash (addr >> 16): tested on 5 regimes x 6 runs (-O2, CPU 0, bench_pc_get.c); regressed 4 of 5 regimes (2pool_ring +18.6%, 4pool_ring +45.7% to +91.5% from 48 B slot copy churn, 16x4KB_adj 13.3x slower with misses 16 -> 194,148 from 64 KiB collisions, 64pool_rand +3.8% to +7.9%; only 32pool_rand improved -15.6%). Rejected; original 4 KiB pc_get() preserved untouched in nvn_mtl.m.",
     "0468 draft, rec_put single-lock block hand-over (rec_publish + free-block take in one critical section): locks 4800 -> 2700 and 47400 -> 24000, but the isolated Linux bench (bench_0468_lock.c, same records, same encode worker, 12 alternated pairs, twice) gave paired medians +2.98%/+6.89% then -0.93%/-4.05% with IQRs spanning zero. No reproducible gain; rejected. The draft's combined -23.58% (bench_0468_rec.c) is withdrawn: it compared a mocked objc_msgSend and a malloc per proxy against direct calls and a pool, not the engine.",
-    "0469 draft, store lookahead index (nvn_be_sub_index): keep each event's bucket from sdx_ev_add in a parallel uint16 array instead of two more hash probes per event in the counting sort. Byte-identical index (ASan+UBSan verify, 3 regimes), but no gain: bench_0469_sdx.c, 12 alternated pairs, CPU 0, paired medians -0.79% (p25 -9.41%, p75 +0.18%), -0.43% (-1.31%, +1.54%), +0.49% (+0.34%, +1.12%) for 729 / 4177 / 11553 events per submission. The walk's add-time probes dominate; rejected."
+    "0469 draft, store lookahead index (nvn_be_sub_index): keep each event's bucket from sdx_ev_add in a parallel uint16 array instead of two more hash probes per event in the counting sort. Byte-identical index (ASan+UBSan verify, 3 regimes), but no gain: bench_0469_sdx.c, 12 alternated pairs, CPU 0, paired medians -0.79% (p25 -9.41%, p75 +0.18%), -0.43% (-1.31%, +1.54%), +0.49% (+0.34%, +1.12%) for 729 / 4177 / 11553 events per submission. The walk's add-time probes dominate; rejected.",
+    "0469 draft, submit-thread wrappers (enc_r_* / enc_c_*) writing the stand-in's record directly (shared rec_w_* writers) instead of messaging DmRecEnc. Apple runtime probe (rec_bench.m submit side, 12 alternated pairs, record parity): class test per call +30.00% (run 45956794549, p25 +9.77%, p75 +56.54%); class test cached per receiver (strong-held) +11.26% (run 45957340416, p25 +2.51%, p75 +17.50%). The message path is not slower; rejected, patch withdrawn and its engine run 45956522519 cancelled."
   ],
   "remaining_bottlenecks": [
     "Metal encode-thread command recording: dispatch share reduced by 0468 (per-class IMP); the Metal work inside each call and DmRecEnc stand-in allocation (~35 ns per encoder) remain, unmeasured on device",
@@ -6851,11 +6877,12 @@
     "consecutive_rejections_after_0463_before_0464": 0,
     "rejected_during_0464_0466_cycle": 1,
     "consecutive_rejections_at_0466": 0,
-    "last_updated": "2026-11-27T08:00:00Z",
+    "last_updated": "2026-11-27T09:30:00Z",
     "consecutive_rejections_at_0467": 0,
     "consecutive_rejections_after_0468_lock_merge": 1,
     "consecutive_rejections_at_0468": 0,
-    "consecutive_rejections_after_0469_sdx_bucket": 1
+    "consecutive_rejections_after_0469_sdx_bucket": 1,
+    "consecutive_rejections_after_0469_submit_direct": 2
   },
   "device_metrics": {
     "native_fps": null,
