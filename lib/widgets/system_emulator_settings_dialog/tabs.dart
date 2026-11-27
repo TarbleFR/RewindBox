@@ -644,8 +644,16 @@ extension _Tabs on _SystemEmulatorSettingsDialogState {
           // the same native preferences as the in-game Controls menu.
           if (wii) const DolphinWiiMotionPanel(),
           if (wii)
-            WiimmfiPanel(
-              onBusyChanged: (busy) => rebuild(() => _wiimmfiBusy = busy),
+            ListTile(
+              key: _wiimmfiEntryKey,
+              selected: _isWiiEmulatorsTab,
+              leading: const Icon(Icons.public),
+              title: const Text('Wiimmfi'),
+              subtitle: Text(
+                '${WiimmfiLocale.text(context, 'nand')} · ${WiimmfiLocale.text(context, 'diagnose')}',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: _openWiimmfi,
             ),
           // Build 484: touch-controls editor and "hide with a controller"
           // for the GameCube, Wii, PS2 and PS3 embedded engines.

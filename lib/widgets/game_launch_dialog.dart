@@ -65,6 +65,7 @@ class _GameLaunchDialogState extends State<GameLaunchDialog> {
       _dialogGamepadNav.initialize();
       GamepadNavigationManager.pushLayer(
         'game_launch_dialog',
+        modal: true,
         onActivate: () => _dialogGamepadNav.activate(),
         onDeactivate: () => _dialogGamepadNav.deactivate(),
       );

@@ -67,25 +67,41 @@ class ConfirmActionDialog extends StatefulWidget {
 
 class _ConfirmActionDialogState extends State<ConfirmActionDialog> {
   late final GamepadNavigation _gamepadNav;
+  final _focus = FocusNode();
+  late final _layerId = 'confirm_action_dialog_${identityHashCode(this)}';
+  bool _closing = false;
+
+  void _close(bool confirmed) {
+    if (!mounted || _closing || ModalRoute.of(context)?.isCurrent != true) {
+      return;
+    }
+    _closing = true;
+    _gamepadNav.deactivate();
+    Navigator.of(context).pop(confirmed);
+  }
 
   @override
   void initState() {
     super.initState();
     _gamepadNav = GamepadNavigation(
-      onSelectItem: () {
-        if (mounted) Navigator.of(context).pop(true);
-      },
-      onBack: () {
-        if (mounted) Navigator.of(context).pop(false);
-      },
+      onSelectItem: () => _close(true),
+      onBack: () => _close(false),
     );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _gamepadNav.initialize();
       GamepadNavigationManager.pushLayer(
-        'confirm_action_dialog',
-        onActivate: () => _gamepadNav.activate(),
+        _layerId,
+        modal: true,
+        onActivate: () {
+          if (mounted &&
+              !_closing &&
+              ModalRoute.of(context)?.isCurrent == true) {
+            _gamepadNav.activate();
+            _focus.requestFocus();
+          }
+        },
         onDeactivate: () => _gamepadNav.deactivate(),
       );
     });
@@ -93,8 +109,9 @@ class _ConfirmActionDialogState extends State<ConfirmActionDialog> {
 
   @override
   void dispose() {
-    GamepadNavigationManager.popLayer('confirm_action_dialog');
+    GamepadNavigationManager.popLayer(_layerId);
     _gamepadNav.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
@@ -108,97 +125,108 @@ class _ConfirmActionDialogState extends State<ConfirmActionDialog> {
 
     // Surface, radius and barrier come from the Liquid Glass dialog theme;
     // only the accent rim is specific to this dialog.
-    return AlertDialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: theme.dialogTheme.shape is RoundedRectangleBorder
-            ? (theme.dialogTheme.shape as RoundedRectangleBorder).borderRadius
-            : BorderRadius.circular(12.r),
-        side: BorderSide(color: accentColor.withValues(alpha: 0.3)),
-      ),
-      title: Row(
-        children: [
-          Icon(widget.icon, color: accentColor, size: 20.r),
-          SizedBox(width: 8.r),
-          Flexible(
-            child: Text(
-              widget.title,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontSize: 14.r,
-                color: accentColor,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+    return Focus(
+      focusNode: _focus,
+      autofocus: true,
+      onKeyEvent: (_, _) =>
+          mounted && !_closing && ModalRoute.of(context)?.isCurrent == true
+          ? KeyEventResult.handled
+          : KeyEventResult.ignored,
+      child: ExcludeFocus(
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: theme.dialogTheme.shape is RoundedRectangleBorder
+                ? (theme.dialogTheme.shape as RoundedRectangleBorder)
+                      .borderRadius
+                : BorderRadius.circular(12.r),
+            side: BorderSide(color: accentColor.withValues(alpha: 0.3)),
           ),
-        ],
-      ),
-      content: Text(
-        widget.body,
-        style: theme.textTheme.bodyMedium?.copyWith(
-          fontSize: 11.r,
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
+          title: Row(
             children: [
-              SizedBox(
-                width: 18.r,
-                height: 18.r,
-                child: Image.asset(
-                  'assets/images/gamepad/Xbox_B_button.png',
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                  colorBlendMode: BlendMode.srcIn,
-                ),
-              ),
-              SizedBox(width: 4.r),
-              Text(
-                widget.cancelLabel ?? AppLocale.cancel.getString(context),
-                style: TextStyle(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                  fontSize: 12.r,
+              Icon(widget.icon, color: accentColor, size: 20.r),
+              SizedBox(width: 8.r),
+              Flexible(
+                child: Text(
+                  widget.title,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontSize: 14.r,
+                    color: accentColor,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
           ),
-        ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: accentColor,
-            foregroundColor: onAccent,
-            padding: EdgeInsets.symmetric(horizontal: 16.r, vertical: 8.r),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(6.r),
+          content: Text(
+            widget.body,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontSize: 11.r,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
             ),
           ),
-          onPressed: () => Navigator.of(context).pop(true),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 18.r,
-                height: 18.r,
-                child: Image.asset(
-                  'assets/images/gamepad/Xbox_A_button.png',
-                  color: onAccent,
-                  colorBlendMode: BlendMode.srcIn,
+          actions: [
+            TextButton(
+              onPressed: () => _close(false),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 18.r,
+                    height: 18.r,
+                    child: Image.asset(
+                      'assets/images/gamepad/Xbox_B_button.png',
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                      colorBlendMode: BlendMode.srcIn,
+                    ),
+                  ),
+                  SizedBox(width: 4.r),
+                  Text(
+                    widget.cancelLabel ?? AppLocale.cancel.getString(context),
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                      fontSize: 12.r,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: accentColor,
+                foregroundColor: onAccent,
+                padding: EdgeInsets.symmetric(horizontal: 16.r, vertical: 8.r),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6.r),
                 ),
               ),
-              SizedBox(width: 4.r),
-              Text(
-                widget.confirmLabel,
-                style: TextStyle(
-                  color: onAccent,
-                  fontSize: 12.r,
-                  fontWeight: FontWeight.w600,
-                ),
+              onPressed: () => _close(true),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 18.r,
+                    height: 18.r,
+                    child: Image.asset(
+                      'assets/images/gamepad/Xbox_A_button.png',
+                      color: onAccent,
+                      colorBlendMode: BlendMode.srcIn,
+                    ),
+                  ),
+                  SizedBox(width: 4.r),
+                  Text(
+                    widget.confirmLabel,
+                    style: TextStyle(
+                      color: onAccent,
+                      fontSize: 12.r,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

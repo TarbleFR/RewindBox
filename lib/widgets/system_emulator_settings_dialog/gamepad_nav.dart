@@ -51,6 +51,10 @@ extension _GamepadNav on _SystemEmulatorSettingsDialogState {
   }
 
   void _navigateUp() {
+    if (_isWiiEmulatorsTab) {
+      _scrollToWiimmfi();
+      return;
+    }
     if (_openMenuIndex != -1) {
       final focusedContext = FocusManager.instance.primaryFocus?.context;
       if (focusedContext != null) {
@@ -102,6 +106,10 @@ extension _GamepadNav on _SystemEmulatorSettingsDialogState {
   }
 
   void _navigateDown() {
+    if (_isWiiEmulatorsTab) {
+      _scrollToWiimmfi();
+      return;
+    }
     if (_openMenuIndex != -1) {
       final focusedContext = FocusManager.instance.primaryFocus?.context;
       if (focusedContext != null) {
@@ -169,7 +177,6 @@ extension _GamepadNav on _SystemEmulatorSettingsDialogState {
   }
 
   void _previousTab() {
-    if (_wiimmfiBusy) return;
     List<int> availableTabs = [0, 2, 3];
     if (widget.system.folderName != 'all' &&
         widget.system.folderName != 'android') {
@@ -183,10 +190,10 @@ extension _GamepadNav on _SystemEmulatorSettingsDialogState {
       _currentTab = availableTabs[prevIndex];
       _emulatorActionIndex = 0;
     });
+    if (_isWiiEmulatorsTab) _scrollToWiimmfi();
   }
 
   void _nextTab() {
-    if (_wiimmfiBusy) return;
     List<int> availableTabs = [0, 2, 3];
     if (widget.system.folderName != 'all' &&
         widget.system.folderName != 'android') {
@@ -199,9 +206,14 @@ extension _GamepadNav on _SystemEmulatorSettingsDialogState {
       _currentTab = availableTabs[nextIndex];
       _emulatorActionIndex = 0;
     });
+    if (_isWiiEmulatorsTab) _scrollToWiimmfi();
   }
 
   void _handleSelectItem() {
+    if (_isWiiEmulatorsTab) {
+      _openWiimmfi();
+      return;
+    }
     if (_openMenuIndex != -1) {
       final focusedContext = FocusManager.instance.primaryFocus?.context;
       if (focusedContext != null) {

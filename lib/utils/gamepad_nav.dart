@@ -360,6 +360,7 @@ class GamepadNavigation {
   final GamepadEventTranslator _translator = GamepadEventTranslator();
 
   bool _keyboardInitialized = false;
+  int _initializationGeneration = 0;
 
   bool get isAndroid => Platform.isAndroid;
   bool get isWindows => Platform.isWindows;
@@ -398,9 +399,14 @@ class GamepadNavigation {
 
   /// Starts listening for gamepad and keyboard events.
   void initialize() async {
+    final generation = ++_initializationGeneration;
     _subscription?.cancel();
+    _subscription = null;
 
     await _initializeGamepadInfo();
+    // A short-lived dialog may close while the native controller list is
+    // pending. Only the latest initialization may acquire input listeners.
+    if (generation != _initializationGeneration) return;
 
     _subscription = Gamepads.events.listen(
       (event) {
@@ -595,12 +601,12 @@ class GamepadNavigation {
 
   /// Releases resources held by the navigator.
   void dispose() {
+    ++_initializationGeneration;
+    deactivate();
     _subscription?.cancel();
     _subscription = null;
-    _resetSelectModifier(releaseSharedLayer: _isActive);
-    cancelAllRepeatTimers();
 
-    if (_keyboardInitialized && isDesktop) {
+    if (_keyboardInitialized) {
       ServicesBinding.instance.keyboard.removeHandler(_handleKeyEvent);
       _keyboardInitialized = false;
     }

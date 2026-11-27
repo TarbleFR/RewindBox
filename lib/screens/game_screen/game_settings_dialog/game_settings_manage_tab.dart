@@ -67,6 +67,7 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
   int _selectedIndex = 0;
   bool _isResettingPlayTime = false;
   bool _isDeleting = false;
+  bool _openingWiimmfi = false;
 
   final ScrollController _scrollController = ScrollController();
   final Map<int, GlobalKey> _itemKeys = {};
@@ -74,7 +75,7 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
   GlobalKey _itemKey(int navIndex) =>
       _itemKeys.putIfAbsent(navIndex, () => GlobalKey());
 
-  // Cheats & Enhancements of the game's embedded engine first, then the
+  // Wii online setup first, then Cheats & Enhancements and the
   // HD textures page (Build 486).
   // Switch (embedded MeloNX): Cheats & Enhancements moved to the MeloNX menu,
   // under the game's graphics, with its Mods (17 November 2026).
@@ -82,12 +83,20 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
       EnhancementService.instance.supports(_targetSystemFolder) &&
       _targetSystemFolder.toLowerCase() != 'switch' &&
       (widget.game.romPath?.startsWith('/') ?? false);
-  int get _enhancementsIdx => _hasEnhancements ? 0 : -1;
+  bool get _hasWiimmfi =>
+      _targetSystemFolder.toLowerCase() == 'wii' &&
+      (widget.game.romPath?.startsWith('/') ?? false);
+  int get _wiimmfiIdx => _hasWiimmfi ? 0 : -1;
+  int get _enhancementsIdx => _hasEnhancements ? (_hasWiimmfi ? 1 : 0) : -1;
   bool get _hasTextures =>
       TextureCatalogService.supports(_targetSystemFolder) &&
       (widget.game.romPath?.startsWith('/') ?? false);
-  int get _texturesIdx => _hasTextures ? _enhancementsIdx + 1 : -1;
-  int get _playTimeIdx => (_hasEnhancements ? 1 : 0) + (_hasTextures ? 1 : 0);
+  int get _texturesIdx =>
+      _hasTextures ? (_hasWiimmfi ? 1 : 0) + (_hasEnhancements ? 1 : 0) : -1;
+  int get _playTimeIdx =>
+      (_hasWiimmfi ? 1 : 0) +
+      (_hasEnhancements ? 1 : 0) +
+      (_hasTextures ? 1 : 0);
   int get _deleteIdx => _playTimeIdx + 1;
   int get _totalItems => _deleteIdx + 1;
 
@@ -207,7 +216,9 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
   }
 
   void trigger() {
-    if (_selectedIndex == _enhancementsIdx) {
+    if (_selectedIndex == _wiimmfiIdx) {
+      _openWiimmfi();
+    } else if (_selectedIndex == _enhancementsIdx) {
       _openEnhancements();
     } else if (_selectedIndex == _texturesIdx) {
       _openTextures();
@@ -232,6 +243,51 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
         );
       }
     });
+  }
+
+  Future<void> _openWiimmfi() async {
+    if (_openingWiimmfi) return;
+    _openingWiimmfi = true;
+    try {
+      SfxService().playNavSound();
+      await WiimmfiPanel.open(
+        context,
+        gamePath: widget.game.romPath,
+        onLaunch: (online) async {
+          final system = await SystemRepository.getSystemByFolderName(
+            _targetSystemFolder,
+          );
+          if (!mounted) return null;
+          if (system == null) {
+            return WiimmfiLocale.text(context, 'gameUnknown');
+          }
+          String? error;
+          GamepadNavigationManager.deactivateAll();
+          try {
+            await launchGameWithDialog(
+              context: context,
+              system: system,
+              game: widget.game,
+              fileProvider: widget.fileProvider,
+              dolphinWiimmfi: online,
+              onGameClosed: () {
+                GamepadNavigationManager.reactivate();
+                if (mounted) widget.onGameUpdated?.call();
+              },
+              onLaunchFailed: (_, result) async {
+                if (!result.cancelled) error = result.errorMessage;
+              },
+            );
+          } catch (_) {
+            GamepadNavigationManager.reactivate();
+            rethrow;
+          }
+          return error;
+        },
+      );
+    } finally {
+      _openingWiimmfi = false;
+    }
   }
 
   Future<void> _openEnhancements() async {
@@ -396,42 +452,27 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_targetSystemFolder.toLowerCase() == 'wii' &&
-              (widget.game.romPath?.startsWith('/') ?? false))
-            WiimmfiPanel(
-              gamePath: widget.game.romPath,
-              onLaunch: (online) async {
-                final system = await SystemRepository.getSystemByFolderName(
-                  _targetSystemFolder,
-                );
-                if (!context.mounted) return null;
-                if (system == null) {
-                  return WiimmfiLocale.text(context, 'gameUnknown');
-                }
-                String? error;
-                GamepadNavigationManager.deactivateAll();
-                try {
-                  await launchGameWithDialog(
-                    context: context,
-                    system: system,
-                    game: widget.game,
-                    fileProvider: widget.fileProvider,
-                    dolphinWiimmfi: online,
-                    onGameClosed: () {
-                      GamepadNavigationManager.reactivate();
-                      if (mounted) widget.onGameUpdated?.call();
-                    },
-                    onLaunchFailed: (_, result) async {
-                      if (!result.cancelled) error = result.errorMessage;
-                    },
-                  );
-                } catch (_) {
-                  GamepadNavigationManager.reactivate();
-                  rethrow;
-                }
-                return error;
+          if (_hasWiimmfi) ...[
+            GestureDetector(
+              onTap: () {
+                setState(() => _selectedIndex = _wiimmfiIdx);
+                _openWiimmfi();
               },
+              child: SettingRow(
+                key: _itemKey(_wiimmfiIdx),
+                focused: _selectedIndex == _wiimmfiIdx,
+                title: 'Wiimmfi',
+                subtitle:
+                    '${WiimmfiLocale.text(context, 'nand')} · ${WiimmfiLocale.text(context, 'diagnose')}',
+                trailing: Icon(
+                  Icons.public,
+                  size: 20.r,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
             ),
+            SizedBox(height: 12.r),
+          ],
           if (_nextendoVersion != null) ...[
             _nextendoVersionCard(context),
             SizedBox(height: 12.r),

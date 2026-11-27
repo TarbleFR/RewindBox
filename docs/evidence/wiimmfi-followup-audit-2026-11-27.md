@@ -18,9 +18,9 @@ Revue de `e0c4a54c` le 27 novembre 2026. Les [corrections précédentes](wiimmfi
 - Core ABI **4** source `e19a37ac` [compilé avec succès](https://github.com/TarbleFR/RewindBox/actions/runs/45979848094), export d’interruption vérifié ; adaptateur d’import compilé avec le SDK iPhoneOS. Archive et binaire téléchargés, empreintes et symboles définis vérifiés : SHA-256 `a8c4540d…fb4aee6`. Les 35 avertissements Core sont identiques, aucun nouveau. [Identité et preuves](wiimmfi-followup-audit-2026-11-27.json). Le Core ABI 3 précédent est remplacé. Le test hôte ne simule pas un arrière-plan UIKit réel.
 - CI menu/lancement et politique IPA réussis. CI Touch/Libretro encore en échec sur les causes antérieures, dont un fixture RPCS3 au vieux nom de dépôt (fichiers inchangés depuis `dd8a6da8`) ; détails dans la preuve JSON. Aucun contrôle affaibli pour masquer ces échecs.
 
-## Défaut ergonomique restant
+## Défaut ergonomique corrigé
 
-Les actions Wiimmfi du panneau ne sont pas intégrées à la navigation manette de l’onglet Gérer. Elles restent utilisables au toucher. Une entrée manette ouvrant un panneau navigable reste à implémenter ; aucun fonctionnement à la manette n’est revendiqué.
+Le défaut identifié à `e19a37ac` est maintenant corrigé : entrées sélectionnables, panneau navigable, confirmations et saisie des codes. [Résultat et vérifications](wiimmfi-controller-completion-2026-11-27.md). La validation sur manette physique/iPhone reste à exécuter.
 
 ## Limites
 

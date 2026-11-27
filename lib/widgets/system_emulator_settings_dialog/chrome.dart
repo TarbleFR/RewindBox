@@ -195,9 +195,9 @@ extension _Chrome on _SystemEmulatorSettingsDialogState {
       highlightColor: Colors.transparent,
       splashColor: Colors.transparent,
       onTap: () {
-        if (_wiimmfiBusy) return;
         SfxService().playNavSound();
         rebuild(() => _currentTab = index);
+        if (_isWiiEmulatorsTab) _scrollToWiimmfi();
       },
       child: Container(
         padding: EdgeInsets.symmetric(vertical: 8.r),

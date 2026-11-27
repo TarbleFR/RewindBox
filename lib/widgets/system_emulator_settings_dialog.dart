@@ -47,6 +47,7 @@ import '../services/libretro_internal_service.dart';
 import '../services/storage/storage_import_activity.dart';
 import 'dolphin_wii_motion_panel.dart';
 import 'wiimmfi_panel.dart';
+import '../l10n/wiimmfi_locale.dart';
 import 'embedded_touch_controls_panel.dart';
 import 'libretro_engine_panel.dart';
 import 'switch2_engine_settings_panel.dart';
@@ -76,7 +77,8 @@ class _SystemEmulatorSettingsDialogState
   bool _isLoading = true;
   String? _errorMessage;
   int _selectedIndex = 0;
-  bool _wiimmfiBusy = false;
+  final GlobalKey _wiimmfiEntryKey = GlobalKey();
+  bool _openingWiimmfi = false;
   late GamepadNavigation _gamepadNav; // Now includes keyboard on desktop
   late CenteredScrollController _centeredScrollController;
   late ScrollController _generalScrollController;
@@ -129,6 +131,34 @@ class _SystemEmulatorSettingsDialogState
   bool get _isLibretroEngine =>
       _iosEmbeddedEngine == null &&
       LibretroInternalService.handlesSystemModel(_system);
+
+  bool get _isWiiEmulatorsTab =>
+      _currentTab == 1 && _iosEmbeddedEngine?.id == 'wii';
+
+  void _scrollToWiimmfi() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final rowContext = _wiimmfiEntryKey.currentContext;
+      if (mounted && _isWiiEmulatorsTab && rowContext != null) {
+        Scrollable.ensureVisible(
+          rowContext,
+          alignment: 0.5,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  Future<void> _openWiimmfi() async {
+    if (_openingWiimmfi) return;
+    _openingWiimmfi = true;
+    try {
+      SfxService().playNavSound();
+      await WiimmfiPanel.open(context);
+    } finally {
+      _openingWiimmfi = false;
+    }
+  }
 
   /// Canonical catalog key of the system for the embedded engine.
   String get _libretroSystemKey => LibretroInternalService.systemKey(_system);

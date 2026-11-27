@@ -2,11 +2,15 @@ import 'dart:io';
 import 'dart:async';
 
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/l10n/wiimmfi_locale.dart';
 import 'package:neostation/services/dolphin_internal_v2_service.dart';
 import 'package:neostation/services/dolphin_system_files.dart';
+import 'package:neostation/services/gamepad/gamepad_navigation_manager.dart';
+import 'package:neostation/services/sfx_service.dart';
+import 'package:neostation/widgets/wiimmfi_panel.dart';
 import 'package:neostation/services/storage/storage_import_activity.dart';
 import 'package:neostation/services/wiimmfi/wiimmfi_service.dart';
 import 'package:neostation/services/wiimmfi/wiimmfi_store.dart';
@@ -124,9 +128,10 @@ void main() {
     },
   );
 
-  test(
-    'unsupported engine and active Wii/GC sessions refuse changes',
-    () async {
+  testWidgets('unsupported engine and active Wii/GC sessions refuse changes', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
       supported = false;
       await expectLater(
         WiimmfiService.setEnabled(true),
@@ -145,8 +150,224 @@ void main() {
       running = false;
       await WiimmfiService.setEnabled(true);
       expect((await store.load())['enabled'], true);
-    },
-  );
+    });
+
+    // The same supported/disabled controls are reachable from the dialog's
+    // real keyboard/gamepad navigator; child dialogs must retain ownership.
+    SfxService().setEnabled(false);
+    messenger.setMockMethodCallHandler(
+      const MethodChannel('xyz.luan/gamepads'),
+      (_) async => <Object>[],
+    );
+    var parentActive = false;
+    GamepadNavigationManager.pushLayer(
+      'wiimmfi-test-parent',
+      onActivate: () => parentActive = true,
+      onDeactivate: () => parentActive = false,
+    );
+    final launched = <bool>[];
+    final urls = <String>[];
+    messenger.setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/url_launcher'),
+      (call) async {
+        urls.add((call.arguments as Map)['url'] as String);
+        return false;
+      },
+    );
+    Completer<List<Map<String, dynamic>>?>? pendingPicker;
+    final image = (await tester.runAsync(
+      () => write(
+        'NeoStation/Dolphin/Library/wii/widget.iso',
+        'public fixture, no game',
+      ),
+    ))!;
+    await tester.runAsync(
+      () => WiimmfiService.registerPatchedImage(image.path),
+    );
+    Future<void> settle() async {
+      // Imports deliberately keep an indeterminate progress animation alive.
+      // Draw bounded frames and let real file/asset I/O finish between them.
+      for (var frame = 0; frame < 3; frame++) {
+        await tester.pump(const Duration(milliseconds: 120));
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 80)),
+        );
+      }
+    }
+
+    Future<void> key(LogicalKeyboardKey key) async {
+      await settle();
+      await tester.sendKeyEvent(key);
+      await settle();
+    }
+
+    Future<void> pad(String key) async {
+      await settle();
+      for (final value in [1.0, 0.0]) {
+        final done = Completer<void>();
+        tester.binding.channelBuffers.push(
+          'xyz.luan/gamepads',
+          const StandardMethodCodec().encodeMethodCall(
+            MethodCall('onGamepadEvent', {
+              'gamepadId': 'test-pad',
+              'time': DateTime.now().millisecondsSinceEpoch,
+              'type': 'button',
+              'key': key,
+              'value': value,
+            }),
+          ),
+          (_) => done.complete(),
+        );
+        await done.future;
+        await tester.pump();
+      }
+      await settle();
+    }
+
+    bool controlsReady() => tester
+        .widgetList<ListTile>(find.byType(ListTile))
+        .any(
+          (item) =>
+              item.enabled &&
+              item.title is Text &&
+              (item.title! as Text).data ==
+                  WiimmfiLocale.labels(const Locale('en'))['importNand'],
+        );
+    Future<void> until(bool Function() condition) async {
+      for (var attempt = 0; attempt < 30 && !condition(); attempt++) {
+        await settle();
+      }
+      expect(condition(), true);
+    }
+
+    Future<void> tapLabel(String label) async {
+      await until(controlsReady);
+      final item = find.text(label).last;
+      await tester.ensureVisible(item);
+      await tester.tap(item);
+      await settle();
+    }
+
+    try {
+      await tester.pumpWidget(
+        ScreenUtilInit(
+          designSize: const Size(800, 600),
+          builder: (_, _) => MaterialApp(
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: TextButton(
+                  onPressed: () => WiimmfiPanel.open(
+                    context,
+                    gamePath: image.path,
+                    onLaunch: (online) async {
+                      launched.add(online);
+                      return null;
+                    },
+                  ),
+                  child: const Text('open-wiimmfi'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open-wiimmfi'));
+      await until(controlsReady);
+      expect(parentActive, false);
+      expect(
+        tester
+            .widgetList<ListTile>(find.byType(ListTile))
+            .any((item) => item.selected),
+        true,
+      );
+
+      // B cancels only the confirmation and leaves the parent screen open.
+      await key(LogicalKeyboardKey.arrowDown);
+      await pad('button-0');
+      expect(
+        find.text(WiimmfiLocale.labels(const Locale('en'))['continue']!),
+        findsOneWidget,
+      );
+      await pad('button-1');
+      expect(find.byType(WiimmfiPanel), findsOneWidget);
+      expect(parentActive, false);
+      expect(calls.where((name) => name == 'wiimmfiImport'), isEmpty);
+
+      // A real native picker owns input until its selection finishes.
+      final picker = pendingPicker = Completer<List<Map<String, dynamic>>?>();
+      messenger.setMockMethodCallHandler(
+        const MethodChannel('miguelruivo.flutter.plugins.filepicker'),
+        (_) => picker.future,
+      );
+      await tapLabel(WiimmfiLocale.labels(const Locale('en'))['importNand']!);
+      await pad('button-0');
+      await until(() => WiimmfiService.importPhase.value == 'selecting');
+      expect(WiimmfiService.importPhase.value, 'selecting');
+      await pad('button-1');
+      expect(WiimmfiService.importPhase.value, 'selecting');
+      expect(find.byType(WiimmfiPanel), findsOneWidget);
+      picker.complete(null);
+      await until(controlsReady);
+      expect(WiimmfiService.importPhase.value, 'idle');
+      messenger.setMockMethodCallHandler(
+        const MethodChannel('miguelruivo.flutter.plugins.filepicker'),
+        (_) async => picks,
+      );
+
+      await tapLabel(WiimmfiLocale.labels(const Locale('en'))['games']!);
+      expect(find.textContaining('Mario Kart Wii'), findsOneWidget);
+      await pad('button-0');
+      expect(find.textContaining('Mario Kart Wii'), findsNothing);
+      expect(find.byType(WiimmfiPanel), findsOneWidget);
+
+      await tapLabel(WiimmfiLocale.labels(const Locale('en'))['code']!);
+      await key(LogicalKeyboardKey.arrowUp);
+      await key(LogicalKeyboardKey.arrowRight);
+      await key(LogicalKeyboardKey.arrowDown);
+      expect(find.text('1'), findsOneWidget);
+      expect(find.text('9'), findsOneWidget);
+      await pad('button-1');
+      expect(find.byType(WiimmfiPanel), findsOneWidget);
+
+      await tapLabel(WiimmfiLocale.labels(const Locale('en'))['code']!);
+      for (final digit in [
+        LogicalKeyboardKey.digit2,
+        LogicalKeyboardKey.digit3,
+        LogicalKeyboardKey.digit8,
+        LogicalKeyboardKey.digit9,
+        LogicalKeyboardKey.digit9,
+      ]) {
+        await key(digit);
+      }
+      await pad('button-0');
+      await until(controlsReady);
+      expect(urls, ['https://wiimmfi.de/error?e=23899']);
+
+      await tapLabel(WiimmfiLocale.labels(const Locale('en'))['offline']!);
+      expect(launched, [false]);
+      await tapLabel(WiimmfiLocale.labels(const Locale('en'))['launch']!);
+      expect(launched, [false, true]);
+      await until(controlsReady);
+      await pad('button-1');
+      expect(find.byType(WiimmfiPanel), findsNothing);
+      expect(find.text('open-wiimmfi'), findsOneWidget);
+      expect(parentActive, true);
+      expect(tester.takeException(), isNull);
+    } finally {
+      if (pendingPicker != null && !pendingPicker.isCompleted) {
+        pendingPicker.complete(null);
+      }
+      await settle();
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+      GamepadNavigationManager.popLayer('wiimmfi-test-parent');
+      messenger.setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/url_launcher'),
+        null,
+      );
+      SfxService().setEnabled(true);
+    }
+  });
 
   test(
     'exact native identity and hash bind declaration; changed image cannot launch online',

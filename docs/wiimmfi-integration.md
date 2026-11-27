@@ -1,6 +1,6 @@
 # Wiimmfi dans Dolphin — 27 novembre 2026
 
-[Confirmation et défauts supplémentaires](evidence/wiimmfi-followup-audit-2026-11-27.md) : fusion des dossiers vides, cycle complet de lancement, fermetures et interruption pendant le boot corrigés ; [Core ABI 4 compilé et vérifié](https://github.com/TarbleFR/RewindBox/actions/runs/45979848094), source `e19a37ac`, empreinte `a8c4540d…fb4aee6`. La navigation manette du panneau reste à implémenter. Les builds ABI 2/3 décrits ci-dessous sont des candidats antérieurs.
+[Confirmation et défauts supplémentaires](evidence/wiimmfi-followup-audit-2026-11-27.md) : fusion des dossiers vides, cycle complet de lancement, fermetures et interruption pendant le boot corrigés ; [Core ABI 4 compilé et vérifié](https://github.com/TarbleFR/RewindBox/actions/runs/45979848094), source `e19a37ac`, empreinte `a8c4540d…fb4aee6`. [Navigation manette/clavier/toucher terminée et vérifiée sur widgets](evidence/wiimmfi-controller-completion-2026-11-27.md) ; commandes physiques sur iPhone non testées. Les builds ABI 2/3 décrits ci-dessous sont des candidats antérieurs.
 
 [Contre-expertise et correctifs ABI 3](evidence/wiimmfi-counteraudit-2026-11-27.md) : source finale `a660c337`, identité/Mii, TMD, protections réseau/journaux et circuit de lancement revus. [Core final compilé et vérifié](https://github.com/TarbleFR/RewindBox/actions/runs/45977483996), SHA-256 `e4811001…3346250` ; [identité complète](evidence/wiimmfi-counteraudit-2026-11-27.json). Les preuves ABI 2 ci-dessous décrivent le premier candidat, remplacé avant toute livraison.
 

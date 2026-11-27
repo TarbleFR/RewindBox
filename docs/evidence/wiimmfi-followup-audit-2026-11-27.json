@@ -38,11 +38,15 @@
     },
     {
       "code": "gamepadPanelNavigation",
-      "state": "open",
+      "state": "corrected",
       "severity": "ergonomic",
       "cause": "Wiimmfi panel is absent from manual controller selection model",
-      "availableInput": "touch",
-      "nextStep": "Selectable Wiimmfi entry and a modal owning existing GamepadNavigation"
+      "availableInput": [
+        "gamepad",
+        "keyboard",
+        "touch"
+      ],
+      "resolutionEvidence": "docs/evidence/wiimmfi-controller-completion-2026-11-27.md"
     }
   ],
   "checks": {
@@ -198,5 +202,15 @@
   },
   "ipaProduced": false,
   "deliveryManifestChanged": false,
-  "realConsoleSecretsUsed": false
+  "realConsoleSecretsUsed": false,
+  "uiCompletion": {
+    "reviewedSource": "bfb58ac3ad731aac5dd19c97afada96496ce4f7d",
+    "state": "source corrected; host widgets tested",
+    "existingTestsPassed": 35,
+    "physicalControllerOnIPhoneTested": false,
+    "coreSourceInputsUnchanged": true,
+    "fullIOSAppBuilt": false,
+    "newIPADelivered": false,
+    "evidence": "docs/evidence/wiimmfi-controller-completion-2026-11-27.md"
+  }
 }
