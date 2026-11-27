@@ -8,9 +8,11 @@ that differ from the baseline's (values of the first run, with their spread when
 dispatch sees) and the pixel digest (every target read back) are identical to the baseline's. A digest is only compared when it is stable across
 the baseline's own runs; otherwise it is reported as unstable (not evidence either way). Each run writes a per-draw trace (RBM_TRACE) and the
 first line where two runs part is printed: between the baseline's own runs, and for a variant whose metrics move.
+Timing (TIMES line): wall time of each measured frame, submit to queue finish, on the runner's GPU. Per variant: median over all its frames, and
+the paired change against the baseline of the same round (median, p25, p75 of the per-round medians' ratio). Runner timings, not iPhone frame times.
 Exit 1 when a variant changes the pixels: such a switch is not an equivalent optimization.
 """
-import json, os, subprocess, sys
+import json, os, statistics, subprocess, sys
 from pathlib import Path
 
 binary, variants, out = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
@@ -24,6 +26,7 @@ for line in variants.read_text().splitlines():
         name, *pairs = line.split()
         plan.append((name, dict(p.split("=", 1) for p in pairs)))
 runs = {name: [] for name, _ in plan}
+times = {name: {} for name, _ in plan}   # variant -> round -> frame wall times (ms)
 for k in range(repeats):
     for name, sw in plan[k % len(plan):] + plan[:k % len(plan)]:
         env = {**os.environ, "DM_NVN_ENC_THREAD": "1", **sw, "RBM_TRACE": str(out / f"{name}.{k}.trace")}
@@ -34,7 +37,11 @@ for k in range(repeats):
             print(f"{name} run {k}: FAILED rc={r.returncode}\n{r.stdout[-2000:]}\n{r.stderr[-3000:]}")
             continue
         runs[name].append(json.loads(m[-1][8:]))
+        t = [l for l in r.stdout.splitlines() if l.startswith("TIMES")]
+        if t and t[-1].split()[1:]:
+            times[name][k] = [float(x) for x in t[-1].split()[1:]]
 (out / "metrics.json").write_text(json.dumps(runs, indent=1))
+(out / "times.json").write_text(json.dumps(times, indent=1))
 if not runs.get("baseline"):
     sys.exit("baseline failed")
 base_runs = runs["baseline"]
@@ -86,4 +93,19 @@ for name, rs in runs.items():
             show_split(f"  {name} run {k} vs baseline run 0", "baseline.0.trace", f"{name}.{k}.trace")
             break
     bad |= not same_px
+def q(v, p):
+    v = sorted(v); i = (len(v) - 1) * p; lo = int(i); hi = min(lo + 1, len(v) - 1)
+    return v[lo] + (v[hi] - v[lo]) * (i - lo)
+print("\n### Frame wall time on the runner (submit to finish, ms; paired with the baseline of the same round)")
+bt = times.get("baseline", {})
+for name, per in times.items():
+    allf = [x for v in per.values() for x in v]
+    if not allf:
+        continue
+    line = f"- {name}: median {statistics.median(allf):.4f} ms over {len(allf)} frames in {len(per)} runs"
+    if name != "baseline":
+        pct = [(statistics.median(per[k]) / statistics.median(bt[k]) - 1) * 100 for k in per if k in bt]
+        if pct:
+            line += f", paired {statistics.median(pct):+.2f}% (p25 {q(pct, .25):+.2f}, p75 {q(pct, .75):+.2f}, {len(pct)} pairs)"
+    print(line)
 sys.exit(1 if bad else 0)

@@ -6,3 +6,6 @@ producer_cover_on      DM_NVN_PRODUCER_COVER=1
 tbdr_store_lookahead   DM_NVN_TBDR=1
 noload_off             DM_NVN_NOLOAD=0
 tab_cache_off          S2A_RB_TAB_CACHE=0
+cut_off                DM_NVN_CUT=0
+cut_16                 DM_NVN_CUT=16
+cut_4                  DM_NVN_CUT=4

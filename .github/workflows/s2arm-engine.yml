@@ -346,7 +346,7 @@ jobs:
           make -j4 -f Makefile -f "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/host-tests.mk" build/tests/t_nvn_rb_replay_metrics
           mkdir -p "$GITHUB_WORKSPACE/proof/replay-metrics"
           python3 "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/replay_compare.py" build/tests/t_nvn_rb_replay_metrics \
-            "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/replay_variants.txt" "$GITHUB_WORKSPACE/proof/replay-metrics" 3 | tee "$GITHUB_WORKSPACE/proof/replay-metrics.md"
+            "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/replay_variants.txt" "$GITHUB_WORKSPACE/proof/replay-metrics" 3 12 | tee "$GITHUB_WORKSPACE/proof/replay-metrics.md"
       - name: Measure the NVN2 shader corpus (MSL, AIR instruction counts, GPU equivalence) per switch
         continue-on-error: true
         if: matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-shader-metrics]')
