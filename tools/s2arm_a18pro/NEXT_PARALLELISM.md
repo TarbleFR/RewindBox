@@ -12,7 +12,7 @@ Le rendu peut déjà employer plusieurs command buffers et trois jeux de ressour
 | Horodater les commandes et tickets natifs | `S2A_RB_PARALLEL_TRACE=1`, début de fenêtre optionnel `S2A_RB_PARALLEL_FROM=N` | `=0` |
 | Suivre une même session sur 30 minutes | `S2A_RB_PARALLEL_LONG=1` puis démarrer le Banc d’essai habituel. Le compagnon continue après la fenêtre standard de 180 s. | `=0` |
 
-Le journal Mario Kart World du 20 novembre confirme Metal 4 sur A18 Pro. Les deux séries hors écran et le rejeu de 189 images ont sélectionné Metal 3 sur GPU Apple paravirtualisé. Les comparaisons techniques et les limites figurent dans le rapport ci-dessous.
+Le journal Mario Kart World du 20 novembre confirme Metal 4 sur A18 Pro. Sur iPhone, le sélecteur direct choisit Metal 4 à partir d’iOS 27 si le GPU appartient à la famille Metal 4. iOS 26.x utilise Metal 3 pour la compatibilité de la présentation. La valeur explicite `NXGAL_BE=mtl3` sélectionne aussi Metal 3. Les deux séries hors écran et le rejeu de 189 images ont sélectionné Metal 3 sur GPU Apple paravirtualisé. Les comparaisons techniques et les limites figurent dans le rapport ci-dessous.
 
 ## Lire une capture
 

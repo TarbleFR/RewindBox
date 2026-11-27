@@ -15,7 +15,7 @@ Le premier contrôle de cette archive a échoué sur une image du témoin. Dans 
 
 [Contrôles par variante, profil dynamique](dynamic.json) · [Contrôles à travail fixé](fixed.json). Les deux fichiers gardent l’empreinte brute de chaque trace diagnostique, les positions des attentes renforcées et les empreintes de comparaison.
 
-La capture est rattachée au moteur amont `6b6a571553f7a687af46e03e2cdbf8ef4d77f335`. Le manifeste `inputs.txt` de l’archive énumère 509 patchs. La liste ordonnée de leurs noms et sommes SHA-256 correspond au checkout du run et au [commit de production moteur 28b5ab49](https://github.com/TarbleFR/RewindBox/actions/runs/46029300326). Les modifications entre ces deux commits portent sur le banc. Les essais d’affichage sur A18 Pro restent à réaliser avec les options de ce lot.
+La capture est rattachée au moteur amont `6b6a571553f7a687af46e03e2cdbf8ef4d77f335`. Le manifeste `inputs.txt` de l’archive énumère 509 patchs. La liste ordonnée de leurs noms et sommes SHA-256 correspond au checkout du run et au [commit de production moteur 28b5ab49](https://github.com/TarbleFR/RewindBox/actions/runs/46029300326). Les deux jobs de compilation du moteur pour iPhoneOS ont réussi sur les hôtes macOS 15 et 26. La [vérification indépendante des 92 entrées de l’archive](https://github.com/TarbleFR/RewindBox/actions/runs/46031706619) a réussi sur Linux. Les modifications entre ces deux commits portent sur le banc. Les essais d’affichage sur A18 Pro restent à réaliser avec les options de ce lot.
 
 Pour reproduire la vérification sur l’archive téléchargée depuis ce run :
 
