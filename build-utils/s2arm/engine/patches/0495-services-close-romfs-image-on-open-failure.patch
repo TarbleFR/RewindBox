@@ -1,0 +1,34 @@
+diff --git a/services/S2A.Services/RomFsIndex.cs b/services/S2A.Services/RomFsIndex.cs
+--- a/services/S2A.Services/RomFsIndex.cs
++++ b/services/S2A.Services/RomFsIndex.cs
+@@ -858,15 +858,21 @@
+             int count = BitConverter.ToInt32(raw, 16);
+             if (raw.Length != 20 + count * 8L) throw new InvalidDataException($"RomFS 镜像对照表长度不对：{map}");
+             var handle = File.OpenHandle(image, FileMode.Open, FileAccess.Read, FileShare.Read, FileOptions.RandomAccess);
+-            if (RandomAccess.GetLength(handle) != length)
+-            {
+-                handle.Dispose();
+-                return null;
+-            }
+-            long[] offsets = new long[count];
+-            Buffer.BlockCopy(raw, 20, offsets, 0, count * 8);
+-            return new IndexedStorage(Path.GetFullPath(Path.Combine(programDir, "romfs")), File.ReadAllBytes(index), index,
+-                OverlayFiles(Path.Combine(programDir, ImageOverlayDir)), handle, offsets);
++            bool transferred = false;
++            try
++            {
++                if (RandomAccess.GetLength(handle) != length) return null;
++                long[] offsets = new long[count];
++                Buffer.BlockCopy(raw, 20, offsets, 0, count * 8);
++                var storage = new IndexedStorage(Path.GetFullPath(Path.Combine(programDir, "romfs")), File.ReadAllBytes(index), index,
++                    OverlayFiles(Path.Combine(programDir, ImageOverlayDir)), handle, offsets);
++                transferred = true;
++                return storage;
++            }
++            finally
++            {
++                if (!transferred) handle.Dispose();
++            }
+         }
+ 
+         public enum Source { Image, Directory, Missing }

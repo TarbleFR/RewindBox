@@ -1,0 +1,57 @@
+diff --git a/runtime/src/far.c b/runtime/src/far.c
+--- a/runtime/src/far.c
++++ b/runtime/src/far.c
+@@ -386,12 +386,49 @@
+     for (uint64_t pd = (uint64_t)d, left = n; left;) { uint8_t *hd; uint64_t k = piece(pd, left, &hd); memset(hd, c, k); pd += k; left -= k; }
+     return d;
+ }
++// At an interior far address the shadow is contiguous only within its own chunk.
++static size_t far_move_span(uint64_t pos, size_t left, int backward, uint8_t **host) {
++    uint64_t at = backward ? pos - 1 : pos;
++    uint64_t in_chunk = (at - g_lo) & (CHUNK - 1);
++    size_t span = backward ? in_chunk + 1 : CHUNK - in_chunk;
++    if (span > left) span = left;
++    uint8_t *mapped = g2h(at, NULL, NULL);
++    *host = mapped ? mapped : (uint8_t *)(uintptr_t)at;
++    return span;
++}
+ static void *far_memmove(void *d, const void *s, size_t n) {
+-    if (!touches((uint64_t)d, n) && !touches((uint64_t)s, n)) return memmove(d, s, n);
+     uint64_t a = (uint64_t)d, b = (uint64_t)s;
+-    if (a + n <= b || b + n <= a) return far_memcpy(d, s, n);   // 不重叠
+-    void *t = malloc(n); if (!t) die("远端 memmove：%zu 字节暂存分配失败", n);   // 重叠且碰到远端（罕见）：经暂存区，先整段读出再写回
+-    far_memcpy(t, s, n); far_memcpy(d, t, n); free(t); return d;
++    if (!touches(a, n) && !touches(b, n)) return memmove(d, s, n);
++    if (a == b) return d;
++    if (a + n <= b || b + n <= a) return far_memcpy(d, s, n);
++
++    // Far chunks have disjoint backing by construction. Move in guest address
++    // order, independently of the order of the host shadow chunks.
++    if (s2a_far_has(a, n) && s2a_far_has(b, n)) {
++        int backward = a > b;
++        if (backward) { a += n; b += n; }
++        for (size_t left = n; left;) {
++            uint8_t *hd, *hs;
++            size_t da = far_move_span(a, left, backward, &hd);
++            size_t sb = far_move_span(b, left, backward, &hs);
++            size_t k = da < sb ? da : sb;
++            if (backward) {
++                memmove(hd - (k - 1), hs - (k - 1), k);
++                a -= k; b -= k;
++            } else {
++                memmove(hd, hs, k);
++                a += k; b += k;
++            }
++            left -= k;
++        }
++        return d;
++    }
++
++    // A mixed near/far range may hit a near alias of a far shadow.
++    void *t = malloc(n);
++    if (!t) die("远端 memmove：%zu 字节暂存分配失败", n);
++    far_memcpy(t, s, n); far_memcpy(d, t, n); free(t);
++    return d;
+ }
+ static void far_flush(const void *p, size_t n) {
+     void (*orig)(const void *, size_t) = (void (*)(const void *, size_t))(uintptr_t)g_flush_orig;

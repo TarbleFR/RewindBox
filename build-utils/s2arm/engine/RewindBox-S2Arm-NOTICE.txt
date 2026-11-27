@@ -150,3 +150,8 @@ lock, handle allocation and condition-initialization failures, read process-memo
 statistics under their writer lock, and restore comparison switches for the
 transfer-handle count and service-session search optimizations. These changes
 are provided under Apache-2.0; existing third-party notices are retained.
+
+RewindBox patches 0495 through 0500 modify RomFS image ownership, index
+metadata and padding buffers, deferred-zero page accounting, mapping table
+reset and overlapping far-memory moves. These changes are provided under
+Apache-2.0.

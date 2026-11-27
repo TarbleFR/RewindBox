@@ -1,0 +1,33 @@
+diff --git a/services/S2A.Services/RomFsIndex.cs b/services/S2A.Services/RomFsIndex.cs
+--- a/services/S2A.Services/RomFsIndex.cs
++++ b/services/S2A.Services/RomFsIndex.cs
+@@ -129,6 +129,7 @@
+             // 文件数据以外的区间：从镜像里读出（文件是只给长度的空文件，这些区间不含文件数据），全零的不存
+             List<(long Off, byte[] Data)> segs = new();
+             long pos = 0;
++            byte[] gapBuffer = null;
+ 
+             void Gap(long from, long to)
+             {
+@@ -136,12 +137,15 @@
+ 
+                 for (long o = from; o < to; o += Chunk)
+                 {
+-                    byte[] b = new byte[(int)Math.Min(Chunk, to - o)];
+-                    image.Read(o, b).ThrowIfFailure();
+-
+-                    if (Array.Exists(b, x => x != 0))
+-                    {
+-                        segs.Add((o, b));
++                    int count = (int)Math.Min(Chunk, to - o);
++                    if (gapBuffer == null || gapBuffer.Length < count)
++                        gapBuffer = new byte[Math.Min(Chunk, Math.Max(count, (gapBuffer?.Length ?? 128) * 2))];
++                    Span<byte> bytes = gapBuffer.AsSpan(0, count);
++                    image.Read(o, bytes).ThrowIfFailure();
++
++                    if (bytes.ContainsAnyExcept((byte)0))
++                    {
++                        segs.Add((o, bytes.ToArray()));
+                     }
+                 }
+             }

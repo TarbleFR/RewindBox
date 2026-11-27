@@ -1,0 +1,16 @@
+diff --git a/runtime/src/svc_mem.c b/runtime/src/svc_mem.c
+--- a/runtime/src/svc_mem.c
++++ b/runtime/src/svc_mem.c
+@@ -2391,9 +2391,10 @@
+     memset(g_svc_perm, 0, sizeof g_svc_perm);
+     g_heap = NULL; g_heap_cur = 0; g_phys = g_mstack = 0;
+     g_hooks = (s2a_track_hooks){0};
+-    memset(g_map, 0, sizeof g_map); g_nmap = 0;
++    // Readers use the active counts; insertions overwrite every published field.
++    g_nmap = 0;
+     free(g_perm); g_perm = NULL; g_nperm = 0; free(g_attr); g_attr = NULL; g_nattr = 0;
+-    memset(g_span, 0, sizeof g_span); g_nspan = 0;
++    g_nspan = 0;
+     g_cur_st = g_cur_sh = g_pk_st = g_pk_sh = 0;
+     g_pk_st_end = g_pk_sh_end = g_pk_heap = g_pk_heap_request = g_pk_alias_end = 0;
+     g_tlr_next = 0; g_tlr_free = NULL;

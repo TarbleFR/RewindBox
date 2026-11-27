@@ -881,3 +881,14 @@ Une plage sale entièrement contenue dans un niveau et une couche peut utiliser 
 - **0494** (`runtime/src/svc_mem.c`) — les relevés mémoire de `GetSystemInfo` et `GetInfo` lisent les compteurs sous le même verrou ; la mémoire libre utilise une seule lecture.
 
 [Reproductions synthétiques et limites](../../../docs/evidence/s2arm-cpu-counterreview-0490/README.md). Les corrections de sûreté restent actives dans les deux modes de comparaison. Aucun gain sur iPhone revendiqué.
+
+### 0495–0500 — RAM et cycle de vie
+
+- **0495** ferme le handle d’image RomFS si la construction du stockage échoue.
+- **0496** relit les champs de chemins dans l’index RomFS déjà chargé et réutilise les longueurs des plages de lecture.
+- **0497** balaie le remplissage RomFS avec un tampon borné réutilisé. Seules les plages non nulles sont conservées.
+- **0498** comptabilise les pages à remettre à zéro par bits, sous le verrou mémoire, avec le même traitement des alias.
+- **0499** vide les tables de mappage en réinitialisant leurs compteurs de lignes actives.
+- **0500** déplace directement les plages distantes qui se chevauchent, dans l’ordre des adresses invitées. Les plages mixtes gardent la copie via tampon.
+
+[Cartographie et mesures sur hôte](../../../docs/evidence/s2arm-ram-0495-0500.md).

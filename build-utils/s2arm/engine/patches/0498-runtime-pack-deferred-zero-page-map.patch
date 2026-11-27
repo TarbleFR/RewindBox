@@ -1,0 +1,86 @@
+diff --git a/runtime/src/svc_mem.c b/runtime/src/svc_mem.c
+--- a/runtime/src/svc_mem.c
++++ b/runtime/src/svc_mem.c
+@@ -1129,36 +1129,64 @@
+ //   （真机 6 分钟释放 1.19 GB，物理脚印不涨）。两版「尽快打洞」（攒段一次 F_PUNCHHOLE；后台线程逐块打洞）都在真机上让 Metal 报 GPU 挂死：
+ //   游戏渲染期间对后备文件打洞，Metal 命令提交就在内核里和 F_PUNCHHOLE 互卡；原版不挂只因为那 1 s 卡顿让 GPU 空闲。细节见 docs/坑记录.md。
+ //   S2A_PUNCH_DEFER=0 回原路径（逐页同步打洞 + 重映射，负对照用）。
+-static uint8_t *g_punch_pend;   // 窗口内每宿主页一字节：1 待清零（释放后还没放出来）；g_mu 保护
++static uint64_t *g_punch_pend;  // One bit per host page pending zero, protected by g_mu.
+ static uint64_t g_punch_pending_n;   // 待清零宿主页数
+ static uint64_t g_punch_inline_n, g_punch_forget_n;   // 读数：放出来时就地清零的页数、对齐 MapMemory 盖掉而撤销标记的页数
+ static uint64_t g_unmap_n, g_unmap_ns, g_unmap_max_ns;   // 读数：≥1 MB 的 UnmapPhysicalMemory 持锁次数 / 总时长 / 最长一次（S2A_PUNCH_DEFER=0 与缺省同一份代码量，PR 修前→修后用）
+ static int punch_defer_on(void) { static int v = -1; if (v < 0) { const char *e = getenv("S2A_PUNCH_DEFER"); v = !(e && *e == '0'); } return v; }
+-static uint8_t *punch_at(uint64_t hp) { return g_punch_pend + (hp - L.win_base) / HPG; }
++// The bounds are inclusive host page indices, already clipped to the window.
++static uint64_t punch_mask(uint64_t word, uint64_t first, uint64_t last) {
++    uint64_t mask = UINT64_MAX;
++    if (word == first / 64) mask <<= first % 64;
++    if (word == last / 64) mask &= UINT64_MAX >> (63 - last % 64);
++    return mask;
++}
+ // 还页走懒清零（持 g_mu）：[a, a + n) 全在文件后备窗口里才接，改成不可访问并记待清零；接了返回 1
+ static int punch_defer_locked(uint64_t a, uint64_t n) {
+-    if (!punch_defer_on() || !L.win_size || !s2a_guest_in_file(a, n) || a < L.win_base || a + n > L.win_base + L.win_size || (a | n) & (HPG - 1)) return 0;
++    if (!n || !punch_defer_on() || !L.win_size || !s2a_guest_in_file(a, n) || a < L.win_base || a + n > L.win_base + L.win_size || (a | n) & (HPG - 1)) return 0;
+     // 待清零表先分配、分不出就不走懒清零（返回 0：调用方走 s2a_guest_zero 立即清零）。诊断#0ed154（8 GB iPad、低区耗尽、errno 12 ×22）：
+     //   原先 mprotect 后才 calloc、不判空，calloc 回空后按页号写进空指针（读 0xfebb），宿主在还页路径上崩
+-    if (!g_punch_pend && !(g_punch_pend = calloc(L.win_size / HPG, 1))) {
+-        static int once; if (!once++) LOG("【红】懒清零待清零表 %llu KB 分配失败（errno=%d），改走立即清零", (unsigned long long)(L.win_size / HPG >> 10), errno);
++    size_t words = (L.win_size / HPG + 63) / 64;
++    if (!g_punch_pend && !(g_punch_pend = calloc(words, sizeof *g_punch_pend))) {
++        static int once; if (!once++) LOG("【红】懒清零待清零表 %llu KB 分配失败（errno=%d），改走立即清零", (unsigned long long)(words * sizeof *g_punch_pend >> 10), errno);
+         return 0; }
+     if (mprotect((void *)a, n, PROT_NONE)) die("懒清零 mprotect errno=%d", errno);
+-    for (uint64_t p = a; p < a + n; p += HPG) { uint8_t *b = punch_at(p); if (!*b) { *b = 1; g_punch_pending_n++; } }
++    uint64_t first = (a - L.win_base) / HPG, last = first + n / HPG - 1;
++    for (uint64_t w = first / 64; w <= last / 64; w++) {
++        uint64_t mask = punch_mask(w, first, last);
++        g_punch_pending_n += __builtin_popcountll(mask & ~g_punch_pend[w]);
++        g_punch_pend[w] |= mask;
++    }
+     return 1;
+ }
+-// 游戏把 [lo, hi) 放出来（持 g_mu，调用方已把这段 mprotect 成读写）：其中待清零的宿主页内容是旧的，就地清零并撤销标记
+-static void punch_zero_locked(uint64_t lo, uint64_t hi) {
+-    if (!g_punch_pend || !L.win_size) return;
+-    uint64_t we = L.win_base + L.win_size; if (lo < L.win_base) lo = L.win_base; if (hi > we) hi = we;
+-    for (uint64_t p = lo; p < hi; p += HPG) { uint8_t *b = punch_at(p); if (!*b) continue; *b = 0; g_punch_pending_n--; memset((void *)p, 0, HPG); g_punch_inline_n++; }
+-}
+-// [lo, hi) 的原映射被整体盖掉（MapMemory 对齐路径 vm_remap 共享源页）：旧内容不可见了，只撤销标记、不碰内存（那是源的页）
+-static void punch_forget_locked(uint64_t lo, uint64_t hi) {
+-    if (!g_punch_pend || !L.win_size) return;
+-    uint64_t we = L.win_base + L.win_size; if (lo < L.win_base) lo = L.win_base; if (hi > we) hi = we;
+-    for (uint64_t p = lo; p < hi; p += HPG) { uint8_t *b = punch_at(p); if (!*b) continue; *b = 0; g_punch_pending_n--; g_punch_forget_n++; }
+-}
++// Clearing a replaced alias drops the mark without writing into the shared source.
++static void punch_clear_locked(uint64_t lo, uint64_t hi, int zero) {
++    if (!g_punch_pending_n || !L.win_size) return;
++    uint64_t we = L.win_base + L.win_size;
++    if (lo < L.win_base) lo = L.win_base;
++    if (hi > we) hi = we;
++    if (lo >= hi) return;
++    uint64_t first = (lo - L.win_base) / HPG, last = (hi - 1 - L.win_base) / HPG;
++    for (uint64_t w = first / 64; w <= last / 64; w++) {
++        uint64_t marked = g_punch_pend[w] & punch_mask(w, first, last);
++        if (!marked) continue;
++        g_punch_pend[w] &= ~marked;
++        unsigned count = __builtin_popcountll(marked);
++        g_punch_pending_n -= count;
++        if (!zero) {
++            g_punch_forget_n += count;
++            continue;
++        }
++        g_punch_inline_n += count;
++        while (marked) {
++            uint64_t page = w * 64 + __builtin_ctzll(marked);
++            memset((void *)(L.win_base + page * HPG), 0, HPG);
++            marked &= marked - 1;
++        }
++    }
++}
++static void punch_zero_locked(uint64_t lo, uint64_t hi) { punch_clear_locked(lo, hi, 1); }
++static void punch_forget_locked(uint64_t lo, uint64_t hi) { punch_clear_locked(lo, hi, 0); }
+ // 收局时（lifecycle.c，_exit 前）打一行读数：取消 / SIGTERM 路径不走会话重置，否则读数永远看不到
+ void s2a_punch_summary(void) {
+     if (g_unmap_n) LOG("#258 解除物理映射读数：≥1 MB 的解除 %llu 次、持锁共 %llu ms、最长一次 %llu ms", (unsigned long long)g_unmap_n, (unsigned long long)(g_unmap_ns / 1000000), (unsigned long long)(g_unmap_max_ns / 1000000));

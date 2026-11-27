@@ -1,0 +1,170 @@
+diff --git a/services/S2A.Services/RomFsIndex.cs b/services/S2A.Services/RomFsIndex.cs
+--- a/services/S2A.Services/RomFsIndex.cs
++++ b/services/S2A.Services/RomFsIndex.cs
+@@ -918,11 +918,10 @@
+             private readonly long[] _start;     // 各区间起点（升序）
+             private readonly long[] _len;
+             private readonly int[] _ref;        // ≥ 0：文件号；< 0：~段号
+-            private readonly int[] _pathOff, _pathLen;
++            private const int FileTable = 20, FileRecord = 24, SegmentRecord = 12;
+             private readonly int _pathBase;
+             private readonly int[] _segData;    // 段字节在 _idx 里的位置
+             private readonly LazyHostFile[] _files;
+-            private readonly long[] _fileLen;
+ 
+             private readonly Dictionary<string, string> _overlay;   // RomFS 相对路径 → 覆盖层文件（OverlayFiles），null = 无覆盖层
+             private readonly Microsoft.Win32.SafeHandles.SafeFileHandle _image;   // 单文件镜像；null = 目录布局
+@@ -946,71 +945,60 @@
+                     throw new InvalidDataException($"RomFS 索引格式不对：{where}");
+                 }
+ 
+-                int p = 8;
+-                _size = BitConverter.ToInt64(idx, p); p += 8;
+-                int nf = BitConverter.ToInt32(idx, p); p += 4;
+-                long[] fOff = new long[nf], fLen = new long[nf];
+-                _pathOff = new int[nf];
+-                _pathLen = new int[nf];
+-
+-                for (int i = 0; i < nf; i++)
+-                {
+-                    fOff[i] = BitConverter.ToInt64(idx, p);
+-                    fLen[i] = BitConverter.ToInt64(idx, p + 8);
+-                    _pathOff[i] = BitConverter.ToInt32(idx, p + 16);
+-                    _pathLen[i] = BitConverter.ToInt32(idx, p + 20);
+-                    p += 24;
+-                }
+-
+-                int pathBytes = BitConverter.ToInt32(idx, p); p += 4;
+-                _pathBase = p;
++                _size = BitConverter.ToInt64(idx, 8);
++                int nf = BitConverter.ToInt32(idx, 16);
++                if (nf < 0 || nf > (idx.Length - FileTable - 4) / FileRecord)
++                    throw new InvalidDataException($"RomFS file table is truncated: {where}");
++                if (imageOffset != null && imageOffset.Length != nf)
++                    throw new InvalidDataException($"RomFS 镜像对照表 {imageOffset.Length} 项，索引 {nf} 个文件：{where}");
++
++                int p = FileTable + nf * FileRecord;
++                int pathBytes = BitConverter.ToInt32(idx, p);
++                _pathBase = p += 4;
++                if (pathBytes < 0 || pathBytes > idx.Length - p - 4)
++                    throw new InvalidDataException($"RomFS path table is truncated: {where}");
+                 p += pathBytes;
+                 int ns = BitConverter.ToInt32(idx, p); p += 4;
+-                long[] sOff = new long[ns];
+-                int[] sLen = new int[ns];
+-
+-                for (int i = 0; i < ns; i++)
+-                {
+-                    sOff[i] = BitConverter.ToInt64(idx, p);
+-                    sLen[i] = BitConverter.ToInt32(idx, p + 8);
+-                    p += 12;
+-                }
+-
+-                _segData = new int[ns];
+-
+-                for (int i = 0; i < ns; i++)
+-                {
+-                    _segData[i] = p;
+-                    p += sLen[i];
+-                }
+-
+-                // 合并成一张升序区间表（文件与段互不重叠，两表各自已升序）
++                if (ns < 0 || ns > (idx.Length - p) / SegmentRecord)
++                    throw new InvalidDataException($"RomFS segment table is truncated: {where}");
++                int segmentTable = p;
++                int segmentData = p + ns * SegmentRecord;
++
++                // Keep the sorted read table. Path fields stay in the immutable on-disk records.
+                 int n = nf + ns;
+                 _start = new long[n];
+                 _len = new long[n];
+                 _ref = new int[n];
++                _segData = new int[ns];
+ 
+                 for (int i = 0, a = 0, b = 0; i < n; i++)
+                 {
+-                    if (b >= ns || (a < nf && fOff[a] < sOff[b]))
+-                    {
+-                        (_start[i], _len[i], _ref[i]) = (fOff[a], fLen[a], a);
++                    int file = FileTable + a * FileRecord;
++                    int segment = segmentTable + b * SegmentRecord;
++                    long off = a < nf ? BitConverter.ToInt64(idx, file) : 0;
++                    if (b >= ns || (a < nf && off < BitConverter.ToInt64(idx, segment)))
++                    {
++                        (_start[i], _len[i], _ref[i]) = (off, BitConverter.ToInt64(idx, file + 8), a);
+                         a++;
+                     }
+                     else
+                     {
+-                        (_start[i], _len[i], _ref[i]) = (sOff[b], sLen[b], ~b);
+-                        b++;
++                        int len = BitConverter.ToInt32(idx, segment + 8);
++                        if (len < 0 || len > idx.Length - segmentData)
++                            throw new InvalidDataException($"RomFS segment data is truncated: {where}");
++                        (_start[i], _len[i], _ref[i]) = (BitConverter.ToInt64(idx, segment), len, ~b);
++                        _segData[b++] = segmentData;
++                        segmentData += len;
+                     }
+                 }
+ 
+                 _files = new LazyHostFile[nf];
+-                _fileLen = fLen;
+-
+-                if (imageOffset != null && imageOffset.Length != nf)
+-                {
+-                    throw new InvalidDataException($"RomFS 镜像对照表 {imageOffset.Length} 项，索引 {nf} 个文件：{where}");
+-                }
++            }
++
++            private ReadOnlySpan<byte> FilePath(int file)
++            {
++                int p = FileTable + file * FileRecord + 16;
++                return _idx.AsSpan(_pathBase + BitConverter.ToInt32(_idx, p), BitConverter.ToInt32(_idx, p + 4));
+             }
+ 
+             public override Result Read(long offset, Span<byte> destination)
+@@ -1110,7 +1098,7 @@
+                     }
+                     else if (_ref[i] >= 0)
+                     {
+-                        Result r = File(_ref[i], out LazyHostFile file);
++                        Result r = File(_ref[i], _len[i], out LazyHostFile file);
+ 
+                         if (r.IsSuccess())
+                         {
+@@ -1135,8 +1123,7 @@
+ 
+                     if (inner == 0 && count > 0 && _ref[i] >= 0 && RouteObserver != null)
+                     {
+-                        int file = _ref[i];
+-                        NoteRouteFile(_idx.AsSpan(_pathBase + _pathOff[file], _pathLen[file]));
++                        NoteRouteFile(FilePath(_ref[i]));
+                     }
+                     lastHit = i;
+                     destination = destination[count..];
+@@ -1152,14 +1139,14 @@
+                 return Result.Success;
+             }
+ 
+-            private Result File(int f, out LazyHostFile h)
++            private Result File(int f, long length, out LazyHostFile h)
+             {
+                 h = _files[f];
+ 
+                 if (h == null)
+                 {
+                     // 多个 IStorage 会话并发读（各自加锁，HleTarget）：只让一个新建的进表，输的那份丢掉（还没打开过，无句柄）
+-                    string rel = Encoding.UTF8.GetString(_idx, _pathBase + _pathOff[f], _pathLen[f]);
++                    string rel = Encoding.UTF8.GetString(FilePath(f));
+                     string full = Path.GetFullPath(Path.Combine(_root, rel));
+ 
+                     // 拼完必须仍在 romfs/ 下（审计 #1534 P1-5）：索引被改成 ../ 或绝对路径就拒绝这次打开，
+@@ -1172,7 +1159,7 @@
+ 
+                     if (_overlay != null && _overlay.TryGetValue(rel, out string over)) full = over;
+ 
+-                    h = System.Threading.Interlocked.CompareExchange(ref _files[f], new LazyHostFile(full, _fileLen[f]), null) ?? _files[f];
++                    h = System.Threading.Interlocked.CompareExchange(ref _files[f], new LazyHostFile(full, length), null) ?? _files[f];
+                 }
+ 
+                 return Result.Success;
