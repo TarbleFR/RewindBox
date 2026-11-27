@@ -515,8 +515,12 @@ class Components(unittest.TestCase):
                 self.assertEqual(origin['workflow'], producer.WORKFLOW)
                 self.assertEqual(tuple(spec['inputs']), producer.INPUTS)
                 self.assertEqual(REPO.tree_of(origin['source']), origin['tree'])
-                self.assertEqual(json.loads(REPO.show(origin['source'], 'build-utils/armsx2/source.json'))['revision'],
-                                 spec['upstreamRevision'])
+                if kind == 'dolphin':
+                    workflow = sd.load_yaml_subset(REPO.show(origin['source'], producer.WORKFLOW).decode())
+                    self.assertEqual(workflow['jobs']['build']['env']['DOLPHIN_SHA'], spec['upstreamRevision'])
+                else:
+                    self.assertEqual(json.loads(REPO.show(origin['source'], 'build-utils/armsx2/source.json'))['revision'],
+                                     spec['upstreamRevision'])
                 continue
             self.assertEqual((origin['job'], origin['artifact'], origin['bytes'], origin['sha256']),
                              (pin['job'], pin['artifact'], pin['bytes'], pin['sha256']))
@@ -663,6 +667,10 @@ class DeclaredInputChanges(unittest.TestCase):
     def test_manifest_shape_refusals(self):
         _, manifest = current_manifest()
         good = copy.deepcopy(manifest)
+        # This contract exercises the legacy retained-input exception, never a replaced Core.
+        good['components']['dolphin'] = copy.deepcopy(sd.load_manifest(847)['components']['dolphin'])
+        good['images']['replaced'].pop('dolphin', None)
+        good['images']['retained']['dolphin'] = [good['components']['dolphin']['image']]
         good['components']['dolphin'].pop('inheritedChangedInputs', None)
         good['components']['dolphin']['changedInputs'] = [
             dict(path=VERIFY_IPA, baseBlob='a' * 40, newBlob='b' * 40, commit='c' * 40)]
@@ -780,6 +788,10 @@ class InheritedInputChanges(unittest.TestCase):
     def test_manifest_shape_refusals(self):
         _, manifest = current_manifest()
         good = copy.deepcopy(manifest)
+        # Keep this fixture on the legacy retained route when the current build replaces Dolphin.
+        good['components']['dolphin'] = copy.deepcopy(sd.load_manifest(847)['components']['dolphin'])
+        good['images']['replaced'].pop('dolphin', None)
+        good['images']['retained']['dolphin'] = [good['components']['dolphin']['image']]
         good['components']['dolphin'].pop('changedInputs', None)
         good['components']['dolphin']['inheritedChangedInputs'] = [
             dict(path=VERIFY_IPA, baseBlob='a' * 40, newBlob='b' * 40, commit='c' * 40, build=727)]
