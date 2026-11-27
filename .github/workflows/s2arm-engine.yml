@@ -877,6 +877,7 @@ jobs:
             --out "$RUNNER_TEMP/s2arm-engine-licenses"
           cp "$RUNNER_TEMP/s2arm-engine-licenses/license-sources.json" proof/engine-license-sources.json
       - name: Package the guest frameworks for RewindBox's delivery (macos-26 only)
+        id: graphics-package
         # Producer side of the test line's delivery wiring (contract): S2ArmEngine.framework.zip and NS2Pro.framework.zip
         # (ditto -c -k --keepParent, symlinks kept), the collected licences/ (license-sources.json and its texts) and
         # s2arm-engine-identity.json, which records the licences' manifest, uploaded below as s2arm-engine-framework-<sha>.
@@ -944,6 +945,50 @@ jobs:
           path: ${{ runner.temp }}/s2arm-engine-framework/
           if-no-files-found: error
           retention-days: 30
+      - name: Compare translated task and mesh barriers and verify raster output
+        if: ${{ !cancelled() && (env.TEST_ONLY == 'yes' || steps.graphics-package.outcome == 'success') && matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-mesh-barrier]') }}
+        working-directory: ${{ runner.temp }}/s2arm
+        env:
+          S2A_DEVELOPER_DIR: ${{ env.DEVELOPER_DIR }}
+          S2A_BUILD_CACHE: ${{ runner.temp }}/s2arm-build-cache
+          NUGET_PACKAGES: ${{ runner.temp }}/nuget
+        run: |
+          set -euo pipefail
+          rc=0
+          bash "$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests/mesh-barrier/run.sh" "$GITHUB_WORKSPACE/proof/mesh-barrier" || rc=$?
+          case "$rc" in
+            0) echo "Mesh raster output matched both color oracles in both variants" ;;
+            77) echo "Apple shader compilation completed. GPU mesh execution unsupported on this device." ;;
+            *) exit "$rc" ;;
+          esac
+      - name: Check tiled subuploads and replay identical zero-mask clear workloads
+        if: ${{ !cancelled() && (env.TEST_ONLY == 'yes' || steps.graphics-package.outcome == 'success') && matrix.os == 'macos-26' && contains(github.event.head_commit.message, '[s2arm-gob-clear]') }}
+        working-directory: ${{ runner.temp }}/s2arm
+        env:
+          S2A_DEVELOPER_DIR: ${{ env.DEVELOPER_DIR }}
+          S2A_BUILD_CACHE: ${{ runner.temp }}/s2arm-build-cache
+        run: |
+          set -euo pipefail
+          tests="$GITHUB_WORKSPACE/build-utils/s2arm/engine/tests"
+          out="$GITHUB_WORKSPACE/proof/gob-clear"
+          mkdir -p "$out"
+          make -C graphics/nvn mac
+          make -j4 -f Makefile -f "$tests/host-tests.mk" build/tests/t_nvn_rb_replay_metrics
+          for mode in 0 1; do
+            for repeat in 1 2 3 4 5; do
+              S2A_RB_GOB_RECTS=$mode DM_NVN_ENC_THREAD=1 build/tests/t_nvn_rb_replay_metrics --gob-rects | tee "$out/gob-$mode-$repeat.txt"
+            done
+          done
+          printf '%s\n' 'baseline S2A_RB_EMPTY_DS=0' 'candidate S2A_RB_EMPTY_DS=1' > "$out/variants.txt"
+          RBM_EMPTY_DS=1 DM_NVN_CUT=0 python3 "$tests/replay_compare.py" build/tests/t_nvn_rb_replay_metrics "$out/variants.txt" "$out" 3 12 | tee "$out/report.txt"
+          python3 - "$out/metrics.json" <<'PYTHON'
+          import json, sys
+          runs = json.load(open(sys.argv[1]))
+          for before, after in zip(runs["baseline"], runs["candidate"], strict=True):
+              assert before["empty_ds_splits_saved"] == 0 < after["empty_ds_splits_saved"]
+              for key in ("render_encoders", "load_bytes", "store_bytes"):
+                  assert after[key] < before[key], (key, before[key], after[key])
+          PYTHON
       - uses: TarbleFR/RewindBox/.github/actions/upload-protected-artifact@3bd75a37a4056eb9324987c76f32b002a89d58cb
         if: always()
         with:

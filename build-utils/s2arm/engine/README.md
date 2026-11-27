@@ -852,3 +852,13 @@ Série `0468–0470` compilée ensemble sur `macos-15` et `macos-26` (run [`4598
 ### 0480 — création concurrente de mémoire de transfert
 
 La création d’un handle recontrôle le quota de mémoire de transfert sous le verrou d’attribution. Quand deux demandes visent le dernier emplacement disponible, la seconde rend le prêt mémoire et retourne `ResLimitExceeded`. [Contre-expertise CPU et preuves](../../../docs/evidence/s2arm-cpu-counteraudit-0480.md).
+
+### 0481–0483 — transferts et rendu NVN2
+
+| Patch | Changement | Retour au comportement précédent |
+| --- | --- | --- |
+| 0481 | Préparer uniquement les GOB des rectangles peu denses sur les textures 2D tuilées à un niveau. | `S2A_RB_GOB_RECTS=0` |
+| 0482 | Retirer une barrière de groupe redondante du code Metal généré pour les shaders mesh et task. Le cache de secours tient compte du commutateur. | `S2A_RB_MESH_BARRIER=0` |
+| 0483 | Continuer une passe de rendu ordinaire sur un effacement profondeur/stencil à masques nuls lorsque les dépendances le permettent. | `S2A_RB_EMPTY_DS=0` |
+
+[Charges, limites et preuves](../../../docs/evidence/s2arm-gpu-0481/README.md).

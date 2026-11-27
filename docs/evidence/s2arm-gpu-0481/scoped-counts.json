@@ -1,0 +1,66 @@
+[
+  {
+    "tree": "baseline",
+    "shader_opt": 1,
+    "mesh_barrier": "1",
+    "xfp": "1dc0a2334d672810",
+    "source_assertions": 21,
+    "A_ms_with_task": [
+      4,
+      4
+    ],
+    "B_ms_without_task": [
+      3,
+      3
+    ],
+    "C_ts": 3
+  },
+  {
+    "tree": "baseline",
+    "shader_opt": 1,
+    "mesh_barrier": "0",
+    "xfp": "1dc0a2334d672810",
+    "source_assertions": 21,
+    "A_ms_with_task": [
+      4,
+      4
+    ],
+    "B_ms_without_task": [
+      3,
+      3
+    ],
+    "C_ts": 3
+  },
+  {
+    "tree": "candidate",
+    "shader_opt": 1,
+    "mesh_barrier": "0",
+    "xfp": "d29adcf8329332eb",
+    "source_assertions": 21,
+    "A_ms_with_task": [
+      4,
+      4
+    ],
+    "B_ms_without_task": [
+      3,
+      3
+    ],
+    "C_ts": 3
+  },
+  {
+    "tree": "candidate",
+    "shader_opt": 1,
+    "mesh_barrier": "1",
+    "xfp": "b012d295782ea14c",
+    "source_assertions": 21,
+    "A_ms_with_task": [
+      3,
+      3
+    ],
+    "B_ms_without_task": [
+      2,
+      2
+    ],
+    "C_ts": 2
+  }
+]

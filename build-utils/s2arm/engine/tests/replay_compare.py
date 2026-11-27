@@ -1,120 +1,208 @@
 #!/usr/bin/env python3
-"""Run t_rb_replay_metrics per variant (replay_variants.txt), several times each, and compare each with the baseline.
+"""Compare a synthetic NVN replay against its baseline (one process per run).
+Usage: replay_compare.py binary variants output_dir [frames] [repeats] [--timeout seconds]
 
-usage: replay_compare.py <binary> <variants file> <output dir> [frames] [repeats]
-Each run is a new process with DM_NVN_ENC_THREAD=1 and the variant's switches. Rounds alternate the variant order (round k starts at variant k)
-and every variant runs `repeats` times (default 5). Prints, per variant, whether its metrics and digests were the same in every run, the metrics
-that differ from the baseline's (values of the first run, with their spread when runs disagree), and whether the state digest (what every draw and
-dispatch sees) and the pixel digest (every target read back) are identical to the baseline's. A digest is only compared when it is stable across
-the baseline's own runs; otherwise it is reported as unstable (not evidence either way). Each run writes a per-draw trace (RBM_TRACE) and the
-first line where two runs part is printed: between the baseline's own runs, and for a variant whose metrics move.
-Timing (TIMES line): wall time of each measured frame, submit to queue finish, on the runner's GPU. Per variant: median over all its frames, and
-the paired change against the baseline of the same round (median, p25, p75 of the per-round medians' ratio). Runner timings, not iPhone frame times.
-Exit 1 when a variant changes the pixels: such a switch is not an equivalent optimization.
+One diagnostic run per variant records a trace. Separate untraced, rotating
+rounds measure submit-to-queue-finish latency with one queue finish per frame.
+Digest checks include both modes. Pass-inclusive state_digest is retained for
+diagnosis; only draw/dispatch state and pixel digests must match the baseline.
 """
-import json, os, statistics, subprocess, sys
+import argparse
+import json
+import math
+import os
 from pathlib import Path
+import re
+import statistics
+import subprocess
+import sys
+from itertools import zip_longest
 
-binary, variants, out = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
-frames = sys.argv[4] if len(sys.argv) > 4 else "3"
-repeats = int(sys.argv[5]) if len(sys.argv) > 5 else 5
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("binary", type=Path)
+parser.add_argument("variants", type=Path)
+parser.add_argument("out", type=Path)
+parser.add_argument("frames", type=int, nargs="?", default=3)
+parser.add_argument("repeats", type=int, nargs="?", default=5)
+parser.add_argument("--timeout", type=int, default=600)
+args = parser.parse_args()
+if args.frames < 1 or args.repeats < 2 or args.timeout < 1:
+    parser.error("positive frames/timeout and at least two timed rounds required")
+out = args.out
 out.mkdir(parents=True, exist_ok=True)
-plan = []
-for line in variants.read_text().splitlines():
-    line = line.split("#", 1)[0].strip()
-    if line:
-        name, *pairs = line.split()
-        plan.append((name, dict(p.split("=", 1) for p in pairs)))
-runs = {name: [] for name, _ in plan}
-times = {name: {} for name, _ in plan}   # variant -> round -> frame wall times (ms)
-for k in range(repeats):
-    for name, sw in plan[k % len(plan):] + plan[:k % len(plan)]:
-        env = {**os.environ, "DM_NVN_ENC_THREAD": "1", **sw, "RBM_TRACE": str(out / f"{name}.{k}.trace")}
-        r = subprocess.run([str(binary), frames], capture_output=True, text=True, env=env, timeout=600)
-        (out / f"{name}.{k}.log").write_text(r.stdout + r.stderr)
-        m = [l for l in r.stdout.splitlines() if l.startswith("METRICS ")]
-        if r.returncode or not m:
-            print(f"{name} run {k}: FAILED rc={r.returncode}\n{r.stdout[-2000:]}\n{r.stderr[-3000:]}")
-            continue
-        runs[name].append(json.loads(m[-1][8:]))
-        t = [l for l in r.stdout.splitlines() if l.startswith("TIMES")]
-        if t and t[-1].split()[1:]:
-            times[name][k] = [float(x) for x in t[-1].split()[1:]]
-(out / "metrics.json").write_text(json.dumps(runs, indent=1))
-(out / "times.json").write_text(json.dumps(times, indent=1))
-if not runs.get("baseline"):
-    sys.exit("baseline failed")
-base_runs = runs["baseline"]
-base = base_runs[0]
-keys = [k for k, v in base.items() if isinstance(v, (int, float)) and not isinstance(v, bool)]
-stable = lambda rs, k: len({json.dumps(r.get(k)) for r in rs}) == 1
-st_ok, px_ok = stable(base_runs, "state_digest"), stable(base_runs, "pixel_digest")
-print(f"baseline: Metal{base['backend'][-1]}, {base['frames']} frames, {len(base_runs)}/{repeats} runs, per frame: "
-      + ", ".join(f"{k}={base[k]:g}" for k in keys if k not in ("frames", "enc_thread")))
-print(f"baseline digests across its runs: state {'stable' if st_ok else 'UNSTABLE (not compared)'}, pixels {'stable' if px_ok else 'UNSTABLE'}")
-moving = [k for k in keys if not stable(base_runs, k)]
-if moving:
-    print("baseline metrics that change between its own runs: " + ", ".join(f"{k} {sorted({r[k] for r in base_runs})}" for k in moving))
-def passes_of(name):   # the PASSES line of the variant's first log: attachments of every pass of the last frame
+plan = {}
+for line in args.variants.read_text().splitlines():
+    parts = line.split("#", 1)[0].split()
+    if parts:
+        name, *pairs = parts
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", name) or name in plan:
+            parser.error(f"invalid or duplicate variant {name!r}")
+        plan[name] = dict(p.split("=", 1) for p in pairs)
+if "baseline" not in plan:
+    parser.error("missing baseline variant")
+digests = ("pixel_digest", "draw_state_digest", "state_digest")
+
+
+def line_value(stdout, prefix):
+    values = [line[len(prefix):] for line in stdout.splitlines() if line.startswith(prefix)]
+    if len(values) != 1:
+        raise ValueError(f"expected exactly one {prefix.strip()} line, found {len(values)}")
+    return values[0]
+
+
+def run(name, run_id, trace):
+    env = {**os.environ, **plan[name], "DM_NVN_ENC_THREAD": "1"}
+    env.pop("RBM_TRACE", None)
+    path = out / f"{name}.{run_id}.trace"
+    if trace:
+        path.unlink(missing_ok=True)
+        env["RBM_TRACE"] = str(path.resolve())
+    log = out / f"{name}.{run_id}.log"
     try:
-        return next((l[6:].strip() for l in (out / f"{name}.0.log").read_text().splitlines() if l.startswith("PASSES")), "")
-    except OSError:
-        return ""
-print("baseline passes (last frame, tN:WxH[d] L load 0 dont-care 1 load 2 clear, S store 0 dont-care 1 store): " + passes_of("baseline"))
-def first_split(a, b):   # first line where two traces differ: (line number, line of a, line of b), or None
-    try:
-        la, lb = (out / a).read_text().splitlines(), (out / b).read_text().splitlines()
-    except OSError:
-        return ("no trace",)
-    for i, (x, y) in enumerate(zip(la, lb)):
-        if x != y:
-            return (i + 1, x, y)
-    return None if len(la) == len(lb) else (min(len(la), len(lb)) + 1, f"{len(la)} lines", f"{len(lb)} lines")
-def show_split(title, a, b):
-    d = first_split(a, b)
-    if d:
-        print(f"{title}: first difference at trace line {d[0]}" + (f"\n    {a}: {d[1][:300]}\n    {b}: {d[2][:300]}" if len(d) > 1 else ""))
-    return d
-splits = [show_split("baseline run 0 vs run %d" % k, "baseline.0.trace", f"baseline.{k}.trace") for k in range(1, repeats)]
-if not any(splits):
-    print("baseline traces identical across its runs")
-bad = 0 if px_ok else 1
-for name, rs in runs.items():
-    if name == "baseline":
+        r = subprocess.run([str(args.binary.resolve()), str(args.frames)], env=env,
+                           capture_output=True, timeout=args.timeout)
+    except subprocess.TimeoutExpired as e:
+        log.write_bytes((e.stdout or b"") + (e.stderr or b""))
+        raise ValueError(f"timeout after {args.timeout}s") from e
+    except OSError as e:
+        log.write_text(str(e))
+        raise
+    log.write_bytes(r.stdout + r.stderr)
+    if r.returncode:
+        raise ValueError(f"process exited {r.returncode}")
+    stdout = r.stdout.decode()
+    m = json.loads(line_value(stdout, "METRICS "))
+    if not isinstance(m, dict) or m.get("frames") != args.frames or m.get("enc_thread") != 1:
+        raise ValueError("invalid METRICS frame count or encode-thread flag")
+    if m.get("backend") not in ("Metal3", "Metal4") or m.get("exec_equals_put") != 1:
+        raise ValueError("invalid backend or exec_equals_put != 1")
+    for key in digests:
+        if not isinstance(m.get(key), str) or not re.fullmatch(r"[0-9a-f]{16}", m[key]):
+            raise ValueError(f"invalid {key}")
+    for key in ("draws", "dispatches"):
+        if not isinstance(m.get(key), (float, int)) or m[key] <= 0:
+            raise ValueError(f"no {key} in replay")
+    for key, value in m.items():
+        if key not in ("backend", *digests) and (type(value) not in (int, float) or not math.isfinite(value)):
+            raise ValueError(f"invalid numeric metric {key}")
+    if trace:
+        frame_marks = []
+        draws = dispatches = 0
+        with path.open() as f:
+            for line in f:
+                if line.startswith("F "):
+                    frame_marks.append(line.strip())
+                elif line.startswith("D "):
+                    draws += 1
+                elif line.startswith("K "):
+                    dispatches += 1
+        if (frame_marks != [f"F {i}" for i in range(1, args.frames + 1)]
+                or round(draws / args.frames, 1) != m["draws"]
+                or round(dispatches / args.frames, 1) != m["dispatches"]):
+            raise ValueError("incomplete diagnostic trace")
+        return m, []
+    samples = [float(n) for n in line_value(stdout, "TIMES ").split()]
+    if len(samples) != args.frames or not all(math.isfinite(n) and n > 0 for n in samples):
+        raise ValueError(f"expected {args.frames} finite positive frame times")
+    return m, samples
+
+
+def quantile(values, p):
+    values = sorted(values)
+    index = (len(values) - 1) * p
+    low = int(index)
+    return values[low] + (values[math.ceil(index)] - values[low]) * (index - low)
+
+
+def trace_difference(name):
+    files = [out / f"{n}.diagnostic.trace" for n in ("baseline", name)]
+    with files[0].open() as a, files[1].open() as b:
+        for i, (x, y) in enumerate(zip_longest(a, b, fillvalue="<end>"), 1):
+            if x != y:
+                return f"line {i}: baseline {x.strip()[:300]} / {name} {y.strip()[:300]}"
+    return "identical"
+
+
+names = list(plan)
+runs = {name: [None] * args.repeats for name in names}
+times = {name: {} for name in names}
+diag = {}
+errors = {name: [] for name in names}
+for round_id in range(-1, args.repeats):
+    diagnostic = round_id < 0
+    run_id = "diagnostic" if diagnostic else round_id
+    start = 0 if diagnostic else round_id % len(names)
+    for name in names[start:] + names[:start]:
+        try:
+            metrics, samples = run(name, run_id, diagnostic)
+            if diagnostic:
+                diag[name] = metrics
+            else:
+                runs[name][round_id] = metrics
+                times[name][round_id] = samples
+        except (OSError, ValueError) as e:
+            reason = f"run {run_id}: {e} (see {name}.{run_id}.log)"
+            errors[name].append(reason)
+            print(f"{name} FAILED {reason}", flush=True)
+
+for filename, data in (("metrics", runs), ("times", times), ("diagnostic-metrics", diag)):
+    (out / f"{filename}.json").write_text(json.dumps(data, indent=1) + "\n")
+
+for name in names:
+    records = [m for m in [diag.get(name), *runs[name]] if m is not None]
+    if not records:
         continue
-    if not rs:
-        bad = 1
-        continue
-    m = rs[0]
-    same_px = all(r["pixel_digest"] == base["pixel_digest"] for r in rs) and px_ok
-    same_st = "unstable" if not st_ok else ("identical" if all(r["state_digest"] == base["state_digest"] for r in rs) else "different")
-    spread = lambda k, rr: f" [{min(r[k] for r in rr):g}..{max(r[k] for r in rr):g}]" if not stable(rr, k) else ""
-    diff = [f"{k} {base[k]:g}{spread(k, base_runs)} -> {m[k]:g}{spread(k, rs)}" + (f" ({(m[k] - base[k]) / base[k] * 100:+.1f}%)" if base[k] else "")
-            for k in keys if m[k] != base[k] or not stable(rs, k)]
-    print(f"\n### {name} ({len(rs)}/{repeats} runs)\npixels {'identical' if same_px else 'DIFFERENT'}, state at draws {same_st}")
-    pl = passes_of(name)
-    if pl and pl != passes_of("baseline"):
-        print(f"passes (last frame, tN:WxH[d] L load S store): {pl}")
-    for d in diff:
-        print(f"- {d}")
-    for k in range(len(rs)):
-        if any(rs[k][x] != base[x] for x in keys if x != "residency_adds"):
-            show_split(f"  {name} run {k} vs baseline run 0", "baseline.0.trace", f"{name}.{k}.trace")
-            break
-    bad |= not same_px
-def q(v, p):
-    v = sorted(v); i = (len(v) - 1) * p; lo = int(i); hi = min(lo + 1, len(v) - 1)
-    return v[lo] + (v[hi] - v[lo]) * (i - lo)
-print("\n### Frame wall time on the runner (submit to finish, ms; paired with the baseline of the same round)")
-bt = times.get("baseline", {})
-for name, per in times.items():
-    allf = [x for v in per.values() for x in v]
-    if not allf:
-        continue
-    line = f"- {name}: median {statistics.median(allf):.4f} ms over {len(allf)} frames in {len(per)} runs"
+    for key in ("backend", *digests):
+        if len({r[key] for r in records}) != 1:
+            errors[name].append(f"unstable {key}")
+    if any(r.keys() != records[0].keys() for r in records):
+        errors[name].append("METRICS fields changed across runs")
+
+baseline = diag.get("baseline", {})
+baseline_valid = not errors["baseline"]
+for name in ["baseline", *(n for n in names if n != "baseline")]:
+    measured = [m for m in runs[name] if m is not None]
+    print(f"\n### {name}: {len(measured)}/{args.repeats} timed runs, "
+          f"{int(name in diag)}/1 diagnostic run")
+    m = diag.get(name, {})
     if name != "baseline":
-        pct = [(statistics.median(per[k]) / statistics.median(bt[k]) - 1) * 100 for k in per if k in bt]
-        if pct:
-            line += f", paired {statistics.median(pct):+.2f}% (p25 {q(pct, .25):+.2f}, p75 {q(pct, .75):+.2f}, {len(pct)} pairs)"
-    print(line)
-sys.exit(1 if bad else 0)
+        if not baseline_valid:
+            errors[name].append("baseline invalid")
+        elif m:
+            if m.keys() != baseline.keys():
+                errors[name].append("METRICS fields differ from baseline")
+            for key in ("backend", *digests[:2], "draws", "dispatches"):
+                if m[key] != baseline[key]:
+                    errors[name].append(f"{key} differs from baseline")
+            same = m["state_digest"] == baseline["state_digest"]
+            print(f"historical state_digest (includes pass begins): {'identical' if same else 'different'}")
+            print("diagnostic trace: " + trace_difference(name))
+    if m:
+        print(", ".join(f"{k}={m[k]}" for k in ("backend", *digests)))
+        for key, val in m.items():
+            if not isinstance(val, (float, int)) or key in ("frames", "enc_thread", "exec_equals_put"):
+                continue
+            vals = [r[key] for r in measured if key in r] + [val]
+            base_vals = [r[key] for r in runs["baseline"] if r and key in r]
+            if key in baseline:
+                base_vals.append(baseline[key])
+            if name == "baseline" or set(vals) != set(base_vals):
+                print(f"- {key} range per frame {min(vals):g}..{max(vals):g}")
+        log = (out / f"{name}.diagnostic.log").read_text(errors="replace")
+        print(next((l for l in log.splitlines() if l.startswith("PASSES")), ""))
+    if errors[name]:
+        print("REJECTED: " + "; ".join(errors[name]))
+        continue
+    print("equivalence checks passed")
+    flat = [v for series in times[name].values() for v in series]
+    print(f"Instrumented runner latency, submit to queue finish, one frame in flight: "
+          f"median {statistics.median(flat):.4f} ms, p95 {quantile(flat, .95):.4f} ms, "
+          f"p99 {quantile(flat, .99):.4f} ms ({len(flat)} untraced frames)")
+    if name != "baseline":
+        pairs = [(statistics.median(times[name][k]) / statistics.median(times["baseline"][k]) - 1) * 100
+                 for k in range(args.repeats)]
+        print(f"Paired latency change: median {statistics.median(pairs):+.2f}%, "
+              f"p25 {quantile(pairs, .25):+.2f}%, p75 {quantile(pairs, .75):+.2f}% "
+              f"({len(pairs)} complete rounds)")
+(out / "validation.json").write_text(json.dumps(errors, indent=1) + "\n")
+sys.exit(int(any(errors.values())))

@@ -33,6 +33,8 @@ static void *api(const char *name) { void *p = h_nvnBootstrapLoader(name); REQUI
 enum { RBM_OPS = 128 };
 static _Atomic uint64_t rbm_put_n[RBM_OPS];
 static uint64_t rbm_exec_n[RBM_OPS];
+// Keep the historical pass-inclusive digest, and compare observed work separately.
+static uint64_t rbm_work_h = 0xcbf29ce484222325ull;
 static uint64_t rbm_h = 0xcbf29ce484222325ull, rbm_draws, rbm_dispatches, rbm_load_bytes, rbm_store_bytes, rbm_clear_atts, rbm_dontcare_atts, rbm_copy_bytes, rbm_fill_bytes;
 static inline uint64_t rbm_mix(uint64_t h, uint64_t v) { for (int i = 0; i < 8; i++) { h ^= (v >> (8 * i)) & 0xff; h *= 0x100000001b3ull; } return h; }
 static void rbm_put(unsigned op) { if (op < RBM_OPS) atomic_fetch_add_explicit(&rbm_put_n[op], 1, memory_order_relaxed); }
@@ -41,37 +43,73 @@ static nvn_hmap rbm_ids = {.klen = 8}; static uint64_t rbm_next_id;
 static uint64_t rbm_id(uint64_t p) { if (!p) return 0; void *v = nvn_hm_get(&rbm_ids, &p); if (v) return (uint64_t)(uintptr_t)v; nvn_hm_put(&rbm_ids, &p, (void *)(uintptr_t)++rbm_next_id); return rbm_next_id; }
 static struct { uint64_t pso, dss, vp[6], sc[4], cull, wind, fill, bias[3], clip, sref[2], blend[4], cpso;
     uint64_t tex[5][32], smp[5][32]; uint32_t buf[5]; } rbm_s;
+// The current draw targets, indexed by color slot, depth (8) and stencil (9).
+// Number these independently on the first draw of each pass. Empty passes and
+// extra pass boundaries must not change the observed sequence of draw targets.
+static uintptr_t rbm_targets[10];
+static nvn_hmap rbm_target_ids = {.klen = 8};
+static uint64_t rbm_target_seq, rbm_target_hash;
+static int rbm_targets_dirty;
+static uint64_t rbm_draw_targets(void) {
+    if (rbm_targets_dirty) {
+        rbm_target_hash = 0xcbf29ce484222325ull;
+        for (int i = 0; i < 10; i++) {
+            uint64_t p = rbm_targets[i], target = 0;
+            if (p) {
+                target = (uint64_t)(uintptr_t)nvn_hm_get(&rbm_target_ids, &p);
+                if (!target) {
+                    target = ++rbm_target_seq;
+                    nvn_hm_put(&rbm_target_ids, &p, (void *)(uintptr_t)target);
+                }
+            }
+            rbm_target_hash = rbm_mix(rbm_target_hash, target);
+        }
+        rbm_targets_dirty = 0;
+    }
+    return rbm_target_hash;
+}
 // The open render pass: its attachments, for the load / store byte account at its end
-static struct { id tex[10]; int load[10], store[10], n; } rbm_pass;
+static struct { id tex[10]; int slot[10], load[10], store[10], n; } rbm_pass;
 static uint64_t rbm_bpp(id<MTLTexture> t) {
     switch (t.pixelFormat) { case MTLPixelFormatRGBA16Float: return 8; case MTLPixelFormatRGBA32Float: return 16; case MTLPixelFormatR8Unorm: return 1;
         case MTLPixelFormatDepth32Float_Stencil8: return 5; default: return 4; }
 }
+static uint64_t rbm_plane_bytes(int k) {
+    id<MTLTexture> t = rbm_pass.tex[k];
+    uint64_t bpp = rbm_pass.slot[k] == 9 ? 1 : rbm_pass.slot[k] == 8 ? 4 : rbm_bpp(t);
+    return t.width * t.height * bpp * t.sampleCount;
+}
 static void rbm_pass_begin(id d) {
     MTLRenderPassDescriptor *p = d; memset(&rbm_pass, 0, sizeof rbm_pass);
+    memset(rbm_targets, 0, sizeof rbm_targets); rbm_targets_dirty = 1;
+    rbm_targets[8] = (uintptr_t)(__bridge void *)p.depthAttachment.texture;
+    rbm_targets[9] = (uintptr_t)(__bridge void *)p.stencilAttachment.texture;
     for (int i = 0; i < 8; i++) { MTLRenderPassColorAttachmentDescriptor *c = p.colorAttachments[i]; if (!c.texture) continue;
-        int k = rbm_pass.n++; rbm_pass.tex[k] = c.texture; rbm_pass.load[k] = (int)c.loadAction; rbm_pass.store[k] = (int)c.storeAction; }
-    if (p.depthAttachment.texture) { int k = rbm_pass.n++; rbm_pass.tex[k] = p.depthAttachment.texture; rbm_pass.load[k] = (int)p.depthAttachment.loadAction; rbm_pass.store[k] = 100 + (int)p.depthAttachment.storeAction; }
+        rbm_targets[i] = (uintptr_t)(__bridge void *)c.texture;
+        int k = rbm_pass.n++; rbm_pass.slot[k] = i; rbm_pass.tex[k] = c.texture; rbm_pass.load[k] = (int)c.loadAction; rbm_pass.store[k] = (int)c.storeAction; }
+    if (p.depthAttachment.texture) { int k = rbm_pass.n++; rbm_pass.slot[k] = 8; rbm_pass.tex[k] = p.depthAttachment.texture; rbm_pass.load[k] = (int)p.depthAttachment.loadAction; rbm_pass.store[k] = (int)p.depthAttachment.storeAction; }
+    if (p.stencilAttachment.texture) { int k = rbm_pass.n++; rbm_pass.slot[k] = 9; rbm_pass.tex[k] = p.stencilAttachment.texture; rbm_pass.load[k] = (int)p.stencilAttachment.loadAction; rbm_pass.store[k] = (int)p.stencilAttachment.storeAction; }
     for (int k = 0; k < rbm_pass.n; k++) {
         id<MTLTexture> t = rbm_pass.tex[k];
-        if (rbm_pass.load[k] == MTLLoadActionLoad) rbm_load_bytes += t.width * t.height * rbm_bpp(t);
+        if (rbm_pass.load[k] == MTLLoadActionLoad) rbm_load_bytes += rbm_plane_bytes(k);
         else if (rbm_pass.load[k] == MTLLoadActionClear) rbm_clear_atts++;
         else rbm_dontcare_atts++;
         rbm_h = rbm_mix(rbm_h, 0x7000 + rbm_id((uint64_t)(uintptr_t)(__bridge void *)t)); }
 }
-static void rbm_pass_store(int depth, int index, int action) {   // a deferred store action (setColorStoreAction / setDepthStoreAction)
-    int c = 0; for (int k = 0; k < rbm_pass.n; k++) { int is_depth = rbm_pass.store[k] >= 100;
-        if (depth ? is_depth : (!is_depth && c++ == index)) { rbm_pass.store[k] = (is_depth ? 100 : 0) + action; return; } }
+static void rbm_pass_store(int slot, int action) {
+    for (int k = 0; k < rbm_pass.n; k++)
+        if (rbm_pass.slot[k] == slot) { rbm_pass.store[k] = action; return; }
 }
 // Per-pass attachment trace of the frame being replayed (reset by main between frames, after the queue is idle): canonical texture, size, load / store actions
+static FILE *rbm_tf;
 static char rbm_ptrace[16384]; static size_t rbm_ptrace_n;
 static void rbm_pass_end(void) {
-    if (rbm_pass.n && rbm_ptrace_n < sizeof rbm_ptrace - 256) rbm_ptrace_n += (size_t)snprintf(rbm_ptrace + rbm_ptrace_n, sizeof rbm_ptrace - rbm_ptrace_n, " |");
-    for (int k = 0; k < rbm_pass.n; k++) { int s = rbm_pass.store[k] % 100; id<MTLTexture> t = rbm_pass.tex[k];
-        if (s == MTLStoreActionStore || s == MTLStoreActionStoreAndMultisampleResolve) rbm_store_bytes += t.width * t.height * rbm_bpp(t);
-        if (rbm_ptrace_n < sizeof rbm_ptrace - 96)   // tN:WxH L<load> S<store>, load 0 dont-care 1 load 2 clear, store 0 dont-care 1 store
+    if (rbm_tf && rbm_pass.n && rbm_ptrace_n < sizeof rbm_ptrace - 256) rbm_ptrace_n += (size_t)snprintf(rbm_ptrace + rbm_ptrace_n, sizeof rbm_ptrace - rbm_ptrace_n, " |");
+    for (int k = 0; k < rbm_pass.n; k++) { int s = rbm_pass.store[k]; id<MTLTexture> t = rbm_pass.tex[k];
+        if (s == MTLStoreActionStore || s == MTLStoreActionStoreAndMultisampleResolve) rbm_store_bytes += rbm_plane_bytes(k);
+        if (rbm_tf && rbm_ptrace_n < sizeof rbm_ptrace - 96)   // tN:WxH L<load> S<store>, load 0 dont-care 1 load 2 clear, store 0 dont-care 1 store
             rbm_ptrace_n += (size_t)snprintf(rbm_ptrace + rbm_ptrace_n, sizeof rbm_ptrace - rbm_ptrace_n, " t%llu:%lux%lu%s L%d S%d", (unsigned long long)rbm_id((uint64_t)(uintptr_t)(__bridge void *)t),
-                                            (unsigned long)t.width, (unsigned long)t.height, rbm_pass.store[k] >= 100 ? "d" : "", rbm_pass.load[k], s); }
+                                            (unsigned long)t.width, (unsigned long)t.height, rbm_pass.slot[k] == 8 ? "d" : rbm_pass.slot[k] == 9 ? "s" : "", rbm_pass.load[k], s); }
     rbm_pass.n = 0;
 }
 static uint64_t rbm_state(void) {
@@ -98,7 +136,6 @@ static void rbm_track(void) {
 }
 // RBM_TRACE=<file>: one line per pass begin / end, draw and dispatch of the measured frames, with the canonical ids the state digest mixes,
 //   so that two runs can be compared line by line (replay_compare.py names the first line where the baseline's own runs part)
-static FILE *rbm_tf;
 static void rbm_trace(const rec_t *r) {
     if (!rbm_tf) return;
     switch (r->op) {
@@ -125,8 +162,9 @@ static void rbm_exec(const void *rp) {
     case RO_RE_BEGIN: memset(&rbm_s, 0, sizeof rbm_s); rbm_pass_begin(rec_id(a[0])); rbm_trace(r); break;   // a new encoder starts with no state
     case RO_CE_BEGIN: case RO_CE_BEGIN_D: case RO_CB_BLIT: memset(&rbm_s, 0, sizeof rbm_s); break;
     case RO_END: rbm_pass_end(); break;
-    case RO_R_STORE_C: rbm_pass_store(0, (int)a[1], (int)a[0]); break;
-    case RO_R_STORE_D: rbm_pass_store(1, 0, (int)a[0]); break;
+    case RO_R_STORE_C: rbm_pass_store((int)a[1], (int)a[0]); break;
+    case RO_R_STORE_D: rbm_pass_store(8, (int)a[0]); break;
+    case RO_R_STORE_S: rbm_pass_store(9, (int)a[0]); break;
     case RO_R_PSO: rbm_s.pso = rbm_id(a[0]); break;
     case RO_C_PSO: rbm_s.cpso = rbm_id(a[0]); break;
     case RO_R_DSS: rbm_s.dss = rbm_id(a[0]); break;
@@ -148,13 +186,25 @@ static void rbm_exec(const void *rp) {
     case RO_C_COPY_TT: rbm_copy_bytes += a[7] * a[8] * a[9] * 4; break;
     case RO_C_FILL: rbm_fill_bytes += a[2]; break;
     case RO_R_DRAW: case RO_R_DRAW_INST: case RO_R_DRAW_IND: case RO_R_DRAW_IDX: case RO_R_DRAW_IDX_IND: case RO_R_DRAW_IND_B: case RO_R_DRAW_IDX_B: case RO_R_DRAW_IDX_IND_B:
-    case RO_R_MESH: case RO_R_MESH_IND: case RO_R_MESH_IND_B:
-        rbm_draws++; rbm_h = rbm_mix(rbm_h, rbm_state()); rbm_h = rbm_mix(rbm_h, r->op);
+    case RO_R_MESH: case RO_R_MESH_IND: case RO_R_MESH_IND_B: {
+        uint64_t state = rbm_state();
+        rbm_draws++; rbm_h = rbm_mix(rbm_h, state); rbm_h = rbm_mix(rbm_h, r->op);
+        rbm_work_h = rbm_mix(rbm_work_h, rbm_draw_targets());
+        rbm_work_h = rbm_mix(rbm_work_h, state); rbm_work_h = rbm_mix(rbm_work_h, r->op);
         // Only the slots the call reads (rec_exec): a record block is reused, so slots past them hold whatever an earlier record left there
-        for (int i = 0, n = r->op == RO_R_DRAW ? 3 : r->op == RO_R_DRAW_INST ? 5 : 0; i < n; i++) rbm_h = rbm_mix(rbm_h, a[i]);
+        for (int i = 0, n = r->op == RO_R_DRAW ? 3 : r->op == RO_R_DRAW_INST ? 5 : 0; i < n; i++) {
+            rbm_h = rbm_mix(rbm_h, a[i]); rbm_work_h = rbm_mix(rbm_work_h, a[i]);
+        }
         break;
-    case RO_C_DISPATCH: case RO_C_DISPATCH_IND: case RO_C_DISPATCH_THREADS: case RO_C_DISPATCH_IND_B:
-        rbm_dispatches++; rbm_h = rbm_mix(rbm_h, 0xd15 ^ rbm_s.cpso); rbm_h = rbm_mix(rbm_h, rbm_state()); break;
+    }
+    case RO_C_DISPATCH: case RO_C_DISPATCH_IND: case RO_C_DISPATCH_THREADS: case RO_C_DISPATCH_IND_B: {
+        uint64_t state = rbm_state();
+        rbm_dispatches++; rbm_h = rbm_mix(rbm_h, 0xd15 ^ rbm_s.cpso); rbm_h = rbm_mix(rbm_h, state);
+        rbm_work_h = rbm_mix(rbm_work_h, r->op); rbm_work_h = rbm_mix(rbm_work_h, rbm_s.cpso); rbm_work_h = rbm_mix(rbm_work_h, state);
+        if (r->op == RO_C_DISPATCH || r->op == RO_C_DISPATCH_THREADS)
+            for (int i = 0; i < 6; i++) rbm_work_h = rbm_mix(rbm_work_h, a[i]);
+        break;
+    }
     default: break;
     }
 }
@@ -228,6 +278,12 @@ static void bind_rt(int n, NVNtexture *c0, NVNtexture *c1, NVNtexture *depth, in
     const NVNtexture *c[2] = {c0, c1}; API(nvnCommandBufferSetRenderTargets)(&cmd, n, n ? c : NULL, NULL, depth, NULL);
     API(nvnCommandBufferSetViewport)(&cmd, 0, 0, w, w); API(nvnCommandBufferSetScissor)(&cmd, 0, 0, w, w);
 }
+static int rbm_empty_ds;
+static void empty_ds_clear(unsigned depth_mask, int stencil_mask) {
+    size_t used = API(nvnCommandBufferGetCommandMemoryUsed)(&cmd);
+    API(nvnCommandBufferClearDepthStencil)(&cmd, 0.9375f, depth_mask, 0xe1, stencil_mask);
+    REQUIRE(API(nvnCommandBufferGetCommandMemoryUsed)(&cmd) - used == sizeof(op_hdr) + sizeof(p_clear_ds));
+}
 static void record_frame(void) {
     const int B = NVN_BARRIER_ORDER_FRAGMENTS_BIT | NVN_BARRIER_INVALIDATE_TEXTURE_BIT;
     const float zero[4] = {0, 0, 0, 0}, sky[4] = {0.1f, 0.2f, 0.3f, 1};
@@ -242,12 +298,22 @@ static void record_frame(void) {
     bind_rt(2, &t_g0, &t_g1, &t_depth, W);
     API(nvnCommandBufferClearColor)(&cmd, 0, zero, 15); API(nvnCommandBufferClearColor)(&cmd, 1, zero, 15); API(nvnCommandBufferClearDepthStencil)(&cmd, 1.0f, 1, 0, 0);
     for (int i = 0; i < OBJ; i++) {
+        if (rbm_empty_ds && i > 0 && i <= 32 && !(i & 7))
+            empty_ds_clear(i == 16 ? 0x100 : 0, i == 24 ? 0x100 : 0);
         if (!(i & 63)) API(nvnCommandBufferBindProgram)(&cmd, (const NVNprogram *)&p_mrt[i >> 6], NVN_SHADER_STAGE_VERTEX_BIT | NVN_SHADER_STAGE_FRAGMENT_BIT);
         if (!(i & 7)) API(nvnCommandBufferBindDepthStencilState)(&cmd, &ds_on);
         if (!(i & 3)) API(nvnCommandBufferSetScissor)(&cmd, 0, 0, W, W);
         API(nvnCommandBufferBindUniformBuffer)(&cmd, NVN_SHADER_STAGE_VERTEX, 0, ubo(B_OBJ + i), 256);
         API(nvnCommandBufferBindUniformBuffer)(&cmd, NVN_SHADER_STAGE_FRAGMENT, 0, ubo(B_MAT + (i % MAT)), 256);
         API(nvnCommandBufferDrawArrays)(&cmd, NVN_DRAW_PRIMITIVE_TRIANGLES, 0, 6);
+    }
+    if (rbm_empty_ds) {
+        API(nvnCommandBufferClearDepthStencil)(&cmd, 0.375f, 1, 0x35, 0xff);
+        API(nvnCommandBufferSetScissor)(&cmd, W / 4, W / 4, W / 2, W / 2);
+        API(nvnCommandBufferClearDepthStencil)(&cmd, 0.625f, 1, 0xcf, 0x0f);
+        empty_ds_clear(0, 0x100);
+        API(nvnCommandBufferSetScissor)(&cmd, 0, 0, W, W);
+        empty_ds_clear(0, 0);
     }
     API(nvnCommandBufferBarrier)(&cmd, B);
     // ③ compute: fills a storage buffer the lighting pass reads
@@ -298,6 +364,121 @@ static uint64_t readback(NVNtexture *t, int w, int bpp) {
     const uint8_t *p = out.contents; uint64_t h = 0xcbf29ce484222325ull; for (int i = 0; i < w * w * bpp; i++) { h ^= p[i]; h *= 0x100000001b3ull; }
     return h;
 }
+// Read both planes at every pixel, including pixels outside the partial clear.
+static void check_empty_ds_pixels(void) {
+    id<MTLTexture> texture = tex_mtl((const tex_t *)&t_depth);
+    REQUIRE(texture && texture.pixelFormat == MTLPixelFormatDepth32Float_Stencil8);
+    id<MTLBuffer> depth = [g_dev newBufferWithLength:W * W * 4 options:MTLResourceStorageModeShared];
+    id<MTLBuffer> stencil = [g_dev newBufferWithLength:W * W options:MTLResourceStorageModeShared];
+    REQUIRE(depth && stencil);
+    id<MTLCommandQueue> q = [g_dev newCommandQueue];
+    id<MTLCommandBuffer> cb = [q commandBuffer];
+    id<MTLBlitCommandEncoder> b = [cb blitCommandEncoder];
+    for (int plane = 0; plane < 2; plane++) {
+        NSUInteger row = plane ? W : W * 4;
+        [b copyFromTexture:texture sourceSlice:0 sourceLevel:0 sourceOrigin:MTLOriginMake(0, 0, 0)
+            sourceSize:MTLSizeMake(W, W, 1) toBuffer:(plane ? stencil : depth) destinationOffset:0
+            destinationBytesPerRow:row destinationBytesPerImage:W * row
+            options:(plane ? MTLBlitOptionStencilFromDepthStencil : MTLBlitOptionDepthFromDepthStencil)];
+    }
+    [b endEncoding]; [cb commit]; [cb waitUntilCompleted]; REQUIRE(cb.status == MTLCommandBufferStatusCompleted);
+    const float *d = depth.contents;
+    const uint8_t *s = stencil.contents;
+    for (int y = 0; y < W; y++) for (int x = 0; x < W; x++) {
+        int inside = x >= W / 4 && x < 3 * W / 4 && y >= W / 4 && y < 3 * W / 4;
+        REQUIRE(d[y * W + x] == (inside ? 0.625f : 0.375f));
+        REQUIRE(s[y * W + x] == (inside ? 0x3f : 0x35));
+    }
+}
+// Exercise the production partial upload encoder, with older GPU-owned bytes
+// outside one changed physical page. Run the two switch settings in separate processes.
+static void rbm_gob_case(int format, MTLPixelFormat metal, BOOL tight, id<MTLCommandQueue> q) {
+    enum { Pitch = 1024, Rows = 256, X = 256, Y = 64, RowBytes = 256, RegionRows = 64 };
+    int bw, bh, bpb = nvn_fmt_bpb(format, &bw, &bh);
+    REQUIRE(bpb > 0);
+    tex_t t = {0};
+    t.d = (nvn_texdesc){.target=1, .format=format, .width=Pitch/bpb*bw,
+        .height=Rows*bh, .depth=1, .levels=1, .samples=1, .pkg_layout=4};
+    nvn_tex_layout(&t.d, &t.L);
+    REQUIRE(t.L.tileH == 3 && t.L.size == Pitch * Rows);
+    t.mem = malloc(t.L.size);
+    uint8_t *pattern = malloc(Pitch * Rows);
+    REQUIRE(t.mem && pattern);
+    for (unsigned y=0; y<Rows; ++y) for (unsigned x=0; x<Pitch; ++x)
+        pattern[y*Pitch+x] = (uint8_t)(29u*x + 31u*y + (x >> 3));
+    REQUIRE(!nvn_swizzle(&t.d, 0, 0, pattern, Pitch, t.mem));
+
+    MTLTextureDescriptor *desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:metal
+        width:t.d.width height:t.d.height mipmapped:NO];
+    desc.storageMode = MTLStorageModePrivate;
+    id<MTLTexture> dst = [g_dev newTextureWithDescriptor:desc];
+    id<MTLBuffer> initial = [g_dev newBufferWithLength:Pitch*Rows options:MTLResourceStorageModeShared];
+    id<MTLBuffer> result = [g_dev newBufferWithLength:Pitch*Rows options:MTLResourceStorageModeShared];
+    REQUIRE(dst && initial && result);
+    memset(initial.contents, 0xa5, Pitch*Rows);
+    MTLSize extent = MTLSizeMake(t.d.width, t.d.height, 1);
+    MTLOrigin zero = MTLOriginMake(0, 0, 0);
+    id<MTLCommandBuffer> init = [q commandBuffer];
+    id<MTLBlitCommandEncoder> pre = [init blitCommandEncoder];
+    [pre copyFromBuffer:initial sourceOffset:0 sourceBytesPerRow:Pitch sourceBytesPerImage:0
+        sourceSize:extent toTexture:dst destinationSlice:0 destinationLevel:0 destinationOrigin:zero];
+    [pre endEncoding]; [init commit]; [init waitUntilCompleted];
+    REQUIRE(init.status == MTLCommandBufferStatusCompleted);
+    res_add(dst);
+
+    nvn_be_sub_begin();
+    rect_list rects = {0};
+    uint64_t page = nvn_bl_offset(X, Y, 0, Pitch, Rows, 3, 0);
+    REQUIRE(page % 16384 == 0);
+    tex_bytes_rects(&t, page, page + 16384, rect_add, &rects);
+    REQUIRE(!rects.oom && rects.n == 1);
+    up_rect r = rects.r[0];
+    REQUIRE(r.x == X/bpb*bw && r.y == Y*bh && r.w == RowBytes/bpb*bw && r.h == RegionRows*bh);
+    int first = g_nup_blits;
+    uint64_t before = g_bp_up_bytes;
+    REQUIRE(!pkg_upload_rects_body(&t, dst, &rects));
+    free(rects.r);
+    REQUIRE(g_nup_blits == first+1 && g_bp_up_bytes-before == 16384);
+    up_blit job = g_up_blits[first];
+    REQUIRE(job.dst == dst && job.level == 0 && job.slice == 0 && job.x0 == r.x && job.y0 == r.y);
+    REQUIRE(job.size.width == r.w && job.size.height == r.h && job.size.depth == 1);
+    REQUIRE(job.row == (tight ? RowBytes : Pitch) && job.image == (tight ? 16384 : Pitch*Rows));
+    unsigned tight_count = job.row == RowBytes;
+    uint64_t fence = nvn_be_sub_commit();
+    REQUIRE(nvn_be_wait(fence, UINT64_C(10000000000)) && !mtl_last_commit_error());
+    rec_drain(); up_wait_zero(&g_up_pending);
+    REQUIRE(!up_lost_take(dst));
+
+    id<MTLCommandBuffer> read = [q commandBuffer];
+    id<MTLBlitCommandEncoder> post = [read blitCommandEncoder];
+    [post copyFromTexture:dst sourceSlice:0 sourceLevel:0 sourceOrigin:zero sourceSize:extent
+        toBuffer:result destinationOffset:0 destinationBytesPerRow:Pitch destinationBytesPerImage:0];
+    [post endEncoding]; [read commit]; [read waitUntilCompleted];
+    REQUIRE(read.status == MTLCommandBufferStatusCompleted);
+    const uint8_t *bytes = result.contents;
+    for (unsigned y=0; y<Rows; ++y) for (unsigned x=0; x<Pitch; ++x) {
+        BOOL changed = x >= X && x < X+RowBytes && y >= Y && y < Y+RegionRows;
+        REQUIRE(bytes[y*Pitch+x] == (changed ? pattern[y*Pitch+x] : 0xa5));
+    }
+    printf("GOB_METAL format=%#x switch=%d compact_blits=%u pitch=%zu image=%zu payload=16384 preserved=245760 errors=0\n",
+           format, (int)tight, tight_count, job.row, job.image);
+    res_remove(dst); free(t.mem); free(pattern);
+}
+static void rbm_gob_probe(void) {
+    const char *value = getenv("S2A_RB_GOB_RECTS");
+    REQUIRE(value && (!strcmp(value,"0") || !strcmp(value,"1")));
+    BOOL tight = value[0] == '1';
+    id<MTLCommandQueue> q = [g_dev newCommandQueue]; REQUIRE(q);
+    nvn_gob_switch2 = 1;
+    rbm_gob_case(NVN_FORMAT_RGBA8, MTLPixelFormatRGBA8Unorm, tight, q);
+    if (g_dev.supportsBCTextureCompression && !no_bc())
+        rbm_gob_case(NVN_FORMAT_RGBA_DXT1, MTLPixelFormatBC1_RGBA, tight, q);
+    else puts("GOB_METAL skip=BC1 reason=no_native_support");
+    if ([g_dev supportsFamily:MTLGPUFamilyApple2])
+        rbm_gob_case(NVN_FORMAT_RGBA_ASTC_6x6_SRGB, MTLPixelFormatASTC_6x6_sRGB, tight, q);
+    else puts("GOB_METAL skip=ASTC reason=no_native_support");
+}
+
 int main(int argc, char **argv) { @autoreleasepool {
     setvbuf(stdout, NULL, _IOLBF, 0);
     int frames = argc > 1 ? atoi(argv[1]) : 3; if (frames < 1) frames = 1;
@@ -305,6 +486,7 @@ int main(int argc, char **argv) { @autoreleasepool {
     setenv("DM_NVN_SHMAP", map, 1); setenv("DM_PSO_USER", user, 1); setenv("DM_PSO_ARCHIVE", "0", 1); setenv("DM_PRESENT_LINK", "0", 1);
     NVNdeviceBuilder db; API(nvnDeviceBuilderSetDefaults)(&db); REQUIRE(API(nvnDeviceInitialize)(&dev, &db));
     NVNqueueBuilder qb; API(nvnQueueBuilderSetDefaults)(&qb); API(nvnQueueBuilderSetDevice)(&qb, &dev); REQUIRE(API(nvnQueueInitialize)(&queue, &qb)); mtl_init();
+    if (argc == 2 && !strcmp(argv[1], "--gob-rects")) { rbm_gob_probe(); unlink(map); unlink(user); return 0; }
     REQUIRE(!posix_memalign((void **)&mem, 65536, POOL)); memset(mem, 0, POOL);
     NVNmemoryPoolBuilder pb; API(nvnMemoryPoolBuilderSetDefaults)(&pb); API(nvnMemoryPoolBuilderSetDevice)(&pb, &dev);
     API(nvnMemoryPoolBuilderSetStorage)(&pb, mem, POOL); API(nvnMemoryPoolBuilderSetFlags)(&pb, NVN_MEMORY_POOL_FLAGS_CPU_UNCACHED | NVN_MEMORY_POOL_FLAGS_GPU_CACHED);
@@ -312,7 +494,8 @@ int main(int argc, char **argv) { @autoreleasepool {
     REQUIRE(API(nvnCommandBufferInitialize)(&cmd, &dev)); static uint8_t control[65536]; API(nvnCommandBufferAddControlMemory)(&cmd, control, sizeof control);
     REQUIRE(API(nvnTexturePoolInitialize)(&tpool, &pool, TPOOL, 512)); REQUIRE(API(nvnSamplerPoolInitialize)(&spool, &pool, SPOOL, 64));
     texture(&t_shadow, W, W, NVN_FORMAT_DEPTH32F, -1); texture(&t_g0, W, W, NVN_FORMAT_RGBA8, 1); texture(&t_g1, W, W, NVN_FORMAT_RGBA8, 2);
-    texture(&t_depth, W, W, NVN_FORMAT_DEPTH32F, -1); texture(&t_light, W, W, NVN_FORMAT_RGBA8, 3); texture(&t_half, W / 2, W / 2, NVN_FORMAT_RGBA8, 4);
+    rbm_empty_ds = getenv("RBM_EMPTY_DS") && !strcmp(getenv("RBM_EMPTY_DS"), "1");
+    texture(&t_depth, W, W, rbm_empty_ds ? NVN_FORMAT_DEPTH32F_STENCIL8 : NVN_FORMAT_DEPTH32F, -1); texture(&t_light, W, W, NVN_FORMAT_RGBA8, 3); texture(&t_half, W / 2, W / 2, NVN_FORMAT_RGBA8, 4);
     texture(&t_quarter, W / 4, W / 4, NVN_FORMAT_RGBA8, 5); texture(&t_final, W, W, NVN_FORMAT_RGBA8, 6);
     // Uniform contents: deterministic, independent of the backend
     for (int i = 0; i < OBJ; i++) { float *o = ubo_cpu(B_OBJ + i); float x = -1 + (float)(i % 16) * 0.125f, y = -1 + (float)(i / 16) * 0.125f;
@@ -344,13 +527,15 @@ int main(int argc, char **argv) { @autoreleasepool {
     API(nvnBlendStateSetBlendFunc)(&bl_alpha, NVN_BLEND_FUNC_SRC_ALPHA, NVN_BLEND_FUNC_ONE_MINUS_SRC_ALPHA, NVN_BLEND_FUNC_ONE, NVN_BLEND_FUNC_ONE_MINUS_SRC_ALPHA);
     // Warm-up frame (pipelines, textures, residency), then the measured frames
     uint64_t base_put[RBM_OPS] = {0}, base_exec[RBM_OPS] = {0}, pass0 = 0, draw0 = 0, bwl0 = 0, bws0 = 0, ar0 = 0, arb0 = 0, rs0 = 0, d0 = 0, k0 = 0, ld0 = 0, st0 = 0, cl0 = 0, dc0 = 0, cp0 = 0, fl0 = 0, cut0 = 0, pcut0 = 0, mh0 = 0, bk0 = 0;
-    double frame_ms[64]; int nfm = 0;   // wall time of each measured frame, submit to queue finish (Mac runner: CPU encode + GPU + idle, not an iPhone frame time)
+    uint64_t empty_ds_base = 0;
+    double *frame_ms = calloc((size_t)frames, sizeof *frame_ms); REQUIRE(frame_ms);   // wall time of each measured frame, submit to queue finish (Mac runner: CPU encode + GPU + idle, not an iPhone frame time)
     for (int f = 0; f <= frames; f++) {
         rbm_ptrace_n = 0; rbm_ptrace[0] = 0;   // the queue is idle here: the trace holds the last frame only
         if (f == 1) { for (int i = 0; i < RBM_OPS; i++) { base_put[i] = atomic_load(&rbm_put_n[i]); base_exec[i] = rbm_exec_n[i]; }
+            empty_ds_base = g_rb_empty_ds_splits_saved;
             pass0 = g_stat_pass; draw0 = g_stat_draw; bwl0 = g_bw_load; bws0 = g_bw_store; ar0 = rbm_arena_calls; arb0 = rbm_arena_bytes; rs0 = rbm_res_adds;
             cut0 = g_cuts; pcut0 = g_pass_cuts; mh0 = g_rb_m3_hint_hits; bk0 = g_rb_m3_bind_skip; d0 = rbm_draws; k0 = rbm_dispatches; ld0 = rbm_load_bytes; st0 = rbm_store_bytes; cl0 = rbm_clear_atts; dc0 = rbm_dontcare_atts; cp0 = rbm_copy_bytes; fl0 = rbm_fill_bytes;
-            rbm_h = 0xcbf29ce484222325ull;
+            rbm_h = rbm_work_h = 0xcbf29ce484222325ull;
             const char *tp = getenv("RBM_TRACE"); if (tp && *tp) { rbm_tf = fopen(tp, "w"); REQUIRE(rbm_tf); } }
         if (rbm_tf && f >= 1) fprintf(rbm_tf, "F %d\n", f);
         API(nvnCommandBufferAddCommandMemory)(&cmd, &pool, 0, CMD); API(nvnCommandBufferBeginRecording)(&cmd);
@@ -359,13 +544,14 @@ int main(int argc, char **argv) { @autoreleasepool {
         struct timespec t0, t1; clock_gettime(CLOCK_MONOTONIC, &t0);
         API(nvnQueueSubmitCommands)(&queue, 1, &h); API(nvnQueueFinish)(&queue); REQUIRE(!mtl_last_commit_error());
         clock_gettime(CLOCK_MONOTONIC, &t1);
-        if (f >= 1 && nfm < 64) frame_ms[nfm++] = (t1.tv_sec - t0.tv_sec) * 1e3 + (t1.tv_nsec - t0.tv_nsec) / 1e6;
+        if (f >= 1) frame_ms[f - 1] = (t1.tv_sec - t0.tv_sec) * 1e3 + (t1.tv_nsec - t0.tv_nsec) / 1e6;
     }
     if (rbm_tf) { FILE *tf = rbm_tf; rbm_tf = NULL; fclose(tf); }
     uint64_t px = 0xcbf29ce484222325ull; NVNtexture *outs[] = {&t_g0, &t_g1, &t_light, &t_final}; int sz[] = {W, W, W, W};
     for (int i = 0; i < 4; i++) px = rbm_mix(px, readback(outs[i], sz[i], 4));
     px = rbm_mix(px, readback(&t_half, W / 2, 4)); px = rbm_mix(px, readback(&t_quarter, W / 4, 4));
     { const uint8_t *s = mem + SSBO; for (int i = 0; i < 64 * 16; i++) px = rbm_mix(px, s[i]); }
+    if (rbm_empty_ds) check_empty_ds_pixels();
     // One JSON line: per measured frame (frames > 0)
     #define PF(v) ((double)(v) / frames)
     uint64_t pr[RBM_OPS], ex[RBM_OPS]; for (int i = 0; i < RBM_OPS; i++) { pr[i] = atomic_load(&rbm_put_n[i]) - base_put[i]; ex[i] = rbm_exec_n[i] - base_exec[i]; }
@@ -374,18 +560,18 @@ int main(int argc, char **argv) { @autoreleasepool {
                    + pr[RO_R_SREF] + pr[RO_R_BLEND] + pr[RO_R_VIS] + pr[RO_C_PSO] + pr[RO_R_STORE_C] + pr[RO_R_STORE_D] + pr[RO_R_STORE_S];
     uint64_t args = pr[RO_T_ADDR] + pr[RO_T_TEX] + pr[RO_T_SAMP] + pr[RO_R_TABLE] + pr[RO_C_TABLE] + pr[RO_M3_BUF] + pr[RO_M3_BOFF] + pr[RO_M3_TEX] + pr[RO_M3_SMP];
     uint64_t total = 0; for (int i = 0; i < RBM_OPS; i++) total += pr[i];
-    printf("METRICS {\"backend\":\"Metal%d\",\"enc_thread\":%d,\"frames\":%d,\"records\":%.1f,\"render_encoders\":%.1f,\"compute_encoders\":%.1f,\"blit_encoders\":%.1f,"
+    printf("METRICS {\"backend\":\"Metal%d\",\"enc_thread\":%d,\"frames\":%d,\"records\":%.1f,\"render_encoders\":%.1f,\"compute_encoders\":%.1f,\"blit_encoders\":%.1f,\"empty_ds_splits_saved\":%.1f,"
            "\"barriers_fences\":%.1f,\"state_records\":%.1f,\"pso_binds\":%.1f,\"dss_binds\":%.1f,\"viewport_scissor\":%.1f,\"argument_records\":%.1f,\"m3_buffer_binds\":%.1f,\"m3_texture_binds\":%.1f,"
            "\"table_writes\":%.1f,\"draws\":%.1f,\"dispatches\":%.1f,\"commits\":%.1f,\"load_bytes\":%.0f,\"store_bytes\":%.0f,\"cleared_attachments\":%.1f,\"dontcare_loads\":%.1f,"
            "\"copy_bytes\":%.0f,\"fill_bytes\":%.0f,\"arena_allocs\":%.1f,\"arena_bytes\":%.0f,\"residency_adds\":%.1f,\"engine_passes\":%.1f,\"engine_draws\":%.1f,"
-           "\"engine_load_bytes\":%.0f,\"engine_store_bytes\":%.0f,\"cuts\":%.1f,\"pass_cuts\":%.1f,\"m3_arg_hints\":%.1f,\"m3_buffer_offset_binds\":%.1f,\"m3_bind_skips\":%.1f,\"state_digest\":\"%016llx\",\"pixel_digest\":\"%016llx\",\"exec_equals_put\":%d}\n",
-           g_m3 ? 3 : 4, rec_on(), frames, PF(total), PF(pr[RO_RE_BEGIN]), PF(pr[RO_CE_BEGIN] + pr[RO_CE_BEGIN_D]), PF(pr[RO_CB_BLIT]),
+           "\"engine_load_bytes\":%.0f,\"engine_store_bytes\":%.0f,\"cuts\":%.1f,\"pass_cuts\":%.1f,\"m3_arg_hints\":%.1f,\"m3_buffer_offset_binds\":%.1f,\"m3_bind_skips\":%.1f,\"state_digest\":\"%016llx\",\"draw_state_digest\":\"%016llx\",\"pixel_digest\":\"%016llx\",\"exec_equals_put\":%d}\n",
+           g_m3 ? 3 : 4, rec_on(), frames, PF(total), PF(pr[RO_RE_BEGIN]), PF(pr[RO_CE_BEGIN] + pr[RO_CE_BEGIN_D]), PF(pr[RO_CB_BLIT]), PF(g_rb_empty_ds_splits_saved - empty_ds_base),
            PF(barriers), PF(state), PF(pr[RO_R_PSO] + pr[RO_C_PSO]), PF(pr[RO_R_DSS]), PF(pr[RO_R_VIEWPORT] + pr[RO_R_SCISSOR]), PF(args), PF(pr[RO_M3_BUF]), PF(pr[RO_M3_TEX] + pr[RO_M3_SMP]),
            PF(pr[RO_T_ADDR] + pr[RO_T_TEX] + pr[RO_T_SAMP]), PF(rbm_draws - d0), PF(rbm_dispatches - k0), PF(pr[RO_COMMIT] + pr[RO_COMMIT_REAL] + pr[RO_COMMIT_M3]),
            PF(rbm_load_bytes - ld0), PF(rbm_store_bytes - st0), PF(rbm_clear_atts - cl0), PF(rbm_dontcare_atts - dc0), PF(rbm_copy_bytes - cp0), PF(rbm_fill_bytes - fl0),
            PF(rbm_arena_calls - ar0), PF(rbm_arena_bytes - arb0), PF(rbm_res_adds - rs0), PF(g_stat_pass - pass0), PF(g_stat_draw - draw0), PF(g_bw_load - bwl0), PF(g_bw_store - bws0), PF(g_cuts - cut0), PF(g_pass_cuts - pcut0), PF(g_rb_m3_hint_hits - mh0), PF(pr[RO_M3_BOFF]), PF(g_rb_m3_bind_skip - bk0),
-           (unsigned long long)rbm_h, (unsigned long long)px, !memcmp(pr, ex, sizeof pr));
-    printf("TIMES"); for (int i = 0; i < nfm; i++) printf(" %.4f", frame_ms[i]); printf("\n");
+           (unsigned long long)rbm_h, (unsigned long long)rbm_work_h, (unsigned long long)px, !memcmp(pr, ex, sizeof pr));
+    printf("TIMES"); for (int i = 0; i < frames; i++) printf(" %.4f", frame_ms[i]); printf("\n"); free(frame_ms);
     printf("PASSES%s\n", rbm_ptrace);
     printf("OPS");
     for (int i = 0; i < RBM_OPS; i++) if (pr[i]) printf(" %d:%llu", i, (unsigned long long)pr[i]);

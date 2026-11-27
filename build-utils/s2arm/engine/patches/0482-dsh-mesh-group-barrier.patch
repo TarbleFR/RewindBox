@@ -1,0 +1,100 @@
+--- a/graphics/tools/direct/dsh/Dsh.cs
++++ b/graphics/tools/direct/dsh/Dsh.cs
+@@ -45,26 +45,19 @@
+         public static Func<string, string> PackMslRead;   // 出包：配对顶点读片元 _b.metal 的来处（批量进程给「从产物表读」，就不在 PackMsl 里另留一份全文；11-02 马力欧派对 5.2 万支片元全文常驻约 7 GB）；null = 照旧查 PackMsl
+         public static HashSet<string> PackMslKeep;   // 出包：要留的那些名字（<片元键>_b.metal，配对表第二列）；null = 全留   // 出包批量进程（batch/Program.cs）置真：另写 <键>_b.plain.metal 与变体源码 _bv / _bf / _ft（编译归出包编排层；设备现编不出变体）
+         /// <summary>翻译器指纹（S2A.Dsh.csproj DshXfpHash：本库与所引翻译器工程源码的哈希）：现编结果 json 带它，宿主比 s2a_dsh_xfp() 不等就不复用（链号不随翻译器变，兜底目录跨 App 更新保留）</summary>
+-        public static string Xfp => XfpFor(WideMemoryEnabled(), ShaderOptEnabled(), Nvn2EarlyZEnabled());
+-        static string DeriveXfp(string suffix) => Convert.ToHexStringLower(SHA256.HashData(Encoding.ASCII.GetBytes(DshChain.Xfp + suffix)))[..16];
+-        internal static string XfpFor(bool wide, bool opt, bool nvn2EarlyZ) => (wide, opt, nvn2EarlyZ) switch
++        const int WideOff = 1, OptOff = 2, EarlyZOff = 4, MeshBarrierOff = 8;
++        internal static int XfpIndex => (WideMemoryEnabled() ? 0 : WideOff) | (ShaderOptEnabled() ? 0 : OptOff)
++            | (Nvn2EarlyZEnabled() ? 0 : EarlyZOff) | (MeshBarrierEnabled() ? 0 : MeshBarrierOff);
++        internal static readonly string[] Fingerprints = Enumerable.Range(0, 16).Select(Fingerprint).ToArray();
++        public static string Xfp => Fingerprints[XfpIndex];
++        static string Fingerprint(int flags)
+         {
+-            (true, true, true) => DshChain.Xfp,
+-            (false, true, true) => XfpWideOff,
+-            (true, false, true) => XfpOptOff,
+-            (false, false, true) => XfpBothOff,
+-            (true, true, false) => XfpEz2Off,
+-            (false, true, false) => XfpWideEz2Off,
+-            (true, false, false) => XfpOptEz2Off,
+-            (false, false, false) => XfpAllOff,
+-        };
+-        internal static readonly string XfpWideOff = DeriveXfp(":wide=0");
+-        internal static readonly string XfpOptOff = DeriveXfp(":opt=0");
+-        internal static readonly string XfpBothOff = DeriveXfp(":wide=0:opt=0");
+-        internal static readonly string XfpEz2Off = DeriveXfp(":ez2=0");
+-        internal static readonly string XfpWideEz2Off = DeriveXfp(":wide=0:ez2=0");
+-        internal static readonly string XfpOptEz2Off = DeriveXfp(":opt=0:ez2=0");
+-        internal static readonly string XfpAllOff = DeriveXfp(":wide=0:opt=0:ez2=0");
++            if (flags == 0) return DshChain.Xfp;
++            string suffix = ((flags & WideOff) != 0 ? ":wide=0" : "") + ((flags & OptOff) != 0 ? ":opt=0" : "")
++                + ((flags & EarlyZOff) != 0 ? ":ez2=0" : "") + ((flags & MeshBarrierOff) != 0 ? ":meshbarrier=0" : "");
++            return Convert.ToHexStringLower(SHA256.HashData(Encoding.ASCII.GetBytes(DshChain.Xfp + suffix)))[..16];
++        }
++        public static bool MeshBarrierEnabled() => DshCApi.ReadEnvToggle("S2A_RB_MESH_BARRIER");
+         public static bool WideMemoryEnabled() => Ryujinx.Graphics.Shader.Translation.Translator.WideMemoryEnabled();
+         public static bool ShaderOptEnabled() => Ryujinx.Graphics.Shader.Translation.Translator.ShaderOptEnabled();
+         public static bool Nvn2EarlyZEnabled() => DshCApi.ReadEnvToggle("S2A_RB_NVN2_EARLY_Z");
+--- a/graphics/tools/direct/dsh/DshCApi.cs
++++ b/graphics/tools/direct/dsh/DshCApi.cs
+@@ -121,25 +121,9 @@
+ 
+         /// <summary>const char *s2a_dsh_xfp(void)：本库翻译器指纹（16 位小写十六进制，NUL 结尾、常驻）。宿主 dsh_miss.inc dsh_have / nvn_mtl.m shader_build 用它判兜底目录里上局现编的结果能不能复用</summary>
+         [UnmanagedCallersOnly(EntryPoint = "s2a_dsh_xfp")]
+-        public static byte* Xfp() => (DshCompiler.WideMemoryEnabled(), DshCompiler.ShaderOptEnabled(), DshCompiler.Nvn2EarlyZEnabled()) switch
+-        {
+-            (true, true, true) => s_xfpOn,
+-            (false, true, true) => s_xfpWideOff,
+-            (true, false, true) => s_xfpOptOff,
+-            (false, false, true) => s_xfpBothOff,
+-            (true, true, false) => s_xfpEz2Off,
+-            (false, true, false) => s_xfpWideEz2Off,
+-            (true, false, false) => s_xfpOptEz2Off,
+-            (false, false, false) => s_xfpAllOff,
+-        };
+-        static readonly byte* s_xfpOn = MakeXfp(DshChain.Xfp);
+-        static readonly byte* s_xfpWideOff = MakeXfp(DshCompiler.XfpWideOff);
+-        static readonly byte* s_xfpOptOff = MakeXfp(DshCompiler.XfpOptOff);
+-        static readonly byte* s_xfpBothOff = MakeXfp(DshCompiler.XfpBothOff);
+-        static readonly byte* s_xfpEz2Off = MakeXfp(DshCompiler.XfpEz2Off);
+-        static readonly byte* s_xfpWideEz2Off = MakeXfp(DshCompiler.XfpWideEz2Off);
+-        static readonly byte* s_xfpOptEz2Off = MakeXfp(DshCompiler.XfpOptEz2Off);
+-        static readonly byte* s_xfpAllOff = MakeXfp(DshCompiler.XfpAllOff);
++        public static byte* Xfp() => (byte*)s_xfp[DshCompiler.XfpIndex];
++        // The C ABI returns process-lifetime pointers. Use the same table and index as shader reflection.
++        static readonly IntPtr[] s_xfp = Array.ConvertAll(DshCompiler.Fingerprints, value => (IntPtr)MakeXfp(value));
+         static byte* MakeXfp(string value)
+         {
+             var b = Encoding.ASCII.GetBytes(value);
+--- a/graphics/tools/direct/dsh/MeshStage.cs
++++ b/graphics/tools/direct/dsh/MeshStage.cs
+@@ -156,9 +156,14 @@
+             var (lay, _) = Memory(i);
+             int thr = i.Threads, pay = (i.Payload + 3) >> 2;
+             int wg = lay[0] >> 2, inp = lay[1] >> 2, outw = lay[2] >> 2, prim = lay[3];
++            const string barrier = "    threadgroup_barrier(mem_flags::mem_threadgroup);\n";
++            bool optimize = DshCompiler.MeshBarrierEnabled();
++            // Task and standalone mesh only overwrite word 0, on the lane that zeroed it.
++            // A task-fed mesh copies payload words on different lanes from the zero-fill.
++            bool copyPayload = kind == "ms" && i.Task;
+             string start = $"    threadgroup spvUnsafeArray<uint, {words}> {mem};\n"
+                          + $"    for (uint i = {lid}; i < {words}u; i += {thr}u) {mem}[i] = 0u;\n"
+-                         + "    threadgroup_barrier(mem_flags::mem_threadgroup);\n";
++                         + (!optimize || copyPayload ? barrier : "");
+             string head = $"struct dm_payload_t {{ uint w[{Math.Max(pay, 1)}]; }};\n";
+             string sig = string.Join(", ", ps.Concat(extra));
+             string first = $"constant uint* dm_first [[buffer({FIRST_SLOT})]]";   // 本次绘制起始工作组号，宿主绑（接口约定 3）
+@@ -193,7 +198,8 @@
+                 // 有任务时输入是载荷，字 0 = 本组在其任务派生里的序号（硬件放的；任务从 +4 起写，+0 不是它写的字）
+                 string fill = i.Task
+                     ? $"    for (uint i = {lid}; i < {pay}u; i += {thr}u) {mem}[{inp}u + i] = dm_payload.w[i];\n"
+-                      + "    threadgroup_barrier(mem_flags::mem_threadgroup);\n"
++                      // Payload word 0 and both group IDs are written by lane 0.
++                      + (optimize ? "" : barrier)
+                       + $"    if ({lid} == 0u) {{ {mem}[{wg}] = {tg}; {mem}[{inp}] = {tg}; }}\n"
+                     : $"    if ({lid} == 0u) {mem}[{wg}] = dm_first[0] + {tg};\n";
+                 return $"[[mesh]] void {name}({sig}, dm_mesh_t dm_out" + (i.Task ? ", const object_data dm_payload_t& dm_payload [[payload]]" : $", {first}") + $")\n{{\n{start}{fill}"

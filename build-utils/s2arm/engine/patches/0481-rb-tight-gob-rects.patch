@@ -1,0 +1,161 @@
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+index 63cec50..dae23b0 100644
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -9564,6 +9564,14 @@ static void rect_add(void *u, unsigned level, unsigned layer, uint32_t x, uint32
+     if (L->n == L->cap) { int nc = L->cap ? 2 * L->cap : 16; up_rect *nr = realloc(L->r, (size_t)nc * sizeof *nr); if (!nr) { L->oom = 1; return; } L->r = nr; L->cap = nc; }
+     L->r[L->n++] = (up_rect){level, layer, x, y, w, h};
+ }
++static int rb_gob_rects_on(void) {
++    static int enabled = -1;
++    if (enabled < 0) {
++        const char *value = getenv("S2A_RB_GOB_RECTS");
++        enabled = !value || strcmp(value, "0") != 0;
++    }
++    return enabled;
++}
+ static int pkg_upload_rects_body(const tex_t *t, id<MTLTexture> mt, const rect_list *L) {   // 0 = done
+     if (L->oom) return 1;
+     if (!L->n) return 0;
+@@ -9573,7 +9581,9 @@ static int pkg_upload_rects_body(const tex_t *t, id<MTLTexture> mt, const rect_l
+     // RewindBox (patch 0452): tight rect-only staging for single-level 2D linear textures avoids
+     // allocating and copying the entire level when only a subset of pages changed.
+     uint64_t lp = linear_page_pitch(t, (unsigned)bw, (unsigned)bh, (unsigned)bpb);
+-    if (lp) {
++    int tiled = !lp && !(t->d.flags & 0x70) && t->d.target == 1 && t->d.levels <= 1 &&
++                t->d.samples <= 1 && t->d.width && t->d.height && rb_gob_rects_on();
++    if (lp || tiled) {
+         size_t full_pitch = (size_t)(((uint64_t)t->d.width + (unsigned)bw - 1u) / (unsigned)bw) * (size_t)bpb;
+         size_t full_rows = (size_t)(((uint64_t)t->d.height + (unsigned)bh - 1u) / (unsigned)bh);
+         size_t full_bytes = full_rows && full_pitch <= SIZE_MAX / full_rows ? full_pitch * full_rows : SIZE_MAX;
+@@ -9585,21 +9595,22 @@ static int pkg_upload_rects_body(const tex_t *t, id<MTLTexture> mt, const rect_l
+                 r->x >= t->d.width || r->y >= t->d.height || r->w > t->d.width - r->x || r->h > t->d.height - r->y) {
+                 tight = 0; break;
+             }
+-            size_t rpitch = (size_t)((r->w + (unsigned)bw - 1u) / (unsigned)bw) * (size_t)bpb;
+-            size_t rrows = (size_t)((r->h + (unsigned)bh - 1u) / (unsigned)bh);
+-            if (!rrows || rpitch > SIZE_MAX / rrows) { tight = 0; break; }
++            size_t rpitch = (((size_t)r->w + bw - 1) / bw) * bpb;
++            size_t rrows = ((size_t)r->h + bh - 1) / bh;
++            if (!rrows || rpitch > SIZE_MAX / rrows || (tiled && (full_pitch > UINT32_MAX || rpitch > UINT32_MAX))) { tight = 0; break; }
+             size_t rbytes = rpitch * rrows;
+             size_t off = (total_stg + 15u) & ~(size_t)15u;
+             if (off < total_stg || rbytes > SIZE_MAX - off) { tight = 0; break; }
+             total_stg = off + rbytes;
+         }
+-        if (tight && total_stg > 0 && total_stg < full_bytes) {
++        if (tight && total_stg > 0 && total_stg < full_bytes && (!tiled || total_stg <= full_bytes / 4)) {
+             up_begin();
+             int saved_blits = g_nup_blits;
+             size_t start = 0;
+             id<MTLBuffer> stg = rb_stage_take(total_stg, &start, 0);
+             BOOL fromRing = stg != nil;
+             if (!stg) stg = [g_dev newBufferWithLength:total_stg options:MTLResourceStorageModeShared];
++            if (!stg && tiled) goto whole_level;
+             if (!stg) { free(rb); return 1; }
+             if (!fromRing) { res_add(stg); up_keep_add(stg); }
+             const uint8_t *src = rb ? rb : t->mem;
+@@ -9609,15 +9620,23 @@ static int pkg_upload_rects_body(const tex_t *t, id<MTLTexture> mt, const rect_l
+                 const up_rect *r = &L->r[i];
+                 size_t rx = (size_t)(r->x / (unsigned)bw) * (size_t)bpb;
+                 size_t ry = (size_t)(r->y / (unsigned)bh);
+-                size_t rpitch = (size_t)((r->w + (unsigned)bw - 1u) / (unsigned)bw) * (size_t)bpb;
+-                size_t rrows = (size_t)((r->h + (unsigned)bh - 1u) / (unsigned)bh);
++                size_t rpitch = (((size_t)r->w + bw - 1) / bw) * bpb;
++                size_t rrows = ((size_t)r->h + bh - 1) / bh;
+                 size_t rbytes = rpitch * rrows;
+                 size_t off = (pos + 15u) & ~(size_t)15u;
+                 pos = off + rbytes;
+-                if (rpitch == (size_t)lp) memcpy(dst + off, src + ry * (size_t)lp + rx, rbytes);
++                if (tiled) {
++                    if (nvn_deswizzle_rect_2d(&t->d, src, t->L.size, (uint32_t)rx, (uint32_t)ry,
++                                              (uint32_t)rpitch, (uint32_t)rrows, dst + off)) {
++                        g_nup_blits = saved_blits;
++                        goto whole_level;
++                    }
++                } else if (rpitch == (size_t)lp) memcpy(dst + off, src + ry * (size_t)lp + rx, rbytes);
+                 else for (size_t row = 0; row < rrows; row++) memcpy(dst + off + row * rpitch, src + (ry + row) * (size_t)lp + rx, rpitch);
+                 if (!up_blit_add_at(stg, start + off, rpitch, rbytes, MTLSizeMake(r->w, r->h, 1), mt, 0, 0, r->x, r->y)) {
+-                    g_nup_blits = saved_blits; free(rb); return 1;
++                    g_nup_blits = saved_blits;
++                    if (tiled) goto whole_level;
++                    free(rb); return 1;
+                 }
+                 added_bytes += rbytes;
+             }
+@@ -9629,6 +9648,7 @@ static int pkg_upload_rects_body(const tex_t *t, id<MTLTexture> mt, const rect_l
+             return 0;
+         }
+     }
++whole_level:
+     // RewindBox (patch 0070): the levels read whole below asked ahead first (rb_wn_level): tex_mtl_ asked only the pages written since, a level's others may be out of memory as well
+     if (!rb) for (int i = 0; i < L->n; i++) { const up_rect *q = &L->r[i]; int dup = 0; for (int j = 0; j < i; j++) dup |= L->r[j].level == q->level && L->r[j].layer == q->layer;
+         if (!dup) rb_wn_note(t, rb_wn_level(t, q->level, q->layer)); }
+diff --git a/graphics/nvn/gfx/tex/nvn_deswizzle.c b/graphics/nvn/gfx/tex/nvn_deswizzle.c
+index 9a62a70..b16273b 100644
+--- a/graphics/nvn/gfx/tex/nvn_deswizzle.c
++++ b/graphics/nvn/gfx/tex/nvn_deswizzle.c
+@@ -185,6 +185,49 @@ static inline void copy_gob_row_partial(uint8_t *gob, uint8_t *row_x, uint32_t r
+     }
+ }
+ 
++// A dirty GOB rectangle in a single-level 2D texture. Coordinates are bytes
++// across a block row and format-block rows down (also for native BC/ASTC).
++int nvn_deswizzle_rect_2d(const nvn_texdesc *d, const void *storage, size_t storage_size,
++                          uint32_t xbyte, uint32_t yrow, uint32_t width_bytes, uint32_t height,
++                          void *dst) {
++    if (!d || !storage || !dst || d->target != 1 || d->levels > 1 || (d->flags & 0x70) ||
++        d->samples > 1 || !width_bytes || !height || xbyte % 64 || yrow % 8) return -1;
++    uint32_t pitch, rows, slices, bpb, gobs;
++    uint64_t base;
++    unsigned th, td;
++    if (nvn_deswizzle_geom_ex(d, 0, 0, &pitch, &rows, &slices, &base, &th, &td, &bpb, &gobs) ||
++        td || slices != 1 || !gobs || gobs > UINT32_MAX / 64 || gobs * 64 < pitch ||
++        xbyte >= pitch || width_bytes > pitch - xbyte || yrow >= rows || height > rows - yrow ||
++        (size_t)width_bytes > SIZE_MAX / height || base > storage_size) return -1;
++
++    // The greatest GOB base in the rectangle has both the greatest column
++    // and greatest eight-row group. Validate its entire 512 bytes before copying.
++    uint32_t last_x = (xbyte + width_bytes - 1) & ~63u;
++    uint32_t last_y = (yrow + height - 1) & ~7u;
++    uint64_t last = nvn_bl_offset(last_x, last_y, 0, gobs * 64, rows, th, 0);
++    if (storage_size - base < 512 || last > storage_size - base - 512) return -1;
++    const uint8_t *src = (const uint8_t *)storage + base;
++    const int sw2 = nvn_gob_switch2 != 0;
++    for (size_t y = 0; y < height; y += 8) {
++        for (size_t x = 0; x < width_bytes; x += 64) {
++            const uint8_t *gob = src + nvn_bl_offset(xbyte + x, yrow + y, 0, gobs * 64, rows, th, 0);
++            uint8_t *out = (uint8_t *)dst + y * width_bytes + x;
++            size_t w = width_bytes - x < 64 ? width_bytes - x : 64;
++            size_t h = height - y < 8 ? height - y : 8;
++            if (w == 64 && h == 8) {
++                if (sw2) copy_gob_8x64_sw2_to_lin(gob, out, width_bytes);
++                else copy_gob_8x64_sw1_to_lin(gob, out, width_bytes);
++            } else {
++                for (size_t r = 0; r < h; ++r)
++                    for (size_t c = 0; c < w; c += 16)
++                        memcpy(out + r * width_bytes + c, gob + gob_off_mode(c, r, sw2),
++                               w - c < 16 ? w - c : 16);
++            }
++        }
++    }
++    return 0;
++}
++
+ // RewindBox (patch 0024): bl is the storage from byte bl_at on (0: the whole texture's; nvn_deswizzle_from gives a sparse texture's mip tail on its own).
+ //   Ported (MIT, Copyright (c) 2026 seedds) from seedds/nxnative 1d4b8e82 (dm/gfx/tex/nvn_deswizzle.c:48-52 at 0c078130).
+ //   S2Arm adaptation: upstream's move has no linear branch. A linear texture has no tiles and no tail, so storage given from a later byte is refused there (-1), never read as from 0
+diff --git a/graphics/nvn/gfx/tex/nvn_deswizzle.h b/graphics/nvn/gfx/tex/nvn_deswizzle.h
+index 36fd350..13882f4 100644
+--- a/graphics/nvn/gfx/tex/nvn_deswizzle.h
++++ b/graphics/nvn/gfx/tex/nvn_deswizzle.h
+@@ -9,6 +9,9 @@
+ // 3D textures: all depth slices of this level are decoded at once; slice k is at dst_linear + k × dst_pitch × block row count of this level.
+ // Not supported: multisampling, the LINEAR flag (already linear), BUFFER; returns -1 on these, 0 on success.
+ int nvn_deswizzle(const nvn_texdesc *d, unsigned level, unsigned layer, const void *src_storage, void *dst_linear, size_t dst_pitch);
++// Decode a GOB-aligned rectangle of one tiled 2D level into tight block rows.
++int nvn_deswizzle_rect_2d(const nvn_texdesc *d, const void *storage, size_t storage_size,
++                          uint32_t xbyte, uint32_t yrow, uint32_t width_bytes, uint32_t rows, void *dst);
+ // Reverse (for unit test round trips): linear src_linear → written into the corresponding level / layer of the whole-texture storage dst_storage
+ int nvn_swizzle(const nvn_texdesc *d, unsigned level, unsigned layer, const void *src_linear, size_t src_pitch, void *dst_storage);
+ // RewindBox (patch 0024): a sparse texture decoded one 64 KB tile at a time, and its mip tail from its own bytes, for nvn_mtl.m's placement sparse textures (later patches).

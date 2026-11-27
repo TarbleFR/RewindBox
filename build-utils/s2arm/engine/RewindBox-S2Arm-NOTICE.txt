@@ -133,3 +133,7 @@ circular order without a per-slot remainder. This change is provided under Apach
 RewindBox patch 0480 rechecks the transfer-memory handle quota atomically with
 handle allocation and returns the borrowed range when a concurrent creator used
 the final slot. This runtime change is provided under Apache-2.0.
+
+RewindBox patches 0481 through 0483 modify tiled texture upload staging,
+task and mesh shader translation, and empty depth/stencil clear handling.
+These changes are provided under Apache-2.0.
