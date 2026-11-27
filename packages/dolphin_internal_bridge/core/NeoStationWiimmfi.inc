@@ -2,6 +2,7 @@
 // Owned C ABI: the frontend never reaches through to Dolphin C++ exports.
 #include "DiscIO/NANDImporter.h"
 #include "Common/IOFile.h"
+#include "Common/SettingsHandler.h"
 #include <stdexcept>
 
 namespace
@@ -22,6 +23,13 @@ bool DOLWiimmfiNANDReady(const std::string& root)
            std::any_of(begin, end, [](u8 b) { return b != 0xff; });
   };
   if (!nonzero(bytes.begin() + 0x128, bytes.begin() + 0x146)) return false;
+  File::IOFile settings(root + "/title/00000001/00000002/data/setting.txt", "rb");
+  Common::SettingsBuffer settings_bytes{};
+  if (settings.GetSize() != settings_bytes.size() ||
+      !settings.ReadBytes(settings_bytes.data(), settings_bytes.size())) return false;
+  const auto serial = Common::SettingsReader(settings_bytes).GetValue("SERNO");
+  // Boot must not invent a serial number for an online console identity.
+  if (serial.empty() || serial == "000000000") return false;
   for (const char* name : {"clientca.pem", "clientcakey.pem", "rootca.pem"})
   {
     File::IOFile certificate(root + "/" + name, "rb");
@@ -32,7 +40,7 @@ bool DOLWiimmfiNANDReady(const std::string& root)
 }
 
 extern "C" __attribute__((visibility("default")))
-int32_t neostation_dolphin_wiimmfi_abi() { return 2; }
+int32_t neostation_dolphin_wiimmfi_abi() { return 3; }
 
 extern "C" bool neostation_dolphin_wiimmfi_network_allowed()
 {
@@ -100,4 +108,5 @@ extern "C" void neostation_dolphin_wiimmfi_boot_policy()
   Config::SetCurrent(Config::MAIN_NETWORK_SSL_DUMP_ROOT_CA, false);
   Config::SetCurrent(Config::MAIN_NETWORK_SSL_DUMP_PEER_CERT, false);
   Config::SetCurrent(Config::MAIN_NETWORK_DUMP_BBA, false);
+  Config::SetCurrent(Config::MAIN_NETWORK_DUMP_AS_PCAP, false);
 }

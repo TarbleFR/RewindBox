@@ -1,3 +1,6 @@
+import 'package:neostation/repositories/system_repository.dart';
+import 'package:neostation/services/game/game_launch_service.dart';
+import 'package:neostation/l10n/wiimmfi_locale.dart';
 import '../../../../l10n/melonx_transfer_locale.dart';
 
 import 'dart:io';
@@ -394,7 +397,18 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
         children: [
           if (_targetSystemFolder.toLowerCase() == 'wii' &&
               (widget.game.romPath?.startsWith('/') ?? false))
-            WiimmfiPanel(gamePath: widget.game.romPath),
+            WiimmfiPanel(
+              gamePath: widget.game.romPath,
+              onLaunch: (online) async {
+                final system = await SystemRepository.getSystemByFolderName(_targetSystemFolder);
+                if (!context.mounted) return null;
+                if (system == null) return WiimmfiLocale.text(context, 'gameUnknown');
+                final result = await GameLaunchService.launchGame(
+                  context, system, widget.game, dolphinWiimmfi: online,
+                );
+                return result.success || result.cancelled ? null : result.errorMessage;
+              },
+            ),
           if (_nextendoVersion != null) ...[
             _nextendoVersionCard(context),
             SizedBox(height: 12.r),

@@ -170,6 +170,10 @@ void main() {
     () async {
       final current = Directory(p.join(root.path, 'transaction/Wii'));
       const save = 'title/00010004/524d4350/data/save.bin';
+      const settings = 'title/00000001/00000002/data/setting.txt';
+      const miis = 'shared2/menu/FaceLib/RFL_DB.dat';
+      await write('transaction/Wii/$settings', 'old synthetic serial');
+      await write('transaction/Wii/$miis', 'current synthetic Miis');
       await write('transaction/Wii/$save', 'current profile');
       await write('transaction/Wii/keys.bin', 'old synthetic identity');
       await DolphinSystemFiles.replaceSnapshot(current, (stage) async {
@@ -180,6 +184,14 @@ void main() {
         await File(
           p.join(stage.path, 'keys.bin'),
         ).writeAsString('new synthetic identity');
+        for (final entry in {
+          settings: 'imported synthetic serial',
+          miis: 'old synthetic Miis',
+        }.entries) {
+          final file = File(p.join(stage.path, entry.key));
+          await file.parent.create(recursive: true);
+          await file.writeAsString(entry.value);
+        }
         await preserveWiiSaveData(current, stage);
         return 1;
       });
@@ -194,6 +206,18 @@ void main() {
       expect(
         await File('${current.path}.previous/keys.bin').readAsString(),
         'old synthetic identity',
+      );
+      expect(
+        await File(p.join(current.path, settings)).readAsString(),
+        'imported synthetic serial',
+      );
+      expect(
+        await File(p.join(current.path, miis)).readAsString(),
+        'current synthetic Miis',
+      );
+      expect(
+        await File('${current.path}.previous/$settings').readAsString(),
+        'old synthetic serial',
       );
       await expectLater(
         DolphinSystemFiles.replaceSnapshot(current, (stage) async {

@@ -11,8 +11,9 @@ import '../services/wiimmfi/wiimmfi_catalog.dart';
 import 'glass/glass_surface.dart';
 
 class WiimmfiPanel extends StatefulWidget {
-  const WiimmfiPanel({super.key, this.gamePath});
+  const WiimmfiPanel({super.key, this.gamePath, this.onLaunch});
   final String? gamePath;
+  final Future<String?> Function(bool online)? onLaunch;
   @override
   State<WiimmfiPanel> createState() => _WiimmfiPanelState();
 }
@@ -152,6 +153,11 @@ class _WiimmfiPanelState extends State<WiimmfiPanel> {
     }
   }
 
+  Future<void> _launch(bool online) => _run(() async {
+    final message = await widget.onLaunch!(online);
+    if (mounted && message != null) setState(() => _message = message);
+  });
+
   Future<void> _diagnose() => _run(() async {
     final result = await WiimmfiService.diagnose();
     if (!mounted) return;
@@ -282,33 +288,16 @@ class _WiimmfiPanelState extends State<WiimmfiPanel> {
                 supported &&
                         enabled &&
                         declared &&
-                        _status?['nandRecognized'] == true
-                    ? () => _run(() async {
-                        final report = await DolphinInternalV2Service.launch(
-                          folderName: 'wii',
-                          gamePath: widget.gamePath!,
-                          wiimmfi: true,
-                        );
-                        if (!report.ready && mounted) {
-                          setState(() => _message = report.message);
-                        }
-                      })
+                        _status?['nandRecognized'] == true &&
+                        widget.onLaunch != null
+                    ? () => _launch(true)
                     : null,
               ),
               _button(
                 'offline',
                 Icons.videogame_asset,
-                supported
-                    ? () => _run(() async {
-                        final report = await DolphinInternalV2Service.launch(
-                          folderName: 'wii',
-                          gamePath: widget.gamePath!,
-                          wiimmfi: false,
-                        );
-                        if (!report.ready && mounted) {
-                          setState(() => _message = report.message);
-                        }
-                      })
+                supported && widget.onLaunch != null
+                    ? () => _launch(false)
                     : null,
               ),
             ],

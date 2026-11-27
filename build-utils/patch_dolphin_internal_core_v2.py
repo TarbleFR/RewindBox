@@ -1172,10 +1172,14 @@ char* neostation_dolphin_menu_snapshot(int32_t wii, int32_t slot)
 extern "C" __attribute__((visibility("default")))
 int32_t neostation_dolphin_menu_apply(const char* request_json)
 {
-  if (!g_running || g_wiimmfi_session || !request_json) return 0;
+  if (!g_running || !request_json) return 0;
   NSData* data = [[NSString stringWithUTF8String:request_json] dataUsingEncoding:NSUTF8StringEncoding];
   NSDictionary* request = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
   if (![request isKindOfClass:NSDictionary.class]) return 0;
+  if (g_wiimmfi_session &&
+      !([request[@"kind"] isEqual:@"binding"] && [request[@"wii"] boolValue] &&
+        [request[@"slot"] intValue] == 0 &&
+        [@[@"Shake/X", @"Shake/Y", @"Shake/Z"] containsObject:request[@"id"]])) return 0;
   __block bool success = false;
   DOLHostQueueRunSync(^{
     if ([request[@"kind"] isEqual:@"capture"])
@@ -1743,6 +1747,8 @@ def main() -> None:
     patch_nand_importer(root)
     from dolphin_wiimmfi import patch_wfc_offline_gate
     patch_wfc_offline_gate(root)
+    from dolphin_wiimmfi import patch_online_memory_and_identity
+    patch_online_memory_and_identity(root)
     boot_manager = root / 'Source/Core/Core/BootManager.cpp'
     if 'neostation_dolphin_wiimmfi_boot_policy' not in boot_manager.read_text():
         replace_once(boot_manager, 'namespace BootManager\n{',

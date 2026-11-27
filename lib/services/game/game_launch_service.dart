@@ -115,8 +115,9 @@ class GameLaunchService {
   static Future<GameLaunchResult> launchGame(
     BuildContext context,
     SystemModel system,
-    GameModel game,
-  ) async {
+    GameModel game, {
+    bool? dolphinWiimmfi,
+  }) async {
     if (Platform.isIOS && MelonxInternalService.nativeQuarantined) {
       // Before any launch, of any engine: what the last Switch session kept is
       // given back now if it can be, and only its native proof clears it.
@@ -142,7 +143,7 @@ class GameLaunchService {
       await stopMedia;
       await FrontendMediaGate.instance.quiet;
       if (!context.mounted) return GameLaunchResult.failure('', '');
-      final result = await _launchGameImpl(context, system, game);
+      final result = await _launchGameImpl(context, system, game, dolphinWiimmfi: dolphinWiimmfi);
       if (Platform.isIOS && system.folderName.toLowerCase() == 'switch' && !result.success) {
         GameLaunchManager().markInitializationFailed(nativeStillActive: MelonxInternalService.nativeQuarantined);
         MelonxLaunchDiagnostics.record('dispatch', 'failed', {
@@ -182,8 +183,9 @@ class GameLaunchService {
   static Future<GameLaunchResult> _launchGameImpl(
     BuildContext context,
     SystemModel system,
-    GameModel game,
-  ) async {
+    GameModel game, {
+    bool? dolphinWiimmfi,
+  }) async {
     try {
       if (Platform.isAndroid && (system.folderName == 'android')) {
         if (game.romPath == null) {
@@ -358,6 +360,7 @@ class GameLaunchService {
           folderName: system.folderName,
           gamePath: gamePath,
           gameTitle: game.name,
+          wiimmfi: dolphinWiimmfi,
         );
         if (!context.mounted) return GameLaunchResult.failure('', '');
         if (!report.ready) {

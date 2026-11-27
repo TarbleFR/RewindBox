@@ -62,6 +62,27 @@ class WiimmfiStore {
 /// user's current profiles win over the console backup; the old NAND is also
 /// retained by replaceSnapshot in a separate backup.
 Future<void> preserveWiiSaveData(Directory current, Directory stage) async {
+  // Miis live outside title save folders. Validate every ancestor before copy.
+  var mii = current;
+  var miiExists = true;
+  for (final segment in ['shared2', 'menu', 'FaceLib']) {
+    mii = Directory(p.join(mii.path, segment));
+    final type = await FileSystemEntity.type(mii.path, followLinks: false);
+    if (type == FileSystemEntityType.notFound) {
+      miiExists = false;
+      break;
+    }
+    if (type != FileSystemEntityType.directory) {
+      throw const WiimmfiException('unsafePath');
+    }
+  }
+  if (miiExists) {
+    final destination = Directory(
+      p.join(stage.path, 'shared2', 'menu', 'FaceLib'),
+    );
+    if (await destination.exists()) await destination.delete(recursive: true);
+    await DolphinSystemFiles.copyTree(mii, destination.path);
+  }
   final titles = Directory(p.join(current.path, 'title'));
   final type = await FileSystemEntity.type(titles.path, followLinks: false);
   if (type == FileSystemEntityType.notFound) return;
@@ -72,6 +93,10 @@ Future<void> preserveWiiSaveData(Directory current, Directory stage) async {
   await for (final high in titles.list(followLinks: false)) {
     if (!hex.hasMatch(p.basename(high.path))) continue;
     if (high is! Directory) throw const WiimmfiException('unsafePath');
+    // System Menu data includes setting.txt (the console serial). Keep it
+    // paired with the imported console's keys, not the former Dolphin NAND.
+    // The complete former NAND remains in the transactional backup.
+    if (p.basename(high.path) == '00000001') continue;
     await for (final low in high.list(followLinks: false)) {
       if (!hex.hasMatch(p.basename(low.path))) continue;
       if (low is! Directory) throw const WiimmfiException('unsafePath');

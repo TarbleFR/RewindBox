@@ -75,9 +75,9 @@ jobs:
       - name: Restore compiler cache
         uses: actions/cache/restore@v4
         with:
-          key: dolphin-core-ccache-xcode16.4-${{ hashFiles('build-utils/patch_dolphin_internal_core_v2.py', 'packages/dolphin_internal_bridge/core/**') }}-${{ github.run_id }}
+          key: dolphin-core-ccache-xcode16.4-${{ hashFiles('build-utils/patch_dolphin_internal_core_v2.py', 'build-utils/dolphin_wiimmfi.py', 'packages/dolphin_internal_bridge/core/**') }}-${{ github.run_id }}
           restore-keys: |
-            dolphin-core-ccache-xcode16.4-${{ hashFiles('build-utils/patch_dolphin_internal_core_v2.py', 'packages/dolphin_internal_bridge/core/**') }}-
+            dolphin-core-ccache-xcode16.4-${{ hashFiles('build-utils/patch_dolphin_internal_core_v2.py', 'build-utils/dolphin_wiimmfi.py', 'packages/dolphin_internal_bridge/core/**') }}-
             dolphin-core-ccache-xcode16.4-
           path: .dolphin-ccache
 
@@ -157,13 +157,14 @@ jobs:
               'sha256': hashlib.sha256(core.read_bytes()).hexdigest(),
               'architectures': ['arm64'],
               'abi': 'NeoStation Dolphin internal v3 + cheat manager',
-              'wiimmfi_abi': 2,
+              'wiimmfi_abi': 3,
               'cheat_catalogues': ['Gecko/WiiRD', 'Action Replay/local INI'],
               'device_runtime_tested': False,
               'achievement_presenter': 1,
               'use_retro_achievements': True,
               'source_inputs': {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in [
                   Path('build-utils/patch_dolphin_internal_core_v2.py'),
+                  Path('build-utils/dolphin_wiimmfi.py'),
                   *sorted(Path('packages/dolphin_internal_bridge/core').glob('*.inc'))]},
           }
           Path('dist/dolphin/identity.json').write_text(
@@ -187,7 +188,7 @@ jobs:
         if: always()
         uses: actions/cache/save@v4
         with:
-          key: dolphin-core-ccache-xcode16.4-${{ hashFiles('build-utils/patch_dolphin_internal_core_v2.py', 'packages/dolphin_internal_bridge/core/**') }}-${{ github.run_id }}
+          key: dolphin-core-ccache-xcode16.4-${{ hashFiles('build-utils/patch_dolphin_internal_core_v2.py', 'build-utils/dolphin_wiimmfi.py', 'packages/dolphin_internal_bridge/core/**') }}-${{ github.run_id }}
           path: .dolphin-ccache
 
       - name: Upload diagnostics

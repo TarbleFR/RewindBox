@@ -36,6 +36,74 @@ def patch_wfc_offline_gate(root: Path) -> None:
             text = text.replace(anchor, guarded, 1)
         path.write_text(text)
 
+    # WiiConnect24 uses libcurl directly, bypassing IOS IP and WiiSockMan.
+    path = root / 'Source/Core/Core/IOS/Network/KD/NetKDRequest.cpp'
+    text = path.read_text()
+    if declaration not in text:
+        text = declaration + text
+    for signature, refusal in [
+        ('void NetKDRequestDevice::SchedulerWorker(const SchedulerEvent event)', 'return;'),
+        ('NWC24::ErrorCode NetKDRequestDevice::KDCheckMail(u32* mail_flag, u32* interval)', 'return NWC24::WC24_ERR_NETWORK;'),
+        ('NWC24::ErrorCode NetKDRequestDevice::KDSendMail()', 'return NWC24::WC24_ERR_NETWORK;'),
+        ('NWC24::ErrorCode NetKDRequestDevice::KDDownload(const u16 entry_index,\n                                                const std::optional<u8> subtask_id)', 'return NWC24::WC24_ERR_NETWORK;'),
+        ('IPCReply NetKDRequestDevice::HandleRequestRegisterUserId(const IOS::HLE::IOCtlRequest& request)',
+         '{ auto& memory = GetSystem().GetMemory(); memory.Write_U32(0, request.buffer_out + 4);\n'
+         '    WriteReturnValue(memory, NWC24::WC24_ERR_NETWORK, request.buffer_out); return IPCReply{IPC_SUCCESS}; }'),
+    ]:
+        anchor = signature + '\n{'
+        guarded = anchor + '\n#ifdef IPHONEOS\n  if (!neostation_dolphin_wiimmfi_network_allowed()) ' + refusal + '\n#endif'
+        if guarded not in text:
+            if text.count(anchor) != 1:
+                raise SystemExit(f'Pinned WC24 entry changed: {signature}')
+            text = text.replace(anchor, guarded, 1)
+    path.write_text(text)
+
+
+def patch_online_memory_and_identity(root: Path) -> None:
+    path = root / 'Source/Core/Core/PatchEngine.cpp'
+    text = path.read_text()
+    declaration = '#ifdef IPHONEOS\nextern "C" bool neostation_dolphin_wiimmfi_network_allowed();\n#endif\n'
+    if declaration not in text:
+        text = declaration + text
+    anchor = '  LoadPatchSection("OnFrame", &s_on_frame, globalIni, localIni);'
+    replacement = '''  // Retain upstream compatibility defaults, not local memory modifications.
+#ifdef IPHONEOS
+  const Common::IniFile online_local;
+  LoadPatchSection("OnFrame", &s_on_frame, globalIni,
+                   neostation_dolphin_wiimmfi_network_allowed() ? online_local : localIni);
+#else
+  LoadPatchSection("OnFrame", &s_on_frame, globalIni, localIni);
+#endif'''
+    if replacement not in text:
+        if text.count(anchor) != 1:
+            raise SystemExit('Pinned OnFrame loader changed')
+        text = text.replace(anchor, replacement, 1)
+    path.write_text(text)
+
+    # Never serialize the imported console's identifiers into RewindBox logs.
+    for relative, old, new in [
+        ('Source/Core/Core/Boot/Boot_BS2Emu.cpp',
+         'INFO_LOG_FMT(BOOT, "No previous serial number found, generated one instead: {}", serno);',
+         'INFO_LOG_FMT(BOOT, "No previous serial number found; value omitted");'),
+        ('Source/Core/Core/Boot/Boot_BS2Emu.cpp',
+         'INFO_LOG_FMT(BOOT, "Using serial number: {}", serno);',
+         'INFO_LOG_FMT(BOOT, "Using existing console serial number; value omitted");'),
+        ('Source/Core/Core/IOS/ES/Identity.cpp',
+         'INFO_LOG_FMT(IOS_ES, "GetDeviceId: {:08X}", *device_id);',
+         'INFO_LOG_FMT(IOS_ES, "GetDeviceId: console identifier omitted");'),
+        ('Source/Core/Core/IOS/ES/TitleManagement.cpp',
+         'WARN_LOG_FMT(IOS_ES, "Device ID mismatch: ticket {:08x}, device {:08x}", ticket_device_id,\n                   device_id);',
+         'WARN_LOG_FMT(IOS_ES, "Device ID mismatch: console identifiers omitted");'),
+    ]:
+        path = root / relative
+        text = path.read_text()
+        replacement = '#ifdef IPHONEOS\n      ' + new + '\n#else\n      ' + old + '\n#endif'
+        if replacement not in text:
+            if text.count(old) != 1:
+                raise SystemExit(f'Pinned identity log changed: {relative}')
+            text = text.replace(old, replacement, 1)
+        path.write_text(text)
+
 
 def patch_nand_importer(root: Path) -> None:
     header = root / 'Source/Core/DiscIO/NANDImporter.h'
@@ -152,6 +220,9 @@ void NANDImporter::ValidateEntries(u16 index, const std::string& parent, size_t 
   std::vector<u8> tmd_bytes(tmd_file.GetSize());''')
     s = change(s, '  std::vector<u8> content_bytes(content_file.GetSize());', '''  if (content_file.GetSize() == 0 || content_file.GetSize() > 64 * 1024 * 1024) return false;
   std::vector<u8> content_bytes(content_file.GetSize());''')
+    s = change(s, '  IOS::ES::TMDReader tmd(std::move(tmd_bytes));', '''  IOS::ES::TMDReader tmd(std::move(tmd_bytes));
+  // Header size alone does not bound the content table used by GetContent.
+  if (!tmd.IsValid() || tmd.GetTitleId() != 0x000000010000000dULL) return false;''')
     s = change(s, '    PanicAlertFmtT("Unable to write to file {0}", file_path);', '    throw std::runtime_error("nand_write");')
     s = change(s, '    if (!pem_file.WriteBytes(&content_bytes[certificate_offset], certificate_size))',
                '    if (!pem_file.WriteBytes(&content_bytes[certificate_offset], certificate_size) || !pem_file.Flush())')
