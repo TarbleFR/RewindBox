@@ -267,18 +267,18 @@
     "flutter": {
       "mode": "not-run",
       "commands": [],
-      "reason": "Compilation des derniers ajouts demand\u00e9e ; suites Flutter/natives non ex\u00e9cut\u00e9es conform\u00e9ment \u00e0 AGENTS.md, contr\u00f4les de livraison conserv\u00e9s."
+      "reason": "Compilation des derniers ajouts demandée ; suites Flutter/natives non exécutées conformément à AGENTS.md, contrôles de livraison conservés."
     },
     "native": {
       "mode": "not-run",
       "commands": [],
-      "reason": "Compilation des derniers ajouts demand\u00e9e ; suites Flutter/natives non ex\u00e9cut\u00e9es conform\u00e9ment \u00e0 AGENTS.md, contr\u00f4les de livraison conserv\u00e9s."
+      "reason": "Compilation des derniers ajouts demandée ; suites Flutter/natives non exécutées conformément à AGENTS.md, contrôles de livraison conservés."
     },
     "awaitMinutes": 75
   },
   "build": 848,
-  "status": "frozen",
-  "note": "Derniers ajouts : Wiimmfi ABI4 et parcours Nextendo, versions moteurs, S2Arm0464\u20130470. Autres moteurs authentifi\u00e9s conserv\u00e9s. Aucun gain sur iPhone annonc\u00e9.",
+  "status": "draft",
+  "note": "Derniers ajouts : Wiimmfi ABI4 et parcours Nextendo, versions moteurs, S2Arm0464–0470. Autres moteurs authentifiés conservés. Aucun gain sur iPhone annoncé.",
   "s2armAsyncPSOTestDefault": true,
   "base": {
     "build": 847,
@@ -547,6 +547,26 @@
       {
         "commit": "5d3d3ad608377e790e691e7e7b12714408e19ef4",
         "note": "build: bind Wiimmfi and playlist declarations without altering historic reviews [skip ci]"
+      },
+      {
+        "commit": "228012fab7f97299fe59d7c8a6a673828f043b25",
+        "note": "build: bind the complete 848 source and legal review [skip ci]"
+      },
+      {
+        "commit": "00aa2d023d30f12099ec3cec1b0ae5a4149595d8",
+        "note": "build: order the promoted 848 source history [skip ci]"
+      },
+      {
+        "commit": "0e6e5b44a96e08a2d0da55cdb34792c5872be247",
+        "note": "build: keep legacy retained-input checks and verify the Dolphin producer revision [skip ci]"
+      },
+      {
+        "commit": "e24166ebe904c4cbaf7e9c2a4831789c92b3e2c0",
+        "note": "[ipa-delivery:848] Compile private IPA with Wiimmfi ABI4, latest interface and S2Arm 0470"
+      },
+      {
+        "commit": "e3a2fe1afa12c2693bb60234cc4b9953cdb6b5a1",
+        "note": "fix(libretro): reuse the identifier validator for launch console names [skip ci]"
       }
     ],
     "sourceOnly": [],
@@ -567,7 +587,7 @@
       },
       {
         "commit": "025a688f0621831edf1f11883816bc3b258b1aa7",
-        "note": "Afficher les versions des moteurs dans les playlists, diff\u00e9r\u00e9 explicitement \u00e0848 par847."
+        "note": "Afficher les versions des moteurs dans les playlists, différé explicitement à848 par847."
       }
     ],
     "freezeCommit": "0e6e5b44a96e08a2d0da55cdb34792c5872be247",
@@ -784,7 +804,7 @@
       },
       {
         "commit": "025a688f0621831edf1f11883816bc3b258b1aa7",
-        "subject": "[skip ci] Afficher la version des moteurs embarqu\u00e9s dans les playlists",
+        "subject": "[skip ci] Afficher la version des moteurs embarqués dans les playlists",
         "role": "promoted",
         "productPaths": 11,
         "partial": false
@@ -1974,11 +1994,5 @@
       "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
       "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge"
     ]
-  },
-  "frozen": {
-    "at": "2026-11-27T12:18:08Z",
-    "commit": "0e6e5b44a96e08a2d0da55cdb34792c5872be247",
-    "tool": "standard_delivery.py freeze",
-    "inCI": false
   }
 }
