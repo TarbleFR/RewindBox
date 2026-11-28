@@ -1,0 +1,74 @@
+{
+  "status": "passed",
+  "sanitizers": {
+    "address": "passed",
+    "undefined": "passed",
+    "leak": "unavailable: ptrace; ASan rerun with detect_leaks=0"
+  },
+  "compiler": "GCC 12, C11; ASan/UBSan O0 -Wall -Wextra -Werror; benchmark O2 -fno-inline -Wall -Wextra -Werror",
+  "coverage": [
+    "exact old/new extracted functions",
+    "real serial link/unlink and nvn_hmap",
+    "registration/reregistration/unregister",
+    "gone and invalid entries",
+    "view/parent/root and alt/ar/im reference fields",
+    "texture ID zero and serial zero",
+    "candidate NULL/all held/empty/absent/mixed",
+    "index switch on/off",
+    "dense registry fallback",
+    "1M sparse registry"
+  ],
+  "parity": {
+    "seed": "0x5a18c031849",
+    "mutations": 24000,
+    "query_cases": 5015,
+    "index_on_off_comparisons": 10030,
+    "invariant_checks": 191,
+    "mismatches": 0,
+    "benchmark_iterations": 0,
+    "registry_capacity": 1048576,
+    "linked_ids": 4096,
+    "serial_index_capacity": 2048,
+    "old_mean_ms": 0.0,
+    "new_mean_ms": 0.0,
+    "sink": 0
+  },
+  "microbenchmark": {
+    "seed": "0x5a18c031849",
+    "mutations": 24000,
+    "query_cases": 5015,
+    "index_on_off_comparisons": 10030,
+    "invariant_checks": 191,
+    "mismatches": 0,
+    "benchmark_iterations": 60,
+    "registry_capacity": 1048576,
+    "linked_ids": 4096,
+    "serial_index_capacity": 2048,
+    "old_mean_ms": 1.074425,
+    "new_mean_ms": 0.109331,
+    "sink": 0
+  },
+  "inputs": {
+    "source_sha256": "3a2483a359be6960fa6b88e307ebd20de6d3e63b9557d10826bae6757d5d8171",
+    "reference_sha256": "f590bd0d039fb01eeb30eba7084ecfb7e21c7c941bc873efb0946523b7cc51df",
+    "hmap_sha256": "3484192d1e3cd87dbdff2c0df9aaf12bfe5e22c6da648f7836c246c85346e6c2",
+    "extracted_functions": [
+      "3625e46848705bedb84010cf3cc4fa61ab2a91ad5af65d2802b94cfda0eb95b2",
+      "b25c4308d9bdf199042a161e671c6c51f02cc6e18e271a0d48996d4705ab2d15",
+      "c5ab63ef3a983053b9910fe6abd62459e14b1afcbe838c72c2f3da41a2d210f2",
+      "cfebcfc1ce741b77dd48bdb9c75f8e34d39f72a04bfec301bd732155c2d0d03e",
+      "550a6f3db78a666ad7fa73bef510940a41cbf8754e40306ba1d80b7ecd3b03db"
+    ],
+    "harness_sha256": "d3255a35c95e96279e0f7918e5f89470baa0a5c27bd78fbac4caad729f6cc518"
+  },
+  "limits": [
+    "scratch harness mocks CF identity set and minimal treg layout",
+    "no Apple Metal or actual CF allocation measurement",
+    "host microbenchmark only; no iPhone FPS claim"
+  ],
+  "initial_attempts": [
+    "Clang unavailable; used GCC",
+    "GCC O1 inlining triggers stringop-overread warning in unmodified generic nvn_hm_eq for8-byte key; retained -Werror and compiled sanitizer O0/benchmark O2-fno-inline",
+    "initial LeakSanitizer exit failed under ptrace; address/undefined run repeated successfully with leak detection unavailable"
+  ]
+}

@@ -935,3 +935,12 @@ Un mot de 64 bits par fichier réunit la position et la longueur du chemin. La l
 ### 0528–0529 — reprise du gouverneur et propriété de la sonde
 
 0528 attend deux relevés indépendants en récupération. 0529 protège la publication de la durée de la sonde par la génération de session et filtre les horodatages Metal invalides. [Contre-expertise et rejeu](../../../docs/evidence/s2arm-thermal-0528-0529.md).
+
+### 0530–0533 — contre-expertise physique après 849
+
+- **0530** rend le recensement lourd du tas optionnel et espace les demandes explicites ; compteurs légers conservés. `S2A_RB_HEAP_CENSUS_GUARD=0` restaure 849. Budgets et limites de l’entrée managée dans la [validation](../../../docs/evidence/s2arm-849-counteraudit/validation.md).
+- **0531** utilise l’index des ID enregistrés pour la rétention des orphelins et s’arrête après couverture exacte des candidats. `S2A_RB_ORPHAN_REGISTRY_INDEX=0` restitue le parcours intégral ; mêmes règles et verrous.
+- **0532** étend la garde d’arrêt Metal 4 à FI avant admission et après encodage. Les refus rendent le sémaphore et terminent les lectures sans ajouter de wait drawable.
+- **0533** comptabilise les deux `nextDrawable` FI dans le compteur atomique existant.
+
+[Revue par patch, mesures physiques et limites](../../../docs/evidence/s2arm-849-counteraudit/README.md). Aucun gain sur A18 Pro annoncé, aucun cache invalidé, aucune IPA.

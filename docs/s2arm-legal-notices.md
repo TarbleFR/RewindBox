@@ -445,3 +445,7 @@ Patches 0524–0527 modify the Apache-2.0 S2Arm NVN implementation in
 and the blocking times of the persistent pipeline archive writer.
 
 Patches 0528–0529 revise recovery and GPU probe ownership in the Apache-2.0 S2Arm NVN runtime.
+
+RewindBox patches 0530 through 0533 modify heap diagnostic scheduling,
+registered-texture traversal, frame-interpolation safe-stop admission and
+drawable timing in the Apache-2.0 S2Arm runtime and iOS shell.

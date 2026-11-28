@@ -1,0 +1,84 @@
+Keep allocator-zone scans and managed reentry optional; preserve heartbeat ledgers and allocation counters.
+
+diff --git a/ios/rb_vm_audit.m b/ios/rb_vm_audit.m
+--- a/ios/rb_vm_audit.m
++++ b/ios/rb_vm_audit.m
+@@ -282,10 +282,10 @@
+ int s2a_rb_heap_views(uint64_t *out);
+ void s2a_rb_heap_pipeline(uint64_t *table, uint64_t *objects);
+ 
+-static NSDictionary *rb_heap_owners(void)
++static NSDictionary *rb_heap_owners(BOOL managed)
+ {
+     uint64_t views = 0, table = 0, objects = 0, audio = 0;
+-    int (*snapshot)(uint32_t, uint64_t *, uint32_t) = dlsym(RTLD_DEFAULT, "s2a_rb_bench_managed_snapshot");
++    int (*snapshot)(uint32_t, uint64_t *, uint32_t) = managed ? dlsym(RTLD_DEFAULT, "s2a_rb_bench_managed_snapshot") : NULL;
+     BOOL audio_valid = snapshot && snapshot(2, &audio, 1) == 0;
+     s2a_rb_heap_pipeline(&table, &objects);
+     NSDictionary *bytes = @{
+@@ -310,20 +310,36 @@
+ 
+ static void rb_heap_ledger(unsigned generation, uint64_t frame, uint64_t sample_ns)
+ {
++    // RewindBox (0530): keep the heartbeat ledger and allocation counters light.
++    // Zone introspection and managed-runtime reentry are diagnostic work only.
++    // GUARD=0 restores the 849 census, including its one-minute cadence.
++    const char *guard = getenv("S2A_RB_HEAP_CENSUS_GUARD");
++    const BOOL guarded = !(guard && !strcmp(guard, "0"));
++    const char *requested = getenv("S2A_RB_HEAP_CENSUS");
++    if (guarded && !(requested && !strcmp(requested, "1"))) return;
+     static unsigned previous_generation;
+     static uint64_t next_ns;
+     if (!rb_heap_measure()) return;
+     if (previous_generation == generation && sample_ns < next_ns) return;
+-    const uint64_t minute = 60000000000ull;
++    const uint64_t minute = (guarded ? 300ull : 60ull) * 1000000000ull;
+     if (previous_generation != generation || !next_ns) next_ns = sample_ns;
+     next_ns += ((sample_ns - next_ns) / minute + 1) * minute;
+     previous_generation = generation;
+     vm_address_t *zones = NULL;
+     unsigned count = 0, emitted = 0;
+     uint64_t started = rb_vm_now();
++    uint64_t cpu_started = 0, cpu_ended = 0;
++    BOOL cpu_valid = rb_vm_cpu_time(&cpu_started);
++    BOOL truncated = NO;
+     kern_return_t status = malloc_get_all_zones(mach_task_self(), NULL, &zones, &count);
+     if (status == KERN_SUCCESS && zones) {
+         for (unsigned i = 0; i < count && rb_vm_alive(generation); ++i) {
++            // Individual allocator calls cannot be preempted safely. Bound the
++            // work between calls; report partial coverage instead of fake totals.
++            if (guarded && (i >= 32 || rb_vm_now() - started >= 8000000ull)) {
++                truncated = YES;
++                break;
++            }
+             malloc_zone_t *zone = (malloc_zone_t *)(uintptr_t)zones[i];
+             if (!zone || !zone->introspect || !zone->introspect->statistics) continue;
+             malloc_statistics_t stats = {0};
+@@ -344,13 +360,25 @@
+     }
+     if (!rb_vm_alive(generation)) return;
+     uint64_t zones_ended_ns = rb_vm_now();
++    // Managed entry can wait for the runtime even though the payload is an
++    // atomic counter. Keep it separately opt-in; native owners use snapshots.
++    const char *managed = getenv("S2A_RB_HEAP_MANAGED");
++    const BOOL managed_requested = !guarded || (managed && !strcmp(managed, "1"));
++    NSDictionary *owners = rb_heap_owners(managed_requested);
++    uint64_t owners_ended_ns = rb_vm_now();
++    cpu_valid = rb_vm_cpu_time(&cpu_ended) && cpu_valid && cpu_ended >= cpu_started;
++    if (!rb_vm_alive(generation)) return;
+     rb_vm_write_json("[RB-VM-HEAP]", @{
+         @"zones_started_ns": @(started), @"zones_ended_ns": @(zones_ended_ns),
+         @"queue_delay_ns": @(started > sample_ns ? started - sample_ns : 0),
+-        @"event": @"heap_census", @"schema": @1, @"generation": @(generation),
++        @"event": @"heap_census", @"schema": @2, @"generation": @(generation),
+         @"frame": @(frame), @"sample_ns": @(sample_ns), @"zone_status": @(status),
+         @"zone_count": @(count), @"zones_reported": @(emitted),
+-        @"owners": rb_heap_owners(), @"elapsed_ns": @(rb_vm_now() - started)
++        @"owners": owners, @"owners_elapsed_ns": @(owners_ended_ns - zones_ended_ns),
++        @"worker_cpu_ns": cpu_valid ? @(cpu_ended - cpu_started) : (id)NSNull.null,
++        @"managed_requested": @(managed_requested),
++        @"partial_zones": @(truncated), @"guarded": @(guarded),
++        @"elapsed_ns": @(owners_ended_ns - started)
+     });
+ }
+ 

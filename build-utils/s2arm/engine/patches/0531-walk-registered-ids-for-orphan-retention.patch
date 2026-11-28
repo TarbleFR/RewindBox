@@ -1,0 +1,72 @@
+Use the existing serial registry and exact candidate coverage to avoid scanning unused texture-ID capacity.
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_mtl.m b/graphics/nvn/gfx/nvn/nvn_mtl.m
+--- a/graphics/nvn/gfx/nvn/nvn_mtl.m
++++ b/graphics/nvn/gfx/nvn/nvn_mtl.m
+@@ -13987,6 +13987,7 @@
+                  uint8_t tt1, gone;   // tt1: Metal texture type + 1 a pool walk found here (0 = not looked; pool_gpu skips the ID in tables of another type); gone: its memory pool was finalized (treg_drop_pool_views), until registered again
+                  int ser_next, ser_prev; } treg_t;   // the other IDs registered with the same texture serial (g_treg_ser), as ID + 1, 0 = none
+ static treg_t *g_treg; static int g_ntreg;
++static nvn_hmap g_treg_ser = {.klen = 8};
+ static inline void *rb_tex_root(id<MTLTexture> t, void **parent_out) {
+     id<MTLTexture> p = t ? t.parentTexture : nil;
+     if (parent_out) *parent_out = (__bridge void *)p;
+@@ -13997,21 +13998,38 @@
+ // RewindBox (patch 0312 / 0422): what the registered texture IDs read (alias_held's partner),
+ //   using cached immutable parent/root pointers so the scan makes zero ObjC sends and, when
+ //   cands != NULL, populates only candidate matches instead of allocating a full-table set.
++// RewindBox (0531): the serial index already links every registered ID,
++// including serial zero and ID zero. Skip empty registry capacity and stop only
++// after every candidate is proven held. All walks stay under g_rmu + g_smu.
++static void rb_alias_hold_id(const treg_t *r, CFSetRef cands, CFMutableSetRef held) {
++    if (!r->ok || r->gone) return;
++    if (r->view) {
++        if (!cands || CFSetContainsValue(cands, r->view)) CFSetAddValue(held, r->view);
++        if (r->view_parent && (!cands || CFSetContainsValue(cands, r->view_parent))) CFSetAddValue(held, r->view_parent);
++        if (r->view_root && r->view_root != r->view_parent && (!cands || CFSetContainsValue(cands, r->view_root))) CFSetAddValue(held, r->view_root);
++    }
++    if (__builtin_expect(r->alt || r->ar || r->im, 0)) {
++        void *ex[9] = {r->alt, r->alt_of, r->alt_root, r->ar, r->ar_of, r->ar_root, r->im, r->im_of, r->im_root};
++        for (int j = 0; j < 9; j++) {
++            if (ex[j] && (!cands || CFSetContainsValue(cands, ex[j]))) CFSetAddValue(held, ex[j]);
++        }
++    }
++}
+ static CFMutableSetRef rb_alias_held_ids_for(CFSetRef cands) {
+     CFMutableSetRef held = CFSetCreateMutable(NULL, 0, NULL);
+-    for (int i = 0; i < g_ntreg; i++) {
+-        const treg_t *r = &g_treg[i];
+-        if (!r->ok || r->gone) continue;
+-        if (r->view) {
+-            if (!cands || CFSetContainsValue(cands, r->view)) CFSetAddValue(held, r->view);
+-            if (r->view_parent && (!cands || CFSetContainsValue(cands, r->view_parent))) CFSetAddValue(held, r->view_parent);
+-            if (r->view_root && r->view_root != r->view_parent && (!cands || CFSetContainsValue(cands, r->view_root))) CFSetAddValue(held, r->view_root);
+-        }
+-        if (__builtin_expect(r->alt || r->ar || r->im, 0)) {
+-            void *ex[9] = {r->alt, r->alt_of, r->alt_root, r->ar, r->ar_of, r->ar_root, r->im, r->im_of, r->im_root};
+-            for (int j = 0; j < 9; j++) {
+-                if (ex[j] && (!cands || CFSetContainsValue(cands, ex[j]))) CFSetAddValue(held, ex[j]);
++    if (cands && !CFSetGetCount(cands)) return held;
++    const char *value = getenv("S2A_RB_ORPHAN_REGISTRY_INDEX");
++    const int indexed = !(value && !strcmp(value, "0"));
++    if (indexed && g_treg_ser.cap < (uint32_t)g_ntreg) {
++        for (uint32_t slot = 0; slot < g_treg_ser.cap; ++slot)
++            for (int h = (int)(uintptr_t)g_treg_ser.vals[slot]; h; h = g_treg[h - 1].ser_next) {
++                rb_alias_hold_id(&g_treg[h - 1], cands, held);
++                if (cands && CFSetGetCount(held) == CFSetGetCount(cands)) return held;
+             }
++    } else {
++        for (int i = 0; i < g_ntreg; ++i) {
++            rb_alias_hold_id(&g_treg[i], cands, held);
++            if (indexed && cands && CFSetGetCount(held) == CFSetGetCount(cands)) return held;
+         }
+     }
+     return held;
+@@ -14041,7 +14059,6 @@
+ // Texture serial → the IDs registered with it (ok): the first ID + 1 here, the rest chained through ser_next / ser_prev. Exactly the IDs with ok set (linked where ok and t change:
+ //   nvn_be_reg_tex, nvn_be_unreg_tex_range). A finalized texture's IDs are found by its serial (treg_sweep_gone, alias_dead_views): those passes walked the whole registry, about
+ //   33,000 IDs in Ocarina of Time, at every submission where a texture had been finalized (11-07 E1 on device: 11% of its submit CPU, 39% of Donkey Kong's). Under g_rmu
+-static nvn_hmap g_treg_ser = {.klen = 8};
+ static int rb_sp_closed_source(NvSparse *s) {
+     uint64_t serial = s->ser;
+     int closed = 0;

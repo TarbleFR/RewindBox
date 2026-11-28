@@ -170,3 +170,7 @@ timing, and add a bounded optional 30-minute native cadence observer. These chan
 RewindBox patches 0513 through 0517 modify the optional thermal governor,
 Metal 4 presentation admission and packed RomFS path bounds. These changes
 are provided under Apache-2.0.
+
+RewindBox patches 0530 through 0533 modify heap diagnostic scheduling,
+registered-texture traversal, frame-interpolation safe-stop admission and
+drawable timing in the Apache-2.0 S2Arm runtime and iOS shell.

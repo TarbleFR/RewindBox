@@ -1,0 +1,38 @@
+Include both interpolation drawable acquisitions in the existing presentation wait counter.
+
+diff --git a/graphics/nvn/gfx/nvn/nvn_present_fi.inc b/graphics/nvn/gfx/nvn/nvn_present_fi.inc
+--- a/graphics/nvn/gfx/nvn/nvn_present_fi.inc
++++ b/graphics/nvn/gfx/nvn/nvn_present_fi.inc
+@@ -479,6 +479,14 @@
+     return 1;
+ }
+ static void fi_ticket_done(uint64_t ticket) { pthread_mutex_lock(&g_pq_mu); rb_present_complete(ticket); RB_WAKE_CALL("present.signal", -2, pthread_cond_broadcast(&g_pq_cv)); pthread_mutex_unlock(&g_pq_mu); }
++// RewindBox (0533): account for both FI drawable requests in the existing
++// cumulative presentation counter, including nil results and blocked requests.
++static id<CAMetalDrawable> rb_fi_next_drawable(CAMetalLayer *layer) {
++    uint64_t started = bp_now();
++    id<CAMetalDrawable> drawable = [layer nextDrawable];
++    atomic_fetch_add(&g_drawable_ns, bp_now() - started);
++    return drawable;
++}
+ // 出图线程上的一帧（游戏原图 src 已在上屏队列里画好）：good = 这一帧写进输入图并可能插值（0 = 只上真帧，回退 / 单测用）；allow = 规则允许补这一帧。
+ //   槽 1：缩拷进输入图 k → 1/4 亮度 →（与上一帧成对时）块匹配 + MetalFX 插值 → 补出的帧画进画布；槽 2：真帧画进第二张画布。两槽连着提交到上屏队列，CPU 不等 GPU
+ API_AVAILABLE(macos(26.0), ios(26.0))
+@@ -500,7 +508,7 @@
+     else if (seq > 0 && good && !pair) f->unpaired++;
+     int mid_shown = 0, input_submitted = 0;
+     if (good) {
+-        id<CAMetalDrawable> dm = pair && gpu_go() ? [layer nextDrawable] : nil;
++        id<CAMetalDrawable> dm = pair && gpu_go() ? rb_fi_next_drawable(layer) : nil;
+         int use_fx = ((pair && dm) || prime) && !dup && !novt;
+         id<MTLTexture> mid = novt ? f->in_tex[k ^ 1] : f->mid_tex;
+         // 补出帧的摆放比例要和真帧一致（#1165：自适应满屏补丁开着时真帧走 present_blit_m4 按 s2a_cpatch_present_aspect 拉满到屏幕画幅，补出帧按输入图 16:9 摆，
+@@ -560,7 +568,7 @@
+     // 真帧（游戏原图直接画进画布）：有补出的帧就隔半个游戏周期再上
+     if (!input_submitted) fi_skip_read(ticket, 1);
+     double half = period > 0 ? period / 2 : 1.0 / 60;
+-    id<CAMetalDrawable> dr = gpu_go() ? [layer nextDrawable] : nil;
++    id<CAMetalDrawable> dr = gpu_go() ? rb_fi_next_drawable(layer) : nil;
+     if (dr && fi_commit(f, ticket, 2, dr, ^int(id cb) {
+             return present_blit_m4(cb, src, dr.texture, crop, f->uv[3], f->tab[3], flip); }, nil)) {
+ #if !TARGET_OS_SIMULATOR
