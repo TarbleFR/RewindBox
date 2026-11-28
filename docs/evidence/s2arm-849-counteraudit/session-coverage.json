@@ -1,0 +1,33 @@
+{
+  "engine_logs_total": 102,
+  "logs_by_title": {
+    "Zelda": 30,
+    "Fire Emblem": 12,
+    "Mario Kart World": 60
+  },
+  "logs_with_explicit_session_uuid": 60,
+  "logs_without_explicit_session_uuid": 42,
+  "logs_with_multiple_explicit_sessions": 1,
+  "unique_session_uuids": 61,
+  "logs_with_evidenced_app_build": 4,
+  "logs_with_evidenced_game_build": 102,
+  "logs_with_evidenced_graphics_revision": 3,
+  "logs_with_evidenced_native_binary_identity": 0,
+  "preparation_identity_files": 4,
+  "capture_directories": 84,
+  "frames_txt": 80,
+  "cpuprof_txt": 74,
+  "capture_pairing_confidence_counts": {
+    "unpaired_no_direct_export_folder_marker": 2,
+    "exact_export_folder_in_one_host_log": 82
+  },
+  "last_frames_directory": "20261126-140625-rec",
+  "last_cpu_directory": "20261125-212731-f2677",
+  "logs_with_graphics_directory_generation_observation": 60,
+  "logs_with_direct_nvn_abi_label": 102,
+  "logs_with_benchmark_identity_metadata": 1,
+  "frame_and_cpu_pairs": 70,
+  "frames_only_directories": 10,
+  "cpu_only_directories": 4,
+  "preparation_sessions_without_log_marker_count": 1
+}

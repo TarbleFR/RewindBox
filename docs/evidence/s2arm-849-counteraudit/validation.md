@@ -16,3 +16,5 @@
 `S2A_RB_ORPHAN_REGISTRY_INDEX=0` restaure le parcours des ID de 849. La rétention des textures, les vérifications de génération et les verrous restent identiques. La protection FI 0532 corrige un défaut de sûreté et reste active ; 0533 ne modifie que le compteur de temps existant.
 
 Banc C extrait de la source, sets CF simulés et vraie table de séries : 60 paires, registre synthétique de 1 048 576 emplacements / 4 096 ID actifs, moyenne hôte 1,074425 → 0,109331 ms. Ce cas clairsemé démontre une réduction de parcours ; il ne mesure ni les coûts CF/Metal réels ni le gain FPS sur iPhone.
+
+Relecture finale : `gpu_go()` incrémente les admissions ; les vérifications FI anticipées lisent désormais `mtl_gpu_halted()` sans effet de bord. Seule l’admission finale après encodage réussi est comptée. Le premier candidat `e664d332` reste une compilation intermédiaire et ne doit pas être épinglé ; le producteur final est celui de la correction suivante.

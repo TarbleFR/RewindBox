@@ -22,8 +22,8 @@ diff --git a/graphics/nvn/gfx/nvn/nvn_present_fi.inc b/graphics/nvn/gfx/nvn/nvn_
      else if (seq > 0 && good && !pair) f->unpaired++;
      int mid_shown = 0, input_submitted = 0;
      if (good) {
--        id<CAMetalDrawable> dm = pair && gpu_go() ? [layer nextDrawable] : nil;
-+        id<CAMetalDrawable> dm = pair && gpu_go() ? rb_fi_next_drawable(layer) : nil;
+-        id<CAMetalDrawable> dm = pair && !mtl_gpu_halted() ? [layer nextDrawable] : nil;
++        id<CAMetalDrawable> dm = pair && !mtl_gpu_halted() ? rb_fi_next_drawable(layer) : nil;
          int use_fx = ((pair && dm) || prime) && !dup && !novt;
          id<MTLTexture> mid = novt ? f->in_tex[k ^ 1] : f->mid_tex;
          // 补出帧的摆放比例要和真帧一致（#1165：自适应满屏补丁开着时真帧走 present_blit_m4 按 s2a_cpatch_present_aspect 拉满到屏幕画幅，补出帧按输入图 16:9 摆，
@@ -31,8 +31,8 @@ diff --git a/graphics/nvn/gfx/nvn/nvn_present_fi.inc b/graphics/nvn/gfx/nvn/nvn_
      // 真帧（游戏原图直接画进画布）：有补出的帧就隔半个游戏周期再上
      if (!input_submitted) fi_skip_read(ticket, 1);
      double half = period > 0 ? period / 2 : 1.0 / 60;
--    id<CAMetalDrawable> dr = gpu_go() ? [layer nextDrawable] : nil;
-+    id<CAMetalDrawable> dr = gpu_go() ? rb_fi_next_drawable(layer) : nil;
+-    id<CAMetalDrawable> dr = !mtl_gpu_halted() ? [layer nextDrawable] : nil;
++    id<CAMetalDrawable> dr = !mtl_gpu_halted() ? rb_fi_next_drawable(layer) : nil;
      if (dr && fi_commit(f, ticket, 2, dr, ^int(id cb) {
              return present_blit_m4(cb, src, dr.texture, crop, f->uv[3], f->tab[3], flip); }, nil)) {
  #if !TARGET_OS_SIMULATOR

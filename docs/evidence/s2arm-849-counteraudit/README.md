@@ -30,7 +30,7 @@ MKW : 26 événements structurés >100 ms, dont 14 >200 et 5 >500, dans la sessi
 
 - **0530** : recensement lourd du tas optionnel ; heartbeat et compteurs légers conservés. Cadence, couverture partielle, temps CPU et phases explicités, entrée managée séparément optionnelle.
 - **0531** : parcours des seuls ID enregistrés via l’index de séries existant quand il est moins grand, avec arrêt après preuve de rétention de tous les candidats. Mêmes racines, vues, verrous et règles de libération.
-- **0532** : protection d’arrêt Metal 4 étendue au présentateur FI ; refus avant réservation et après encodage, remboursements et deux lectures préservés.
+- **0532** : protection d’arrêt Metal 4 étendue au présentateur FI ; refus avant réservation et après encodage, remboursements et deux lectures préservés ; contrôles anticipés sans modifier les compteurs.
 - **0533** : les deux acquisitions de drawable FI rejoignent le compteur atomique existant ; aucune nouvelle famille de journaux.
 
-[Revue des séries et décisions conservées](review.md) · [Matrice par patch et SHA-256](patches.csv) · [Validations](validation.md). Aucun autre émulateur, réglage de qualité, JIT, sauvegarde, cache ou manifeste livré modifié. Aucun nouveau test permanent, workflow, boucle automatique ou IPA.
+[Couverture des sessions et captures](session-coverage.json) · [Revue des séries et décisions conservées](review.md) · [Matrice par patch et SHA-256](patches.csv) · [Validations](validation.md). Aucun autre émulateur, réglage de qualité, JIT, sauvegarde, cache ou manifeste livré modifié. Aucun nouveau test permanent, workflow, boucle automatique ou IPA.

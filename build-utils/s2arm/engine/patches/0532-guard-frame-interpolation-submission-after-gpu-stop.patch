@@ -7,12 +7,12 @@ diff --git a/graphics/nvn/gfx/nvn/nvn_present_fi.inc b/graphics/nvn/gfx/nvn/nvn_
  // 在命令槽 s 上编码并提交（dr 非空 = 这次画进画布）。after 在 GPU 做完的回调里调。槽的分配器要等它上一次提交做完才能重用
  API_AVAILABLE(macos(26.0), ios(26.0))
  static int fi_commit(NvPresentFI *f, uint64_t ticket, int s, id<CAMetalDrawable> dr, int (^enc)(id cb), void (^after)(int ok, double gpu_ms)) {
-+    if (!gpu_go()) return 0;
++    if (mtl_gpu_halted()) return 0;
      id o = fb_new();
      if (!o) return 0;  // A submission without feedback cannot release its slot or ticket.
      dispatch_semaphore_wait(f->slot_free[s], DISPATCH_TIME_FOREVER);
      pthread_mutex_lock(&g_fi_enc_mu);
-+    if (!gpu_go()) {
++    if (mtl_gpu_halted()) {
 +        pthread_mutex_unlock(&g_fi_enc_mu);
 +        dispatch_semaphore_signal(f->slot_free[s]);
 +        return 0;
@@ -43,7 +43,7 @@ diff --git a/graphics/nvn/gfx/nvn/nvn_present_fi.inc b/graphics/nvn/gfx/nvn/nvn_
      int dup = fi_dup();   // 拆账用：每个游戏帧原图上屏两次
      // 图层已归显示链（正在切过去）：两张都不取，只记票完成；这一帧没进输入图，下一帧不跟它配对
      pthread_mutex_lock(&g_pq_mu); int mine = fi_may_take_drawable(); pthread_mutex_unlock(&g_pq_mu);
-+    if (!gpu_go()) { f->last_seq = UINT64_MAX; fi_ticket_done(ticket); fi_inflight_add(-1); return; }
++    if (mtl_gpu_halted()) { f->last_seq = UINT64_MAX; fi_ticket_done(ticket); fi_inflight_add(-1); return; }
      if (!mine) { static _Atomic int said; if (!atomic_fetch_add(&said, 1)) MLOG("present frame interpolation: the display link owns the layer; this frame takes no drawable (frame %llu dropped, no two presenters)", (unsigned long long)seq);
                   f->last_seq = UINT64_MAX; fi_ticket_done(ticket); fi_inflight_add(-1); return; }
      int cont = good && seq > 0 && f->last_seq == seq - 1;   // 上一帧也写进了输入图（k ^ 1）
@@ -52,7 +52,7 @@ diff --git a/graphics/nvn/gfx/nvn/nvn_present_fi.inc b/graphics/nvn/gfx/nvn/nvn_
      int mid_shown = 0, input_submitted = 0;
      if (good) {
 -        id<CAMetalDrawable> dm = pair ? [layer nextDrawable] : nil;
-+        id<CAMetalDrawable> dm = pair && gpu_go() ? [layer nextDrawable] : nil;
++        id<CAMetalDrawable> dm = pair && !mtl_gpu_halted() ? [layer nextDrawable] : nil;
          int use_fx = ((pair && dm) || prime) && !dup && !novt;
          id<MTLTexture> mid = novt ? f->in_tex[k ^ 1] : f->mid_tex;
          // 补出帧的摆放比例要和真帧一致（#1165：自适应满屏补丁开着时真帧走 present_blit_m4 按 s2a_cpatch_present_aspect 拉满到屏幕画幅，补出帧按输入图 16:9 摆，
@@ -61,7 +61,7 @@ diff --git a/graphics/nvn/gfx/nvn/nvn_present_fi.inc b/graphics/nvn/gfx/nvn/nvn_
      if (!input_submitted) fi_skip_read(ticket, 1);
      double half = period > 0 ? period / 2 : 1.0 / 60;
 -    id<CAMetalDrawable> dr = [layer nextDrawable];
-+    id<CAMetalDrawable> dr = gpu_go() ? [layer nextDrawable] : nil;
++    id<CAMetalDrawable> dr = !mtl_gpu_halted() ? [layer nextDrawable] : nil;
      if (dr && fi_commit(f, ticket, 2, dr, ^int(id cb) {
              return present_blit_m4(cb, src, dr.texture, crop, f->uv[3], f->tab[3], flip); }, nil)) {
  #if !TARGET_OS_SIMULATOR
