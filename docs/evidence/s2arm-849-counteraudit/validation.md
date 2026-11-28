@@ -22,3 +22,5 @@ Relecture finale : `gpu_go()` incrémente les admissions ; les vérifications FI
 [Artefact vérifié](artifact-verification.json) : 525 patchs, 153 exports du moteur, les trois archives moteur/préparation/données système validées. Empreinte du traducteur `b012d295782ea14c` et NS2Pro inchangés depuis 849. Aucun nouvel avertissement dans le journal final macOS 26 ; aucun sur les lignes ajoutées. Aucun gain sur appareil déduit de ces contrôles.
 
 Le calcul local direct de l’empreinte du traducteur n’a pas pu démarrer sans `dotnet` ; l’empreinte réellement embarquée a ensuite été extraite et comparée octet pour octet au pin 849.
+
+Épinglage `23099b75` : [contrôle CI 46116122954](https://github.com/TarbleFR/RewindBox/actions/runs/46116122954) réussi, trois vérificateurs OK. SHA-256 du pin publié strictement identique au pin recalculé par CI : `1a429272998eb8c49a30605ac97cf9e1c9d161b3b196128bfdec743b672c9684`. Les deux journaux Apple contiennent 11 avertissements existants, aucun sur les lignes ajoutées.

@@ -43,5 +43,14 @@
       "id": 140886606577,
       "conclusion": "success"
     }
-  }
+  },
+  "pinCommit": "23099b7531e5cfbd7a3657b014bd018219c53245",
+  "pinVerification": {
+    "run": 46116122954,
+    "job": 140890251751,
+    "conclusion": "success",
+    "exactPinSha256": "1a429272998eb8c49a30605ac97cf9e1c9d161b3b196128bfdec743b672c9684",
+    "workflow": "https://github.com/TarbleFR/RewindBox/actions/runs/46116122954"
+  },
+  "macos15Warnings": 11
 }
