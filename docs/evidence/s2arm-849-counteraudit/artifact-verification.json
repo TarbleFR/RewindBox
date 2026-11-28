@@ -1,0 +1,47 @@
+{
+  "sourceCommit": "05c10b54a86107525a01be686ab7a9ed400a697f",
+  "producerRun": 46114963229,
+  "artifact": 15251238355,
+  "artifactSHA256": "5865c2ffb682a1798f48a462445b68dc6e8a7718c20ef89951c6bfe748cfbbe3",
+  "packagedFingerprint": "61adff953931c98c1497ef2a7ed436f4617f2d59366a65968e75f085a442dfbe",
+  "mainBinary": {
+    "sha256": "725da81de999db0df632d722d362494fe2b150616e94a56a3b7ee7e923f33dce",
+    "bytes": 116879936,
+    "fingerprint": "61adff953931c98c1497ef2a7ed436f4617f2d59366a65968e75f085a442dfbe"
+  },
+  "shaderXfpFile": {
+    "sha256": "4a267500efb1e22c5a514925e6418c252c6cd1a1c4744f5c667727ed09b6c1e4",
+    "bytes": 17
+  },
+  "shaderXfpUnchangedFrom849": true,
+  "NS2ProUnchangedFrom849": true,
+  "patchCount": 525,
+  "exportCounts": {
+    "Frameworks/S2ArmEngine.framework/S2ArmEngine": 153,
+    "Frameworks/NS2Pro.framework/NS2Pro": 1
+  },
+  "artifactVerifiers": {
+    "engine": "passed",
+    "prepare": "passed",
+    "sysdata": "passed"
+  },
+  "macos26Warnings": 11,
+  "newWarningsVsIntermediate": 0,
+  "addedLineWarnings": 0,
+  "devicePerformance": "not-measured",
+  "ipa": "not-produced",
+  "shaderXfp": "b012d295782ea14c",
+  "buildWorkflow": "https://github.com/TarbleFR/RewindBox/actions/runs/46114963229",
+  "pinSha256": "1a429272998eb8c49a30605ac97cf9e1c9d161b3b196128bfdec743b672c9684",
+  "workflowConclusion": "success",
+  "jobs": {
+    "macos15": {
+      "id": 140886606257,
+      "conclusion": "success"
+    },
+    "macos26": {
+      "id": 140886606577,
+      "conclusion": "success"
+    }
+  }
+}

@@ -33,4 +33,6 @@ MKW : 26 événements structurés >100 ms, dont 14 >200 et 5 >500, dans la sessi
 - **0532** : protection d’arrêt Metal 4 étendue au présentateur FI ; refus avant réservation et après encodage, remboursements et deux lectures préservés ; contrôles anticipés sans modifier les compteurs.
 - **0533** : les deux acquisitions de drawable FI rejoignent le compteur atomique existant ; aucune nouvelle famille de journaux.
 
-[Couverture des sessions et captures](session-coverage.json) · [Revue des séries et décisions conservées](review.md) · [Matrice par patch et SHA-256](patches.csv) · [Validations](validation.md). Aucun autre émulateur, réglage de qualité, JIT, sauvegarde, cache ou manifeste livré modifié. Aucun nouveau test permanent, workflow, boucle automatique ou IPA.
+[Couverture des sessions et captures](session-coverage.json) · [Revue des séries et décisions conservées](review.md) · [Matrice par patch et SHA-256](patches.csv) · [Validations et moteur compilé](validation.md). Aucun autre émulateur, réglage de qualité, JIT, sauvegarde, cache ou manifeste livré modifié. Aucun nouveau test permanent, workflow, boucle automatique ou IPA.
+
+Moteur final `05c10b54`, [producteur iPhoneOS 46114963229](https://github.com/TarbleFR/RewindBox/actions/runs/46114963229), empreinte native `61adff953931c98c1497ef2a7ed436f4617f2d59366a65968e75f085a442dfbe`. Les [empreintes et limites](artifact-verification.json) distinguent compilation et observation sur appareil.
